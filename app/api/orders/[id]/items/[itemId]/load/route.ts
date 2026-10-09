@@ -1,0 +1,37 @@
+import { NextRequest, NextResponse } from "next/server";
+import { handleApiError } from "@/lib/rbac";
+import { requireOrderActor } from "@/lib/api-auth";
+import { setLoadedQuantity, markItemLoaded } from "@/lib/orders-service";
+import { readJson } from "@/lib/http";
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string; itemId: string } }
+) {
+  try {
+    const actor = await requireOrderActor(req, "orders.load");
+    const body = await readJson(req);
+
+    if (body.quantity !== undefined) {
+      const result = await setLoadedQuantity(params.id, params.itemId, body.quantity, actor, {
+        expectedVersion: body.expected_version,
+        note: body.note,
+      });
+      if (!body.mark_done) return NextResponse.json(result);
+    }
+
+    if (body.mark_done) {
+      const item = await markItemLoaded(
+        params.id,
+        params.itemId,
+        actor,
+        body.quantity !== undefined ? undefined : body.expected_version
+      );
+      return NextResponse.json({ item });
+    }
+
+    return NextResponse.json({ error: "لازم تبعت quantity أو mark_done" }, { status: 400 });
+  } catch (err) {
+    return handleApiError(err);
+  }
+}

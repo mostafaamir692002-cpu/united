@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  background: #f4f8f2;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tap-target {
+  min-height: 56px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-sheet {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+  .print-break-before {
+    break-before: page;
+  }
+}
+
+.print-only {
+  display: none;
+}
+@media print {
+  .print-only {
+    display: block;
+  }
+}
+
+@layer components {
+  /* One consistent "card" surface used across every board/panel. */
+  .card {
+    @apply bg-white rounded-2xl shadow-card border border-united-border;
+  }
+
+  .btn {
+    @apply tap-target inline-flex items-center justify-center gap-2 rounded-xl font-extrabold px-5 transition active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100;
+  }
+  .btn-primary {
+    @apply btn bg-united-green text-white shadow-sm hover:bg-united-green/90;
+  }
+  .btn-dark {
+    @apply btn bg-united-dark text-white shadow-sm hover:bg-united-dark/90;
+  }
+  .btn-secondary {
+    @apply btn bg-united-dark/5 text-united-dark hover:bg-united-dark/10;
+  }
+  .btn-danger {
+    @apply btn bg-red-50 text-united-danger hover:bg-red-100;
+  }
+
+  .field {
+    @apply tap-target w-full border-2 border-united-dark/10 rounded-xl px-4 bg-white focus:border-united-green outline-none transition;
+  }
+
+  .live-dot {
+    @apply inline-block w-2 h-2 rounded-full bg-united-green animate-pulse-dot;
+  }
+}

@@ -1,0 +1,75 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { apiPost, ApiClientError } from "@/lib/api-client";
+import type { OrderDTO } from "@/lib/client-types";
+import { invalidateOrderData } from "@/lib/queryInvalidation";
+import { useToast } from "@/components/ui/Toast";
+import { todayLocalISO } from "@/lib/localDate";
+
+/** Duplicates this order into a brand-new one (new id/number, clean state, no
+ * inherited history) — e.g. "same customer wants the same list again tomorrow". */
+export function CloneOrderAction({ orderId }: { orderId: string }) {
+  const router = useRouter();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState(todayLocalISO());
+  const [time, setTime] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} className="btn-secondary text-sm px-4 py-2">
+        📋 نسخ الأوردر
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2 bg-united-dark/5 rounded-xl p-3">
+      <p className="text-sm font-bold text-united-dark">
+        هيتعمل أوردر جديد بنفس العميل والأصناف، يبدأ من الأول (new) وبرقم جديد.
+      </p>
+      <div className="flex gap-2">
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="field flex-1" />
+        <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="field flex-1" />
+      </div>
+      {error && <p className="text-united-danger font-bold text-sm">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          disabled={busy || !date}
+          onClick={async () => {
+            if (busy) return;
+            setBusy(true);
+            setError(null);
+            try {
+              const { order } = await apiPost<{ order: OrderDTO }>(`/api/orders/${orderId}/clone`, {
+                delivery_date: date,
+                delivery_time: time || undefined,
+              });
+              await invalidateOrderData(qc);
+              toast.show(`اتعمل نسخة: ${order.orderNumber}`, "success");
+              router.push(`/orders/${order.id}`);
+            } catch (err) {
+              const msg = err instanceof ApiClientError ? err.message : "حصل خطأ، حاول تاني";
+              setError(msg);
+              toast.show(msg, "error");
+            } finally {
+              setBusy(false);
+            }
+          }}
+          className="btn-primary flex-1"
+        >
+          {busy ? "بينسخ..." : "تأكيد النسخ"}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="btn-secondary">
+          إلغاء
+        </button>
+      </div>
+    </div>
+  );
+}

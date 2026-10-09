@@ -1,0 +1,79 @@
+/**
+ * Presentation helpers shared by every operational screen, so the same value never
+ * reads two different ways in two places.
+ */
+
+const AR_WEEKDAY = ["الأحد", "الاتنين", "التلات", "الأربع", "الخميس", "الجمعة", "السبت"];
+const AR_MONTH = [
+  "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+  "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+];
+
+function parseISODate(iso: string) {
+  // Plain calendar date, parsed as such — going through the local timezone is what
+  // makes a delivery date render as the day before for anyone ahead of UTC.
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1);
+}
+
+function todayISO(now = new Date()) {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+/** "النهارده" / "بكرة" / "امبارح" / "الخميس ١١ سبتمبر" — a date an operator reads at a glance. */
+export function friendlyDate(iso: string | null | undefined, now = new Date()): string {
+  if (!iso) return "من غير تاريخ";
+  const today = todayISO(now);
+  if (iso === today) return "النهارده";
+  const t = parseISODate(today);
+  const d = parseISODate(iso);
+  const diffDays = Math.round((d.getTime() - t.getTime()) / 86_400_000);
+  if (diffDays === 1) return "بكرة";
+  if (diffDays === -1) return "امبارح";
+  return `${AR_WEEKDAY[d.getDay()]} ${d.getDate()} ${AR_MONTH[d.getMonth()]}`;
+}
+
+/** Delivery slot as one phrase: "النهارده ٠٨:٠٠" or "النهارده — من غير ميعاد". */
+export function deliverySlot(dateISO: string, time: string | null | undefined) {
+  return time ? `${friendlyDate(dateISO)} · ${time}` : `${friendlyDate(dateISO)} · من غير ميعاد محدد`;
+}
+
+/** Quantities: trim trailing zeros, never render "10.00 kg" or a bare "0.30000000004". */
+export function qty(n: number | null | undefined): string {
+  if (n === null || n === undefined) return "—";
+  const rounded = Math.round(n * 1000) / 1000;
+  return String(rounded);
+}
+
+/** Quantity with its unit, wrapped so the bidi algorithm can't swap number and unit. */
+export function qtyUnit(n: number | null | undefined, unit: string): string {
+  return n === null || n === undefined ? "—" : `${qty(n)} ${unit}`;
+}
+
+/** "من ٣ دقايق" — relative time for "when did this last move". */
+export function agoLabel(iso: string, now = Date.now()): string {
+  const secs = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
+  if (secs < 60) return "دلوقتي";
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return `من ${mins} دقيقة`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `من ${hours} ساعة`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? "من يوم" : `من ${days} يوم`;
+}
+
+export function clockLabel(iso: string) {
+  return new Date(iso).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
+}
+
+export function dateTimeLabel(iso: string) {
+  const d = new Date(iso);
+  return `${friendlyDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`)} ${clockLabel(iso)}`;
+}
+
+/** A value that may be missing, rendered as something meaningful instead of blank. */
+export function orDash(v: string | number | null | undefined, fallback = "—") {
+  if (v === null || v === undefined) return fallback;
+  const s = String(v).trim();
+  return s === "" ? fallback : s;
+}

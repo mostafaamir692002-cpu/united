@@ -1,0 +1,2432 @@
+// UNITED Production & Dispatch System — data model
+// PostgreSQL (Supabase), migrated from the original SQLite MVP datastore.
+// DATABASE_URL is the pooled (PgBouncer, port 6543) connection the app uses at
+// runtime; DIRECT_URL is the direct (port 5432) connection Prisma Migrate needs
+// to run DDL, since migrations can't go through the transaction pooler.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Role/OrderStatus/ItemStatus are plain strings (a holdover from the SQLite MVP that
+// has worked well): the allowed values live in lib/types.ts, are validated in the
+// services, and are backed by CHECK constraints in the migrations.
+
+model User {
+  id                 String    @id @default(cuid())
+  name               String
+  username           String    @unique
+  passwordHash       String
+  role               String // SUPER_ADMIN | SUPERVISOR | STOCK_CONTROLLER | PREPARER | LOADER | SALES | ACCOUNTANT
+  active             Boolean   @default(true)
+  version            Int       @default(1)
+  /// Carried in every session token and compared on every request. Bumping it ends
+  /// all of that user's existing sessions (done on a password change).
+  sessionEpoch       Int       @default(1)
+  /// Set when an administrator sets the password: until the user chooses their own,
+  /// the account can do nothing but change it.
+  mustChangePassword Boolean   @default(false)
+  passwordChangedAt  DateTime?
+  createdAt          DateTime  @default(now())
+
+  permissionOverrides UserPermissionOverride[]
+  notifications       Notification[]
+
+  @@index([role])
+  @@index([active])
+}
+
+// ---------------------------------------------------------------------------
+// RBAC
+//
+// A user has exactly one role; a role carries a bundle of permissions; a user may
+// additionally be granted or denied individual permissions. Effective permissions =
+// the role's bundle, plus that user's grants, minus that user's revokes.
+//
+// The canonical bundles live in lib/authz.ts and are synced into RolePermission —
+// code is the source of truth so a permission can never be silently granted by an
+// edit to a row, and the table exists so the database can be queried and audited
+// without running the app.
+//
+// SUPER_ADMIN is deliberately NOT stored as a bundle that can be edited away: the
+// resolver short-circuits it to every permission. That is what makes locking
+// yourself out of the system impossible through the permissions UI.
+// ---------------------------------------------------------------------------
+
+model Permission {
+  id          String   @id @default(cuid())
+  key         String   @unique // e.g. "orders.dispatch"
+  group       String // orders | stock | reports | audit | users | settings
+  label       String // Arabic label shown in the admin UI
+  description String?
+  createdAt   DateTime @default(now())
+
+  roles     RolePermission[]
+  overrides UserPermissionOverride[]
+
+  @@index([group])
+}
+
+model RolePermission {
+  id           String   @id @default(cuid())
+  role         String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([role, permissionId])
+  @@index([role])
+  @@index([permissionId])
+}
+
+// Per-user exception to the role bundle. `effect` is grant or revoke; a revoke always
+// beats the role bundle, and a grant adds to it. One row per (user, permission), so a
+// user can never hold a contradictory grant and revoke for the same permission.
+model UserPermissionOverride {
+  id           String   @id @default(cuid())
+  userId       String
+  permissionId String
+  effect       String // grant | revoke
+  reason       String?
+  grantedById  String?
+  grantedBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+  @@index([userId])
+  @@index([permissionId])
+}
+
+// new -> preparing -> ready_for_loading -> loading -> loaded -> dispatched
+// flags: shortage, needs_review, cancelled (cancelled is terminal, never deleted)
+model Order {
+  id           String   @id @default(cuid())
+  orderNumber  String   @unique
+  /// n8n / email / WhatsApp source id. Unique: the same external message can never
+  /// become two orders, even through a path that skips the service's advisory lock.
+  externalId   String?  @unique
+  customerId   String?
+  customerName String
+  deliveryDate String // YYYY-MM-DD
+  deliveryTime String? // HH:mm
+  notes        String?
+  status       String   @default("new")
+  shortage     Boolean  @default(false)
+  needsReview  Boolean  @default(false)
+  vehicle      String? // رقم/اسم العربية
+  driverName   String? // اسم السواق
+  crateCount   Int? // عدد البرنيكة
+  source       String   @default("manual") // manual | system | n8n | hermes
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  items                OrderItem[]
+  auditLogs            AuditLog[]
+  stockIssueExceptions StockIssueException[]
+
+  /// The customer account, once known. NULL = the customer name on the order is not
+  /// mapped yet; orders are never blocked on this, and it is never guessed — set only
+  /// by an exact match (integration id, name or alias) or an audited decision.
+  customerAccountId String?
+  customerAccount   Customer? @relation(fields: [customerAccountId], references: [id], onDelete: Restrict)
+
+  /// Credit control outcome: not_applicable | ok | warning | pending_approval |
+  /// approved | rejected. NULL until first evaluated.
+  creditStatus String?
+  creditNote   String?
+  quotation    Quotation?
+  invoices     SalesInvoice[]
+
+  /// Who is preparing it (assigned by a supervisor, or whoever started it).
+  assignedToId   String?
+  assignedToName String?
+  tripStops      TripStop[]
+
+  @@index([status])
+  @@index([deliveryDate])
+  @@index([customerAccountId])
+}
+
+model OrderItem {
+  id                String   @id @default(cuid())
+  orderId           String
+  order             Order    @relation(fields: [orderId], references: [id])
+  productId         String?
+  productName       String
+  unit              String   @default("KG")
+  requiredQuantity  Float // protected: only supervisor can change
+  preparedQuantity  Float?
+  loadedQuantity    Float?
+  preparationStatus String   @default("pending") // pending | done
+  loadingStatus     String   @default("pending") // pending | done
+  notes             String?
+  version           Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  /// Canonical product identity, once known. NULL means UNMAPPED: the line names a
+  /// product the master does not recognise yet. Orders are never blocked on this, and
+  /// it is never filled in by guessing — only by an exact alias match or an explicit,
+  /// audited decision by an authorised user.
+  stockProductId String?
+  stockProduct   StockProduct?   @relation(fields: [stockProductId], references: [id])
+  /// Commercial terms of the line — its own table so the floor endpoints, which
+  /// return lines as they are, never carry prices.
+  price          OrderItemPrice?
+
+  deliveryLines DeliveryLine[]
+
+  @@index([orderId])
+  @@index([stockProductId])
+}
+
+// Immutable audit trail — no update/delete exposed via app code.
+model AuditLog {
+  id           String   @id @default(cuid())
+  timestamp    DateTime @default(now())
+  userId       String?
+  userName     String
+  role         String
+  action       String
+  entityType   String
+  entityId     String
+  fieldChanged String?
+  oldValue     String?
+  newValue     String?
+  reason       String?
+  source       String // user | system | n8n | hermes
+  deviceId     String?
+
+  order   Order?  @relation(fields: [orderId], references: [id])
+  orderId String?
+
+  @@index([entityType, entityId])
+  @@index([orderId])
+  @@index([timestamp])
+}
+
+// ---------------------------------------------------------------------------
+// Stock Controller / Daily Stock
+//
+// Raw material arrives from a supplier, gets sorted, and part of it is rejected.
+// What survives sorting is what actually enters stock. The numbers here are kept
+// as a real ledger, not as a "current stock" column someone keeps up to date:
+// StockMovement is append-only and current stock is always SUM(quantityKg) over
+// it. Nothing in the system ever writes a stock balance, so a balance can never
+// drift from its own history, and every kilo on hand can be traced to the receipt
+// that brought it in.
+//
+// Deliberately NOT wired to Orders yet — dispatching an order does not consume
+// stock. Adding that later means adding new movement kinds, not changing this.
+// ---------------------------------------------------------------------------
+
+model Supplier {
+  id        String   @id @default(cuid())
+  /// SUP-00001 — immutable; existing suppliers were numbered in creation order.
+  code      String   @unique
+  name      String   @unique
+  phone     String?
+  notes     String?
+  active    Boolean  @default(true)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// farm | grower | wholesaler | market_trader | importer | packaging | services | other
+  type              String  @default("other")
+  taxRegistrationNo String? @unique
+  commercialRegNo   String?
+  email             String?
+  city              String?
+  address           String?
+  /// Days we have to pay; 0 = cash on delivery.
+  paymentTermsDays  Int     @default(0)
+  currencyCode      String  @default("EGP")
+  /// Usual days from order to delivery.
+  leadTimeDays      Int?
+
+  intakes        StockIntake[]
+  lots           StockLot[]
+  documents      InventoryDocument[]
+  contacts       SupplierContact[]
+  prices         SupplierPrice[]
+  purchaseOrders PurchaseOrder[]
+  rfqInvites     RfqSupplier[]
+  currency       Currency            @relation(fields: [currencyCode], references: [code])
+
+  bills      SupplierBill[]
+  debitNotes DebitNote[]
+
+  payments SupplierPayment[]
+  refunds  SupplierRefund[]
+
+  @@index([active])
+}
+
+model SupplierContact {
+  id         String   @id @default(cuid())
+  supplierId String
+  name       String
+  role       String?
+  phone      String?
+  email      String?
+  isPrimary  Boolean  @default(false)
+  active     Boolean  @default(true)
+  version    Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  @@index([supplierId])
+}
+
+/// What a supplier charges, dated like customer prices: a new price is a new row from
+/// its date, so a purchase can always be checked against the price agreed that day.
+model SupplierPrice {
+  id           String   @id @default(cuid())
+  supplierId   String
+  productId    String
+  uomCode      String
+  unitPrice    Decimal  @db.Decimal(18, 4)
+  currencyCode String   @default("EGP")
+  validFrom    String
+  validTo      String?
+  minQty       Decimal? @db.Decimal(18, 3)
+  leadTimeDays Int?
+  notes        String?
+  createdById  String?
+  createdBy    String
+  createdAt    DateTime @default(now())
+
+  poLines  PurchaseOrderLine[]
+  supplier Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  product  StockProduct        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  uom      UnitOfMeasure       @relation(fields: [uomCode], references: [code])
+
+  @@unique([supplierId, productId, uomCode, validFrom])
+  @@index([productId, validFrom])
+}
+
+// Product catalogue for stock. Separate from OrderItem.productName (free text from
+// n8n/email parsing) on purpose: stock has to balance, so it needs a controlled list.
+// The two are joined later, when Orders start consuming stock.
+// ---------------------------------------------------------------------------
+// Product Master
+//
+// One canonical identity per product. Everything that needs to know "which product
+// is this?" — an incoming n8n order line, a stock receipt, a future stock deduction —
+// resolves through ProductAlias, never through string similarity.
+//
+// StockProduct is deliberately reused rather than paralleled by a second "Product"
+// concept: the stock ledger already references it, and two tables claiming to define
+// the same thing is how identity systems rot.
+// ---------------------------------------------------------------------------
+model StockProduct {
+  id           String  @id @default(cuid())
+  /// Canonical English name. The name the business agrees to call this product.
+  name         String  @unique
+  /// Canonical Arabic name, when the business has one.
+  nameAr       String?
+  /// Optional internal code. Unique when present, free to be null.
+  sku          String? @unique
+  category     String?
+  /// Base unit for stock. Required in the service layer for stock-tracked products —
+  /// there is no safe default, so an unknown unit stays an explicit decision.
+  unit         String  @default("KG")
+  active       Boolean @default(true)
+  /// False for products the business sells or lists but does not hold stock for.
+  /// Only stock-tracked products may take part in intake/ledger operations.
+  stockTracked Boolean @default(true)
+
+  // --- inventory behaviour (Phase 2) -----------------------------------------
+  /// Days from receipt to expiry; sets a lot's expiry when none is entered.
+  shelfLifeDays   Int?
+  /// fefo (first expiry, first out — default for perishables) | fifo
+  removalStrategy String   @default("fefo")
+  /// avco (weighted average) | fifo | standard
+  costingMethod   String   @default("avco")
+  /// Cost per base unit, used when costingMethod = standard.
+  standardCost    Decimal? @db.Decimal(18, 4)
+  minStockQty     Decimal? @db.Decimal(18, 3)
+  reorderPointQty Decimal? @db.Decimal(18, 3)
+  maxStockQty     Decimal? @db.Decimal(18, 3)
+  /// Must be stored refrigerated — put-away to a non-cold location is refused.
+  coldChain       Boolean  @default(false)
+
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  aliases         ProductAlias[]
+  orderItems      OrderItem[]
+  /// Sales tax class. Unprocessed fresh produce is VAT-exempt in Egypt; a processed
+  /// or packaged item may not be — set per product.
+  salesTaxCode    String                @default("EXEMPT")
+  salesTax        TaxRate               @relation(fields: [salesTaxCode], references: [code])
+  priceListItems  PriceListItem[]
+  quotationLines  QuotationLine[]
+  supplierPrices  SupplierPrice[]
+  purchaseLines   PurchaseOrderLine[]
+  rfqLines        RfqLine[]
+  intakes         StockIntake[]
+  movements       StockMovement[]
+  lots            StockLot[]
+  packagings      ProductPackaging[]
+  reservations    StockReservation[]
+  valuationLayers StockValuationLayer[]
+
+  supplierBillLines SupplierBillLine[]
+  etaItemCode       EtaItemCode?
+
+  @@index([active])
+  @@index([category])
+}
+
+// Every string that legitimately means one product: its canonical English name, its
+// Arabic name, and any spelling the floor or a customer actually uses.
+//
+// `normalized` is UNIQUE ACROSS THE WHOLE TABLE, not per product. That is the entire
+// anti-ambiguity mechanism: two products cannot both claim "نعومي", so a lookup can
+// never have to choose. The resolver still checks for multiple hits and refuses to
+// pick one if it ever finds them — a constraint that is never allowed to be violated
+// is still worth failing safe against.
+model ProductAlias {
+  id         String @id @default(cuid())
+  productId  String
+  /// The alias exactly as a human entered it, kept for display.
+  alias      String
+  /// Deterministic normalization of `alias` — the only thing ever matched against.
+  /// See lib/productIdentity.ts for the exact, documented rules.
+  normalized String @unique
+  /// canonical | canonical_ar | manual — where this alias came from. The two canonical
+  /// kinds are maintained by the system from the product's own names.
+  kind       String @default("manual")
+
+  createdById String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  product StockProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([kind])
+}
+
+// One receipt: this supplier delivered this product on this day.
+// goodKg and the yield % are derived server-side from receivedKg/rejectedKg — the
+// client never supplies them, so they cannot disagree with the ledger.
+model StockIntake {
+  id                  String   @id @default(cuid())
+  receiptNumber       String   @unique // RC-YYYYMMDD-####
+  /// Client key for one submitted receiving form: a retried or duplicated request
+  /// returns the first receipt instead of posting the stock twice.
+  idempotencyKey      String?  @unique
+  receivedDate        String // YYYY-MM-DD, the operator's local calendar day
+  supplierId          String
+  productId           String
+  /// Quantities in the product's BASE unit (KG for every product today).
+  receivedQty         Decimal  @db.Decimal(14, 3)
+  crateCount          Int?
+  rejectedQty         Decimal  @default(0) @db.Decimal(14, 3)
+  goodQty             Decimal  @db.Decimal(14, 3) // = receivedQty - rejectedQty, computed server-side
+  /// What the receiver actually counted, when it was not the base unit (e.g. 40 CRATE).
+  enteredQty          Decimal? @db.Decimal(14, 3)
+  enteredUom          String?
+  /// Purchase price per base unit (EGP), when known. Feeds the lot and valuation.
+  unitCost            Decimal? @db.Decimal(18, 4)
+  warehouseId         String
+  /// Where the accepted stock was put.
+  locationId          String
+  lotId               String?  @unique
+  notes               String?
+  /// The purchase order line this delivery fulfils (NULL: received without a PO).
+  purchaseOrderLineId String?
+  /// Why the rejected part was rejected (sorting / quality).
+  rejectionReason     String?
+  status              String   @default("posted") // posted | voided
+  recordedById        String?
+  recordedBy          String
+  version             Int      @default(1)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  supplier          Supplier           @relation(fields: [supplierId], references: [id])
+  product           StockProduct       @relation(fields: [productId], references: [id])
+  warehouse         Warehouse          @relation(fields: [warehouseId], references: [id])
+  location          StorageLocation    @relation(fields: [locationId], references: [id])
+  lot               StockLot?          @relation(fields: [lotId], references: [id], onDelete: Restrict)
+  movements         StockMovement[]
+  purchaseOrderLine PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Restrict)
+
+  billLines SupplierBillLine[]
+
+  @@index([receivedDate])
+  @@index([purchaseOrderLineId])
+  @@index([supplierId])
+  @@index([productId])
+  @@index([status])
+}
+
+// Append-only inventory ledger. No update or delete is exposed anywhere in app code:
+// a correction is a new compensating row, exactly like a journal entry. quantityKg is
+// signed — positive adds to stock, negative removes — so current stock for a product
+// is a single SUM with no bookkeeping of its own.
+//
+// kind:
+//   intake            + good kg from a new receipt
+//   intake_correction  ± delta when a posted receipt's quantities are corrected
+//   intake_void        − everything a receipt had added, when it is voided
+//   adjustment         ± manual correction (stock count, spoilage), reason required
+model StockMovement {
+  id            String   @id @default(cuid())
+  /// Global posting order of the ledger. Timestamps can tie at millisecond
+  /// resolution; FIFO and "what happened first" must not.
+  seq           BigInt   @unique @default(autoincrement())
+  productId     String
+  occurredAt    DateTime @default(now())
+  effectiveDate String // YYYY-MM-DD — the business day the movement belongs to
+  kind          String
+  /// Signed, in the product's base unit. Positive adds to the bucket, negative removes.
+  quantity      Decimal  @db.Decimal(18, 3)
+  /// The bucket: warehouse + location + lot (NULL lot = stock recorded before lots existed).
+  warehouseId   String
+  locationId    String
+  lotId         String?
+  intakeId      String?
+  documentId    String?
+  /// Cost per base unit this movement was valued at (see StockValuationLayer).
+  unitCost      Decimal? @db.Decimal(18, 4)
+  reason        String?
+  actorId       String?
+  actorName     String
+  createdAt     DateTime @default(now())
+
+  product   StockProduct         @relation(fields: [productId], references: [id])
+  intake    StockIntake?         @relation(fields: [intakeId], references: [id])
+  warehouse Warehouse            @relation(fields: [warehouseId], references: [id])
+  location  StorageLocation      @relation(fields: [locationId], references: [id])
+  lot       StockLot?            @relation(fields: [lotId], references: [id], onDelete: Restrict)
+  document  InventoryDocument?   @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  valuation StockValuationLayer?
+
+  valuationPosting StockValuationPosting?
+
+  @@index([productId, occurredAt])
+  @@index([productId, locationId, lotId])
+  @@index([documentId])
+  @@index([effectiveDate])
+  @@index([intakeId])
+  @@index([kind])
+  @@index([lotId])
+}
+
+// ---------------------------------------------------------------------------
+// Core: configuration
+//
+// Holds ONLY settings someone has changed from their code default. Which settings
+// exist, their types, bounds and defaults are defined in lib/core/settings-registry.ts;
+// a key with no row here resolves to that default. Writes are versioned (409 on a
+// stale edit) and audited with a mandatory reason.
+// ---------------------------------------------------------------------------
+model SystemSetting {
+  key         String   @id
+  value       Json
+  version     Int      @default(1)
+  updatedById String?
+  updatedBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Core: organisation master data
+//
+// Company → Branch → Warehouse → StorageLocation. UNITED runs one company with one
+// site today; the structure exists so nothing downstream ever hard-codes "the"
+// warehouse. Physical facts (area, throughput, cold-room capacity, temperature
+// band) are data here, editable by an administrator — never constants in code.
+//
+// Nothing is deleted: records are deactivated, and a parent cannot be deactivated
+// while it still has active children. Every write is versioned (409 on a stale
+// edit) and audited.
+// ---------------------------------------------------------------------------
+
+model Currency {
+  /// ISO 4217 code, e.g. EGP.
+  code          String   @id
+  name          String
+  nameAr        String?
+  symbol        String?
+  /// Minor-unit precision used when rounding amounts in this currency.
+  decimalPlaces Int      @default(2)
+  active        Boolean  @default(true)
+  version       Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  companies  Company[]
+  customers  Customer[]
+  priceLists PriceList[]
+  suppliers  Supplier[]
+}
+
+model Company {
+  id                     String   @id @default(cuid())
+  code                   String   @unique
+  legalName              String
+  tradeName              String?
+  nameAr                 String?
+  /// Egyptian Tax Authority registration number (رقم التسجيل الضريبي).
+  taxRegistrationNumber  String?
+  /// Commercial registry number (السجل التجاري).
+  commercialRegistration String?
+  address                String?
+  phone                  String?
+  email                  String?
+  baseCurrencyCode       String
+  active                 Boolean  @default(true)
+  version                Int      @default(1)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  baseCurrency     Currency          @relation(fields: [baseCurrencyCode], references: [code])
+  branches         Branch[]
+  etaIssuerProfile EtaIssuerProfile?
+
+  @@index([active])
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  companyId String
+  code      String
+  name      String
+  nameAr    String?
+  address   String?
+  phone     String?
+  active    Boolean  @default(true)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company    Company     @relation(fields: [companyId], references: [id])
+  warehouses Warehouse[]
+
+  @@unique([companyId, code])
+  @@index([active])
+}
+
+model Warehouse {
+  id              String   @id @default(cuid())
+  branchId        String
+  /// Globally unique: warehouse codes appear on stock documents.
+  code            String   @unique
+  name            String
+  nameAr          String?
+  address         String?
+  /// Floor area in m².
+  areaM2          Decimal? @db.Decimal(12, 2)
+  /// Planned daily throughput in kg (≈ 60 t/day at the main site).
+  dailyCapacityKg Decimal? @db.Decimal(14, 3)
+  active          Boolean  @default(true)
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  branch         Branch              @relation(fields: [branchId], references: [id])
+  locations      StorageLocation[]
+  movements      StockMovement[]
+  intakes        StockIntake[]
+  documents      InventoryDocument[]
+  reservations   StockReservation[]
+  rfqs           Rfq[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([branchId])
+  @@index([active])
+}
+
+/// A place inside a warehouse that stock can sit in: a cold room, a zone within it,
+/// a receiving bay, a dispatch dock. Optional parent for zones within a room.
+model StorageLocation {
+  id          String   @id @default(cuid())
+  warehouseId String
+  parentId    String?
+  code        String
+  name        String
+  nameAr      String?
+  /// cold_room | chiller | freezer | dry | receiving | staging | dispatch | quarantine | other
+  type        String
+  capacityKg  Decimal? @db.Decimal(14, 3)
+  tempMinC    Decimal? @db.Decimal(5, 2)
+  tempMaxC    Decimal? @db.Decimal(5, 2)
+  active      Boolean  @default(true)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  warehouse Warehouse         @relation(fields: [warehouseId], references: [id])
+  parent    StorageLocation?  @relation("LocationTree", fields: [parentId], references: [id])
+  children  StorageLocation[] @relation("LocationTree")
+  movements StockMovement[]
+  intakes   StockIntake[]
+
+  @@unique([warehouseId, code])
+  @@index([parentId])
+  @@index([active])
+}
+
+/// Units of measure. Weight, volume and count units convert through a fixed ratio
+/// to their category's reference unit (KG, L, PIECE). PACKAGE units — crate, box,
+/// carton, pallet — have NO global ratio: a crate of mango and a crate of tomatoes
+/// do not weigh the same, so that conversion belongs to the product (Phase 2).
+model UnitOfMeasure {
+  id               String   @id @default(cuid())
+  /// Stable code, matching what order lines and products already carry ("KG").
+  code             String   @unique
+  name             String
+  nameAr           String?
+  /// weight | volume | count | package
+  category         String
+  /// How many reference units one of this unit is (TON = 1000 KG). NULL for package.
+  ratioToReference Decimal? @db.Decimal(18, 9)
+  isReference      Boolean  @default(false)
+  /// Decimal places a quantity in this unit may carry (KG 3, PIECE 0).
+  precision        Int      @default(3)
+  active           Boolean  @default(true)
+  version          Int      @default(1)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  packagings     ProductPackaging[]
+  priceListItems PriceListItem[]
+  supplierPrices SupplierPrice[]
+  etaUnitType    EtaUnitType?
+
+  @@index([category])
+  @@index([active])
+}
+
+// ---------------------------------------------------------------------------
+// Core: document numbering. Definitions (prefix, width, reset period) live in
+// lib/core/sequences.ts; this table holds one counter per (sequence, period),
+// advanced atomically inside the transaction that saves the document.
+// ---------------------------------------------------------------------------
+model NumberSequenceCounter {
+  sequenceKey String
+  period      String
+  lastValue   Int
+  updatedAt   DateTime @updatedAt
+
+  @@id([sequenceKey, period])
+}
+
+// ---------------------------------------------------------------------------
+// Core: in-app notifications. One row per recipient, written in the same
+// transaction as the event that caused it. External channels (WhatsApp, email,
+// SMS) will be adapters reading from here (Phase 9) — the core never calls a
+// provider directly.
+// ---------------------------------------------------------------------------
+model Notification {
+  id          String    @id @default(cuid())
+  recipientId String
+  /// Dotted event type, e.g. approval.requested, approval.decided.
+  type        String
+  /// info | warning | critical
+  severity    String    @default("info")
+  title       String
+  body        String?
+  entityType  String?
+  entityId    String?
+  /// In-app path to open, e.g. /orders/<id>.
+  link        String?
+  /// The same event for the same person is stored once (a retried request, a
+  /// re-raised approval) — see the unique index below.
+  dedupeKey   String?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([recipientId, dedupeKey])
+  @@index([recipientId, readAt, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Core: approval engine. One request per thing awaiting a decision; one
+// decision row per approval level. Types (who may approve, how many levels,
+// what happens on approval) are defined in code — lib/core/approvals.ts and
+// lib/core/approval-handlers.ts — and the business action runs in the same
+// transaction as the final approval.
+// ---------------------------------------------------------------------------
+model ApprovalRequest {
+  id             String    @id @default(cuid())
+  /// APR-YYYY-#####
+  number         String    @unique
+  type           String
+  entityType     String
+  entityId       String
+  title          String
+  summary        String?
+  /// The quantity or money at stake, when thresholds apply.
+  amount         Decimal?  @db.Decimal(18, 3)
+  /// Snapshot of what was asked for, so a decision can be reviewed later even if
+  /// the underlying record moved on.
+  payload        Json?
+  /// pending | approved | rejected | cancelled
+  status         String    @default("pending")
+  requiredLevels Int       @default(1)
+  approvedLevels Int       @default(0)
+  requestedById  String?
+  requestedBy    String
+  requestReason  String?
+  decidedAt      DateTime?
+  closedReason   String?
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  decisions ApprovalDecision[]
+
+  @@index([status, type])
+  @@index([entityType, entityId])
+}
+
+model ApprovalDecision {
+  id          String   @id @default(cuid())
+  requestId   String
+  level       Int
+  /// approve | reject
+  decision    String
+  deciderId   String?
+  decider     String
+  deciderRole String
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  request ApprovalRequest @relation(fields: [requestId], references: [id])
+
+  @@unique([requestId, level])
+}
+
+// ---------------------------------------------------------------------------
+// Core: document attachments. Bytes live in object storage (Supabase Storage in
+// production) behind lib/core/storage; PostgreSQL keeps the metadata, the
+// content hash and the link to the business record. Never base64 in the DB.
+// Deletion is soft: the record (and the blob) are retained for traceability.
+// ---------------------------------------------------------------------------
+model Attachment {
+  id              String    @id @default(cuid())
+  entityType      String
+  entityId        String
+  /// contract | invoice | delivery_note | purchase_document | quality_photo | receipt | tax_document | other
+  category        String
+  /// Display name only — never used to build the storage key.
+  fileName        String
+  /// Detected from the bytes, not taken from the client.
+  contentType     String
+  sizeBytes       Int
+  sha256          String
+  storageProvider String
+  storageKey      String    @unique
+  description     String?
+  uploadedById    String?
+  uploadedBy      String
+  createdAt       DateTime  @default(now())
+  deletedAt       DateTime?
+  deletedById     String?
+  deletedBy       String?
+  deleteReason    String?
+
+  @@index([entityType, entityId])
+  @@index([sha256])
+}
+
+// ---------------------------------------------------------------------------
+// Inventory engine (Phase 2). StockMovement above stays the one append-only
+// ledger; these tables give it structure (lots, documents), promises
+// (reservations), conversions (packaging) and value (valuation layers).
+// ---------------------------------------------------------------------------
+
+/// How a product is packed: "1 CRATE of this mango = 18 KG". Package units have no
+/// global ratio (lib/core/uom.ts); this is where their conversion lives.
+model ProductPackaging {
+  id            String   @id @default(cuid())
+  productId     String
+  uomCode       String
+  /// Base units in one of these.
+  qtyInBaseUnit Decimal  @db.Decimal(18, 6)
+  barcode       String?  @unique
+  active        Boolean  @default(true)
+  version       Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  product StockProduct  @relation(fields: [productId], references: [id])
+  uom     UnitOfMeasure @relation(fields: [uomCode], references: [code])
+
+  @@unique([productId, uomCode])
+}
+
+/// A batch of one product with one origin: every receipt of a stock-tracked product
+/// creates one. Expiry drives FEFO picking and the expiring-stock report.
+model StockLot {
+  id           String   @id @default(cuid())
+  productId    String
+  /// LOT-YYYYMMDD-####
+  lotNumber    String
+  receivedDate String
+  /// YYYY-MM-DD, when the product perishes on a known date.
+  expiryDate   String?
+  supplierId   String?
+  /// Purchase cost per base unit at receipt, when known.
+  unitCost     Decimal? @db.Decimal(18, 4)
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+
+  product   StockProduct    @relation(fields: [productId], references: [id])
+  supplier  Supplier?       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  intake    StockIntake?
+  movements StockMovement[]
+
+  @@unique([productId, lotNumber])
+  @@index([productId, expiryDate])
+}
+
+/// Header for every stock operation that is not a supplier receipt: transfers,
+/// adjustments / counts, scrap, returns, issues. Its movements are the ledger rows
+/// that point at it. A posted document is never edited — it is reversed.
+model InventoryDocument {
+  id             String    @id @default(cuid())
+  /// TRF-/ADJ-/RET-YYYY-#####
+  number         String    @unique
+  /// transfer | adjustment | scrap | customer_return | supplier_return | issue
+  type           String
+  /// pending_approval | posted | rejected | reversed
+  status         String
+  warehouseId    String
+  businessDate   String
+  reason         String?
+  /// What caused it, e.g. an order dispatch.
+  sourceType     String?
+  sourceId       String?
+  supplierId     String?
+  /// Lines as requested — kept so a document waiting on approval can post later.
+  payload        Json?
+  /// Client-supplied retry key: the same key never posts twice.
+  idempotencyKey String?   @unique
+  /// Hash of the first validated request body, used to reject a changed retry.
+  requestHash    String?
+  reversalOfId   String?   @unique
+  createdById    String?
+  createdBy      String
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now())
+  postedAt       DateTime?
+
+  warehouse       Warehouse             @relation(fields: [warehouseId], references: [id])
+  supplier        Supplier?             @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  reversalOf      InventoryDocument?    @relation("Reversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversedBy      InventoryDocument?    @relation("Reversal")
+  movements       StockMovement[]
+  issueExceptions StockIssueException[]
+
+  @@index([type, status])
+  @@index([sourceType, sourceId])
+  @@index([businessDate])
+}
+
+/// Stock promised to a demand (an order line) but not yet issued. Not a ledger
+/// movement: on-hand is unchanged; available = on-hand - active reservations.
+model StockReservation {
+  id           String    @id @default(cuid())
+  productId    String
+  warehouseId  String
+  quantity     Decimal   @db.Decimal(18, 3)
+  /// order | manual
+  sourceType   String
+  sourceId     String
+  sourceLineId String?
+  /// active | released | consumed
+  status       String    @default("active")
+  createdById  String?
+  createdBy    String
+  closedReason String?
+  version      Int       @default(1)
+  createdAt    DateTime  @default(now())
+  closedAt     DateTime?
+
+  product   StockProduct @relation(fields: [productId], references: [id])
+  warehouse Warehouse    @relation(fields: [warehouseId], references: [id])
+
+  @@index([productId, warehouseId, status])
+  @@index([sourceType, sourceId])
+}
+
+/// The value side of each movement. One layer per movement; a product's stock value
+/// is SUM(value) and its average cost SUM(value) / SUM(quantity). For FIFO, incoming
+/// layers carry the quantity not yet consumed.
+model StockValuationLayer {
+  id           String   @id @default(cuid())
+  movementId   String   @unique
+  productId    String
+  quantity     Decimal  @db.Decimal(18, 3)
+  unitCost     Decimal  @db.Decimal(18, 4)
+  value        Decimal  @db.Decimal(18, 4)
+  remainingQty Decimal  @default(0) @db.Decimal(18, 3)
+  /// purchase | average | standard | fifo | lot | unknown
+  costSource   String
+  createdAt    DateTime @default(now())
+
+  movement StockMovement @relation(fields: [movementId], references: [id])
+  product  StockProduct  @relation(fields: [productId], references: [id])
+
+  @@index([productId, createdAt])
+  @@index([createdAt])
+}
+
+/// A dispatched order line the ledger could not issue in full: the line names no
+/// known product, its unit cannot be converted, or there was not enough stock on the
+/// books. Dispatch is never blocked by these (unless the policy says strict) — the
+/// truck has left — but each one is a discrepancy a stock controller must explain.
+model StockIssueException {
+  id           String    @id @default(cuid())
+  orderId      String
+  orderItemId  String
+  /// The issue document the shortfall belongs to (null when nothing at all was issued).
+  documentId   String?
+  productId    String?
+  productName  String
+  unit         String
+  requestedQty Decimal   @db.Decimal(18, 3)
+  issuedQty    Decimal   @db.Decimal(18, 3)
+  /// unmapped | unit_mismatch | insufficient
+  reason       String
+  /// open | resolved | voided (the dispatch was reopened and its issue reversed)
+  status       String    @default("open")
+  resolution   String?
+  resolvedById String?
+  resolvedBy   String?
+  resolvedAt   DateTime?
+  version      Int       @default(1)
+  createdAt    DateTime  @default(now())
+
+  order    Order              @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  document InventoryDocument? @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@index([orderId])
+}
+
+// ---------------------------------------------------------------------------
+// Sales: customer master. Identity works like the product master — a customer name
+// on an incoming order resolves EXACTLY (normalized) to one account or stays
+// unmapped for a person to decide.
+// ---------------------------------------------------------------------------
+model Customer {
+  id                String   @id @default(cuid())
+  /// CUS-00001, from the numbering service; immutable.
+  code              String   @unique
+  name              String
+  nameAr            String?
+  /// hotel | restaurant | cafe | retail | wholesale | institution | other
+  type              String   @default("other")
+  /// Egyptian tax registration number (9 digits) — required for B2B e-invoices.
+  taxRegistrationNo String?  @unique
+  commercialRegNo   String?
+  phone             String?
+  email             String?
+  city              String?
+  area              String?
+  address           String?
+  deliveryNotes     String?
+  /// 0 = cash on delivery.
+  paymentTermsDays  Int      @default(0)
+  /// NULL = no limit defined (credit control cannot clear a credit sale).
+  creditLimit       Decimal? @db.Decimal(18, 2)
+  creditHold        Boolean  @default(false)
+  creditHoldReason  String?
+  currencyCode      String   @default("EGP")
+  /// The id an integration (n8n / Hermes) sends as customer_id.
+  externalRef       String?  @unique
+  notes             String?
+  active            Boolean  @default(true)
+  version           Int      @default(1)
+  createdById       String?
+  createdBy         String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  currency     Currency          @relation(fields: [currencyCode], references: [code])
+  /// NULL = the default price list.
+  priceListId  String?
+  priceList    PriceList?        @relation(fields: [priceListId], references: [id], onDelete: Restrict)
+  aliases      CustomerAlias[]
+  contacts     CustomerContact[]
+  orders       Order[]
+  Quotation    Quotation[]
+  SalesInvoice SalesInvoice[]
+  CreditNote   CreditNote[]
+
+  receipts           CustomerReceipt[]
+  refunds            CustomerRefund[]
+  etaReceiverProfile EtaReceiverProfile?
+
+  @@index([active, name])
+}
+
+model CustomerAlias {
+  id          String   @id @default(cuid())
+  customerId  String
+  alias       String
+  /// normalizeProductName(alias). Unique across ALL customers: one name, one account.
+  normalized  String   @unique
+  /// canonical | canonical_ar | manual
+  kind        String
+  createdById String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
+}
+
+model CustomerContact {
+  id         String   @id @default(cuid())
+  customerId String
+  name       String
+  role       String?
+  phone      String?
+  email      String?
+  isPrimary  Boolean  @default(false)
+  active     Boolean  @default(true)
+  version    Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
+}
+
+// ---------------------------------------------------------------------------
+// Sales: tax rates, price lists, and the price of each order line.
+// ---------------------------------------------------------------------------
+model TaxRate {
+  /// VAT14 | VAT0 | EXEMPT … (stable codes; seeded by migration)
+  code       String   @id
+  name       String
+  nameAr     String
+  /// Percent, e.g. 14.00.
+  rate       Decimal  @db.Decimal(5, 2)
+  /// Egyptian e-invoice classification (tax type / subtype), used in Phase 9.
+  etaType    String?
+  etaSubtype String?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  products StockProduct[]
+}
+
+model PriceList {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  currencyCode String   @default("EGP")
+  /// Exactly one active default (partial unique index): customers without their
+  /// own list are priced from it.
+  isDefault    Boolean  @default(false)
+  active       Boolean  @default(true)
+  version      Int      @default(1)
+  createdById  String?
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  currency  Currency        @relation(fields: [currencyCode], references: [code])
+  items     PriceListItem[]
+  customers Customer[]
+}
+
+/// A price is never edited: a new price is a new row from its date, so what a
+/// product cost on any day stays answerable. Effective price for a date = the row
+/// with the latest validFrom <= date (and validTo, if any, >= date).
+model PriceListItem {
+  id          String   @id @default(cuid())
+  priceListId String
+  productId   String
+  /// The unit the price is per (base unit or a packaging unit of the product).
+  uomCode     String
+  unitPrice   Decimal  @db.Decimal(18, 4)
+  validFrom   String
+  validTo     String?
+  createdById String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  priceList PriceList     @relation(fields: [priceListId], references: [id], onDelete: Restrict)
+  product   StockProduct  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  uom       UnitOfMeasure @relation(fields: [uomCode], references: [code])
+
+  @@unique([priceListId, productId, uomCode, validFrom])
+  @@index([productId, validFrom])
+}
+
+model OrderItemPrice {
+  orderItemId     String   @id
+  /// Per unit of the order line's own unit.
+  unitPrice       Decimal  @db.Decimal(18, 4)
+  discountPct     Decimal  @default(0) @db.Decimal(5, 2)
+  taxCode         String
+  taxRate         Decimal  @db.Decimal(5, 2)
+  currencyCode    String   @default("EGP")
+  /// list | manual | quotation
+  source          String
+  priceListId     String?
+  priceListItemId String?
+  reason          String?
+  setById         String?
+  setBy           String
+  version         Int      @default(1)
+  updatedAt       DateTime @updatedAt
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+}
+
+// ---------------------------------------------------------------------------
+// Sales: quotations. A priced offer to a known customer; accepted, it becomes an
+// order through the ordinary order-creation path, carrying its prices.
+// ---------------------------------------------------------------------------
+model Quotation {
+  id           String   @id @default(cuid())
+  /// QUO-YYYY-#####
+  number       String   @unique
+  customerId   String
+  /// draft | sent | accepted | rejected | converted | cancelled ("expired" is derived
+  /// from validUntil, never stored).
+  status       String   @default("draft")
+  validUntil   String
+  deliveryDate String?
+  currencyCode String   @default("EGP")
+  notes        String?
+  decisionNote String?
+  /// The order it became (one quotation, one order).
+  orderId      String?  @unique
+  version      Int      @default(1)
+  createdById  String?
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customer Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  order    Order?          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  lines    QuotationLine[]
+
+  @@index([customerId, status])
+  @@index([status, validUntil])
+}
+
+model QuotationLine {
+  id          String  @id @default(cuid())
+  quotationId String
+  lineNo      Int
+  productId   String
+  uomCode     String
+  quantity    Decimal @db.Decimal(18, 3)
+  unitPrice   Decimal @db.Decimal(18, 4)
+  discountPct Decimal @default(0) @db.Decimal(5, 2)
+  taxCode     String
+  taxRate     Decimal @db.Decimal(5, 2)
+  /// list | manual
+  priceSource String
+  notes       String?
+
+  quotation Quotation    @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  product   StockProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([quotationId, lineNo])
+}
+
+// ---------------------------------------------------------------------------
+// Sales: invoices and credit notes. An issued invoice is a frozen snapshot (lines,
+// amounts, buyer identity) — the database refuses changes to it; corrections are
+// credit notes. Numbers are allocated at issue, so committed invoices are gapless.
+// ---------------------------------------------------------------------------
+model SalesInvoice {
+  id            String    @id @default(cuid())
+  /// INV-YYYY-##### — set when issued (a draft has none).
+  number        String?   @unique
+  /// draft | issued | void (a draft discarded before issue; never numbered)
+  status        String    @default("draft")
+  customerId    String
+  orderId       String?
+  issueDate     String?
+  dueDate       String?
+  currencyCode  String    @default("EGP")
+  /// Buyer as it was at issue.
+  buyerName     String?
+  buyerTaxId    String?
+  buyerAddress  String?
+  gross         Decimal   @default(0) @db.Decimal(18, 2)
+  discountTotal Decimal   @default(0) @db.Decimal(18, 2)
+  net           Decimal   @default(0) @db.Decimal(18, 2)
+  taxTotal      Decimal   @default(0) @db.Decimal(18, 2)
+  total         Decimal   @default(0) @db.Decimal(18, 2)
+  notes         String?
+  voidReason    String?
+  version       Int       @default(1)
+  createdById   String?
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  issuedById    String?
+  issuedBy      String?
+  issuedAt      DateTime?
+
+  customer    Customer           @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  order       Order?             @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  lines       SalesInvoiceLine[]
+  creditNotes CreditNote[]
+
+  receiptAllocations ReceiptAllocation[]
+
+  @@index([customerId, status])
+  @@index([status, issueDate])
+}
+
+model SalesInvoiceLine {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  lineNo      Int
+  orderItemId String?
+  productId   String?
+  description String
+  uomCode     String
+  quantity    Decimal @db.Decimal(18, 3)
+  unitPrice   Decimal @db.Decimal(18, 4)
+  discountPct Decimal @default(0) @db.Decimal(5, 2)
+  taxCode     String
+  taxRate     Decimal @db.Decimal(5, 2)
+  gross       Decimal @db.Decimal(18, 2)
+  discount    Decimal @db.Decimal(18, 2)
+  net         Decimal @db.Decimal(18, 2)
+  tax         Decimal @db.Decimal(18, 2)
+  total       Decimal @db.Decimal(18, 2)
+
+  invoice     SalesInvoice     @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  creditLines CreditNoteLine[]
+
+  @@unique([invoiceId, lineNo])
+}
+
+/// Credits an issued invoice: goods returned or refused, a short delivery, or the
+/// whole invoice. Issued on creation and immutable, like the invoice.
+model CreditNote {
+  id               String   @id @default(cuid())
+  /// CN-YYYY-#####
+  number           String   @unique
+  /// One key per submitted form: a retried or double-tapped submit returns the first document instead of posting twice.
+  idempotencyKey   String?  @unique
+  requestHash      String?
+  invoiceId        String
+  customerId       String
+  issueDate        String
+  reason           String
+  /// The stock return document, when goods came back.
+  returnDocumentId String?
+  currencyCode     String   @default("EGP")
+  gross            Decimal  @db.Decimal(18, 2)
+  discountTotal    Decimal  @db.Decimal(18, 2)
+  net              Decimal  @db.Decimal(18, 2)
+  taxTotal         Decimal  @db.Decimal(18, 2)
+  total            Decimal  @db.Decimal(18, 2)
+  createdById      String?
+  createdBy        String
+  createdAt        DateTime @default(now())
+
+  invoice  SalesInvoice     @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  customer Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  lines    CreditNoteLine[]
+
+  @@index([customerId])
+  @@index([invoiceId])
+}
+
+model CreditNoteLine {
+  id            String  @id @default(cuid())
+  creditNoteId  String
+  invoiceLineId String
+  quantity      Decimal @db.Decimal(18, 3)
+  gross         Decimal @db.Decimal(18, 2)
+  discount      Decimal @db.Decimal(18, 2)
+  net           Decimal @db.Decimal(18, 2)
+  tax           Decimal @db.Decimal(18, 2)
+  total         Decimal @db.Decimal(18, 2)
+
+  creditNote  CreditNote       @relation(fields: [creditNoteId], references: [id], onDelete: Restrict)
+  invoiceLine SalesInvoiceLine @relation(fields: [invoiceLineId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceLineId])
+}
+
+// ---------------------------------------------------------------------------
+// Purchasing: requests for quotation, supplier quotations, purchase orders.
+// ---------------------------------------------------------------------------
+model Rfq {
+  id          String   @id @default(cuid())
+  /// RFQ-YYYY-#####
+  number      String   @unique
+  /// draft | sent | awarded | cancelled
+  status      String   @default("draft")
+  neededBy    String?
+  warehouseId String
+  notes       String?
+  version     Int      @default(1)
+  createdById String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  warehouse Warehouse       @relation(fields: [warehouseId], references: [id])
+  lines     RfqLine[]
+  suppliers RfqSupplier[]
+  orders    PurchaseOrder[]
+
+  @@index([status])
+}
+
+model RfqLine {
+  id        String  @id @default(cuid())
+  rfqId     String
+  lineNo    Int
+  productId String
+  uomCode   String
+  quantity  Decimal @db.Decimal(18, 3)
+  notes     String?
+
+  rfq     Rfq                 @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  product StockProduct        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quotes  SupplierQuoteLine[]
+
+  @@unique([rfqId, lineNo])
+}
+
+/// One invited supplier and, once it answers, its quotation.
+model RfqSupplier {
+  id         String    @id @default(cuid())
+  rfqId      String
+  supplierId String
+  /// invited | quoted | declined
+  status     String    @default("invited")
+  quotedAt   DateTime?
+  validUntil String?
+  notes      String?
+  recordedBy String?
+  version    Int       @default(1)
+
+  rfq      Rfq                 @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplier Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  lines    SupplierQuoteLine[]
+
+  @@unique([rfqId, supplierId])
+}
+
+model SupplierQuoteLine {
+  id            String   @id @default(cuid())
+  rfqSupplierId String
+  rfqLineId     String
+  /// Per unit of the RFQ line's unit.
+  unitPrice     Decimal  @db.Decimal(18, 4)
+  /// What the supplier can supply (NULL = all of it).
+  quantity      Decimal? @db.Decimal(18, 3)
+  leadTimeDays  Int?
+  awarded       Boolean  @default(false)
+
+  rfqSupplier RfqSupplier @relation(fields: [rfqSupplierId], references: [id], onDelete: Cascade)
+  rfqLine     RfqLine     @relation(fields: [rfqLineId], references: [id], onDelete: Cascade)
+
+  @@unique([rfqSupplierId, rfqLineId])
+}
+
+model PurchaseOrder {
+  id               String    @id @default(cuid())
+  /// PO-YYYY-#####
+  number           String    @unique
+  /// draft | pending_approval | approved | sent | partially_received | received | closed | cancelled
+  status           String    @default("draft")
+  supplierId       String
+  warehouseId      String
+  rfqId            String?
+  orderDate        String
+  expectedDate     String?
+  currencyCode     String    @default("EGP")
+  /// The supplier's terms when the order was placed.
+  paymentTermsDays Int       @default(0)
+  net              Decimal   @default(0) @db.Decimal(18, 2)
+  taxTotal         Decimal   @default(0) @db.Decimal(18, 2)
+  total            Decimal   @default(0) @db.Decimal(18, 2)
+  notes            String?
+  cancelReason     String?
+  approvedById     String?
+  approvedBy       String?
+  approvedAt       DateTime?
+  sentAt           DateTime?
+  closedAt         DateTime?
+  version          Int       @default(1)
+  createdById      String?
+  createdBy        String
+  createdAt        DateTime  @default(now())
+
+  supplier  Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  warehouse Warehouse           @relation(fields: [warehouseId], references: [id])
+  rfq       Rfq?                @relation(fields: [rfqId], references: [id], onDelete: Restrict)
+  lines     PurchaseOrderLine[]
+
+  @@index([supplierId, status])
+  @@index([status, expectedDate])
+}
+
+model PurchaseOrderLine {
+  id              String  @id @default(cuid())
+  poId            String
+  lineNo          Int
+  productId       String
+  /// What was ordered, in the unit it was ordered in (e.g. 40 CRATE)…
+  uomCode         String
+  quantity        Decimal @db.Decimal(18, 3)
+  /// …and the same in the product's base unit (720 KG) — what receipts are counted in.
+  baseQuantity    Decimal @db.Decimal(18, 3)
+  unitPrice       Decimal @db.Decimal(18, 4)
+  discountPct     Decimal @default(0) @db.Decimal(5, 2)
+  taxCode         String
+  taxRate         Decimal @db.Decimal(5, 2)
+  /// supplier_price | quotation | manual
+  priceSource     String
+  supplierPriceId String?
+  quoteLineId     String?
+  notes           String?
+
+  po            PurchaseOrder  @relation(fields: [poId], references: [id], onDelete: Restrict)
+  product       StockProduct   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  supplierPrice SupplierPrice? @relation(fields: [supplierPriceId], references: [id], onDelete: Restrict)
+  intakes       StockIntake[]
+
+  billLines SupplierBillLine[]
+
+  @@unique([poId, lineNo])
+  @@index([productId])
+}
+
+// ---------------------------------------------------------------------------
+// Payables: supplier bills (matched to receipts and their PO), debit notes.
+// ---------------------------------------------------------------------------
+
+/// The supplier's invoice as booked: one line per goods receipt, matched three ways
+/// (what was ordered and at what price × what was received good × what is billed).
+/// Within tolerance it posts directly; a variance waits for approval. Posted bills
+/// never change (database-enforced) — corrections are debit notes.
+model SupplierBill {
+  id                String    @id @default(cuid())
+  /// BILL-YYYY-#####
+  number            String    @unique
+  /// draft | pending_approval | posted | cancelled
+  status            String    @default("draft")
+  supplierId        String
+  /// The supplier's own invoice number (unique per supplier among live bills).
+  supplierInvoiceNo String
+  billDate          String
+  dueDate           String
+  currencyCode      String    @default("EGP")
+  gross             Decimal   @default(0) @db.Decimal(18, 2)
+  discountTotal     Decimal   @default(0) @db.Decimal(18, 2)
+  net               Decimal   @default(0) @db.Decimal(18, 2)
+  taxTotal          Decimal   @default(0) @db.Decimal(18, 2)
+  total             Decimal   @default(0) @db.Decimal(18, 2)
+  /// What the receipts are worth at the agreed (PO) price, before tax.
+  expectedNet       Decimal   @default(0) @db.Decimal(18, 2)
+  /// net − expectedNet (positive: billed more than agreed).
+  variance          Decimal   @default(0) @db.Decimal(18, 2)
+  /// matched | within_tolerance | variance | unpriced
+  matchStatus       String    @default("matched")
+  notes             String?
+  cancelReason      String?
+  approvedById      String?
+  approvedBy        String?
+  approvedAt        DateTime?
+  postedById        String?
+  postedBy          String?
+  postedAt          DateTime?
+  version           Int       @default(1)
+  createdById       String?
+  createdBy         String
+  createdAt         DateTime  @default(now())
+
+  supplier   Supplier           @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  lines      SupplierBillLine[]
+  debitNotes DebitNote[]
+
+  paymentAllocations PaymentAllocation[]
+
+  @@index([supplierId, status])
+  @@index([status, dueDate])
+}
+
+model SupplierBillLine {
+  id                String   @id @default(cuid())
+  billId            String
+  lineNo            Int
+  intakeId          String
+  poLineId          String?
+  productId         String
+  description       String
+  /// Always the product's base unit (receipts are recorded in it).
+  uomCode           String
+  /// Good quantity of the receipt when billed.
+  receivedQty       Decimal  @db.Decimal(18, 3)
+  quantity          Decimal  @db.Decimal(18, 3)
+  unitPrice         Decimal  @db.Decimal(18, 4)
+  /// The agreed price per base unit (PO line net of discount, else the receipt's cost
+  /// or the supplier's dated price); null when nothing was agreed.
+  expectedUnitPrice Decimal? @db.Decimal(18, 4)
+  expectedNet       Decimal? @db.Decimal(18, 2)
+  discountPct       Decimal  @default(0) @db.Decimal(5, 2)
+  taxCode           String
+  taxRate           Decimal  @db.Decimal(5, 2)
+  gross             Decimal  @db.Decimal(18, 2)
+  discount          Decimal  @db.Decimal(18, 2)
+  net               Decimal  @db.Decimal(18, 2)
+  tax               Decimal  @db.Decimal(18, 2)
+  total             Decimal  @db.Decimal(18, 2)
+  /// Set when the bill is cancelled: the receipt may be billed again.
+  released          Boolean  @default(false)
+
+  bill       SupplierBill       @relation(fields: [billId], references: [id], onDelete: Restrict)
+  intake     StockIntake        @relation(fields: [intakeId], references: [id], onDelete: Restrict)
+  poLine     PurchaseOrderLine? @relation(fields: [poLineId], references: [id], onDelete: Restrict)
+  product    StockProduct       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  debitLines DebitNoteLine[]
+
+  @@unique([billId, lineNo])
+  @@index([intakeId])
+  @@index([poLineId])
+}
+
+/// Reduces a posted bill: goods returned to the supplier, a short or bad delivery
+/// found later, or the whole bill. Append-only.
+model DebitNote {
+  id               String   @id @default(cuid())
+  /// DN-YYYY-#####
+  number           String   @unique
+  /// One key per submitted form: a retried or double-tapped submit returns the first document instead of posting twice.
+  idempotencyKey   String?  @unique
+  requestHash      String?
+  billId           String
+  supplierId       String
+  issueDate        String
+  reason           String
+  /// The supplier-return stock document, when goods went back.
+  returnDocumentId String?
+  currencyCode     String   @default("EGP")
+  gross            Decimal  @db.Decimal(18, 2)
+  discountTotal    Decimal  @db.Decimal(18, 2)
+  net              Decimal  @db.Decimal(18, 2)
+  taxTotal         Decimal  @db.Decimal(18, 2)
+  total            Decimal  @db.Decimal(18, 2)
+  createdById      String?
+  createdBy        String
+  createdAt        DateTime @default(now())
+
+  bill     SupplierBill    @relation(fields: [billId], references: [id], onDelete: Restrict)
+  supplier Supplier        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  lines    DebitNoteLine[]
+
+  @@index([supplierId])
+  @@index([billId])
+}
+
+model DebitNoteLine {
+  id          String  @id @default(cuid())
+  debitNoteId String
+  billLineId  String
+  quantity    Decimal @db.Decimal(18, 3)
+  gross       Decimal @db.Decimal(18, 2)
+  discount    Decimal @db.Decimal(18, 2)
+  net         Decimal @db.Decimal(18, 2)
+  tax         Decimal @db.Decimal(18, 2)
+  total       Decimal @db.Decimal(18, 2)
+
+  debitNote DebitNote        @relation(fields: [debitNoteId], references: [id], onDelete: Restrict)
+  billLine  SupplierBillLine @relation(fields: [billLineId], references: [id], onDelete: Restrict)
+
+  @@index([billLineId])
+}
+
+// ---------------------------------------------------------------------------
+// Operations: fleet (minimum), trips, delivery results, operational exceptions.
+// Quantities stay on the order and the stock ledger; a trip only groups orders,
+// and a delivery result records what the customer actually accepted.
+// ---------------------------------------------------------------------------
+
+model Vehicle {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  plate        String   @unique
+  /// van | truck | pickup | other
+  type         String   @default("truck")
+  capacityKg   Decimal? @db.Decimal(12, 2)
+  refrigerated Boolean  @default(false)
+  active       Boolean  @default(true)
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+
+  trips Trip[]
+}
+
+model Driver {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  active    Boolean  @default(true)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+
+  trips Trip[]
+}
+
+model Trip {
+  id               String    @id @default(cuid())
+  /// TRP-YYYY-#####
+  number           String    @unique
+  /// planned | loading | loaded | dispatched | in_transit | completed | cancelled
+  status           String    @default("planned")
+  tripDate         String
+  vehicleId        String
+  driverId         String
+  notes            String?
+  cancelReason     String?
+  loadingStartedAt DateTime?
+  loadedAt         DateTime?
+  dispatchedAt     DateTime?
+  departedAt       DateTime?
+  completedAt      DateTime?
+  version          Int       @default(1)
+  createdById      String?
+  createdBy        String
+  createdAt        DateTime  @default(now())
+
+  vehicle Vehicle    @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  driver  Driver     @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  stops   TripStop[]
+
+  @@index([status, tripDate])
+}
+
+model TripStop {
+  id               String    @id @default(cuid())
+  tripId           String
+  orderId          String
+  sequence         Int
+  /// false once the trip is cancelled or the order is taken off it.
+  active           Boolean   @default(true)
+  /// pending | delivered | partial | failed
+  status           String    @default("pending")
+  crateCount       Int?
+  receiverName     String?
+  customerNotes    String?
+  failureReason    String?
+  deliveredAt      DateTime?
+  recordedById     String?
+  recordedBy       String?
+  /// The customer-return stock document for goods that came back.
+  returnDocumentId String?
+
+  trip  Trip           @relation(fields: [tripId], references: [id], onDelete: Restrict)
+  order Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  lines DeliveryLine[]
+
+  @@index([tripId])
+  @@index([orderId])
+}
+
+/// What happened to one order line at the customer: shipped = delivered + shortage +
+/// damaged + rejected (database-enforced).
+model DeliveryLine {
+  id           String  @id @default(cuid())
+  stopId       String
+  orderItemId  String
+  shippedQty   Decimal @db.Decimal(18, 3)
+  deliveredQty Decimal @db.Decimal(18, 3)
+  shortageQty  Decimal @default(0) @db.Decimal(18, 3)
+  damagedQty   Decimal @default(0) @db.Decimal(18, 3)
+  rejectedQty  Decimal @default(0) @db.Decimal(18, 3)
+  reason       String?
+
+  stop      TripStop  @relation(fields: [stopId], references: [id], onDelete: Restrict)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+
+  @@unique([stopId, orderItemId])
+}
+
+/// One place for what went wrong on the floor or the road: shortage, damage, customer
+/// rejection, delivery failure, loading discrepancy. Owned, resolved, audited.
+model OperationalException {
+  id           String    @id @default(cuid())
+  /// shortage | damage | rejection | delivery_failure | loading_discrepancy
+  type         String
+  /// open | resolved
+  status       String    @default("open")
+  /// order | trip_stop | trip
+  sourceType   String
+  sourceId     String
+  orderId      String?
+  tripId       String?
+  orderItemId  String?
+  productName  String?
+  quantity     Decimal?  @db.Decimal(18, 3)
+  description  String
+  ownerId      String?
+  ownerName    String?
+  resolution   String?
+  resolvedById String?
+  resolvedBy   String?
+  resolvedAt   DateTime?
+  version      Int       @default(1)
+  createdById  String?
+  createdBy    String
+  createdAt    DateTime  @default(now())
+
+  @@index([status, type])
+  @@index([orderId])
+  @@index([tripId])
+}
+
+// ---------------------------------------------------------------------------
+// Accounting: chart of accounts, periods, journals; customer receipts, supplier
+// payments; cash/bank accounts and reconciliation. Every business document posts its
+// own journal entry once (unique source), in the same transaction as the document.
+// ---------------------------------------------------------------------------
+
+model Account {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  nameAr    String
+  /// asset | liability | equity | revenue | expense
+  type      String
+  parentId  String?
+  /// Header accounts group others and take no postings.
+  postable  Boolean  @default(true)
+  /// Stable key for accounts the system posts to (ar, ap, inventory, …).
+  systemKey String?  @unique
+  active    Boolean  @default(true)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+
+  parent       Account?      @relation("AccountTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children     Account[]     @relation("AccountTree")
+  lines        JournalLine[]
+  cashAccounts CashAccount[]
+}
+
+model AccountingPeriod {
+  id        String    @id @default(cuid())
+  /// YYYY-MM
+  code      String    @unique
+  startDate String
+  endDate   String
+  /// open | closed
+  status    String    @default("open")
+  closedBy  String?
+  closedAt  DateTime?
+  version   Int       @default(1)
+}
+
+model JournalEntry {
+  id           String   @id @default(cuid())
+  /// JE-YYYY-#####
+  number       String   @unique
+  date         String
+  description  String
+  /// manual | sales_invoice | credit_note | supplier_bill | debit_note | customer_receipt | supplier_payment | stock_valuation | reversal
+  sourceType   String
+  sourceId     String
+  /// Request fingerprint for keyed manual journals; system postings leave it NULL.
+  requestHash  String?
+  reversalOfId String?  @unique
+  total        Decimal  @db.Decimal(18, 2)
+  createdById  String?
+  createdBy    String
+  createdAt    DateTime @default(now())
+
+  reversalOf JournalEntry? @relation("Reversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversedBy JournalEntry? @relation("Reversal")
+  lines      JournalLine[]
+
+  valuationPostings StockValuationPosting[]
+
+  @@index([date])
+  @@index([sourceType, sourceId])
+}
+
+model JournalLine {
+  id               String  @id @default(cuid())
+  entryId          String
+  accountId        String
+  debit            Decimal @default(0) @db.Decimal(18, 2)
+  credit           Decimal @default(0) @db.Decimal(18, 2)
+  /// customer | supplier — the subledger the line belongs to (AR/AP lines).
+  partyType        String?
+  partyId          String?
+  description      String?
+  /// Set when matched on a bank statement (the only column that may change).
+  reconciliationId String?
+
+  entry          JournalEntry        @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  account        Account             @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  reconciliation BankReconciliation? @relation(fields: [reconciliationId], references: [id], onDelete: Restrict)
+
+  @@index([entryId])
+  @@index([accountId])
+  @@index([partyType, partyId])
+}
+
+model CashAccount {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  /// cash | bank
+  type      String
+  accountId String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  account         Account              @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  receipts        CustomerReceipt[]
+  payments        SupplierPayment[]
+  customerRefunds CustomerRefund[]
+  supplierRefunds SupplierRefund[]
+  reconciliations BankReconciliation[]
+}
+
+/// Money in from a customer, allocated to invoices; what is not allocated is a credit
+/// on the customer's account.
+model CustomerReceipt {
+  id             String   @id @default(cuid())
+  /// RCT-YYYY-#####
+  number         String   @unique
+  /// Client-supplied key: a retried or double-tapped submit returns the first document instead of recording money twice.
+  idempotencyKey String?  @unique
+  customerId     String
+  cashAccountId  String
+  date           String
+  amount         Decimal  @db.Decimal(18, 2)
+  /// cash | bank_transfer | cheque | wallet | other
+  method         String
+  reference      String?
+  notes          String?
+  createdById    String?
+  createdBy      String
+  createdAt      DateTime @default(now())
+
+  customer    Customer                 @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  cashAccount CashAccount              @relation(fields: [cashAccountId], references: [id], onDelete: Restrict)
+  allocations ReceiptAllocation[]
+  reversal    CustomerReceiptReversal?
+
+  @@index([customerId])
+}
+
+model ReceiptAllocation {
+  id               String  @id @default(cuid())
+  receiptId        String
+  invoiceId        String?
+  openingBalanceId String?
+  amount           Decimal @db.Decimal(18, 2)
+
+  receipt        CustomerReceipt      @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+  invoice        SalesInvoice?        @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  openingBalance PartyOpeningBalance? @relation(fields: [openingBalanceId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId])
+  @@index([openingBalanceId])
+}
+
+model SupplierPayment {
+  id             String   @id @default(cuid())
+  /// PAY-YYYY-#####
+  number         String   @unique
+  /// Client-supplied key: a retried or double-tapped submit returns the first document instead of recording money twice.
+  idempotencyKey String?  @unique
+  supplierId     String
+  cashAccountId  String
+  date           String
+  amount         Decimal  @db.Decimal(18, 2)
+  method         String
+  reference      String?
+  notes          String?
+  createdById    String?
+  createdBy      String
+  createdAt      DateTime @default(now())
+
+  supplier    Supplier                 @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  cashAccount CashAccount              @relation(fields: [cashAccountId], references: [id], onDelete: Restrict)
+  allocations PaymentAllocation[]
+  reversal    SupplierPaymentReversal?
+
+  @@index([supplierId])
+}
+
+model PaymentAllocation {
+  id               String  @id @default(cuid())
+  paymentId        String
+  billId           String?
+  openingBalanceId String?
+  amount           Decimal @db.Decimal(18, 2)
+
+  payment        SupplierPayment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  bill           SupplierBill?        @relation(fields: [billId], references: [id], onDelete: Restrict)
+  openingBalance PartyOpeningBalance? @relation(fields: [openingBalanceId], references: [id], onDelete: Restrict)
+
+  @@index([billId])
+  @@index([openingBalanceId])
+}
+
+/// A bank (or cash) account matched against a statement up to a date.
+model BankReconciliation {
+  id               String    @id @default(cuid())
+  cashAccountId    String
+  statementDate    String
+  statementBalance Decimal   @db.Decimal(18, 2)
+  /// open | completed
+  status           String    @default("open")
+  completedBy      String?
+  completedAt      DateTime?
+  createdBy        String
+  createdAt        DateTime  @default(now())
+
+  cashAccount CashAccount   @relation(fields: [cashAccountId], references: [id], onDelete: Restrict)
+  lines       JournalLine[]
+
+  @@index([cashAccountId])
+}
+
+// ---------------------------------------------------------------------------
+// HR / expenses (minimum): departments, employees, expense claims (approved through
+// the approval engine, posted to the ledger), employee advances and reimbursements.
+// ---------------------------------------------------------------------------
+
+model Department {
+  id        String     @id @default(cuid())
+  code      String     @unique
+  name      String
+  active    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  employees Employee[]
+}
+
+model Employee {
+  id           String   @id @default(cuid())
+  /// EMP-#####
+  code         String   @unique
+  name         String
+  departmentId String?
+  jobTitle     String?
+  phone        String?
+  /// The system user, when the employee signs in.
+  userId       String?  @unique
+  hireDate     String?
+  active       Boolean  @default(true)
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+
+  department   Department?           @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  expenses     Expense[]
+  transactions EmployeeTransaction[]
+}
+
+/// A business expense. Paid from a cash/bank account, owed back to the employee who
+/// paid it (reimburse), or settled against the employee's advance. Posts to the
+/// ledger when approved (or at once under the approval threshold).
+model Expense {
+  id             String    @id @default(cuid())
+  /// EXP-YYYY-#####
+  number         String    @unique
+  /// One key per submitted form: a retried or double-tapped submit returns the first document instead of posting twice.
+  idempotencyKey String?   @unique
+  requestHash    String?
+  date           String
+  employeeId     String?
+  /// The expense account (e.g. 6100 general, 6200 transport and fuel).
+  accountId      String
+  amount         Decimal   @db.Decimal(18, 2)
+  description    String
+  /// cash | reimburse | advance
+  paymentMode    String
+  cashAccountId  String?
+  /// pending_approval | approved | rejected
+  status         String    @default("pending_approval")
+  decidedBy      String?
+  decidedAt      DateTime?
+  createdById    String?
+  createdBy      String
+  createdAt      DateTime  @default(now())
+  version        Int       @default(1)
+
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([status])
+  @@index([employeeId])
+}
+
+/// Cash between the company and an employee: an advance paid out, a reimbursement
+/// paid out, or an advance returned. Posts its journal entry on creation.
+model EmployeeTransaction {
+  id             String   @id @default(cuid())
+  employeeId     String
+  /// One key per submitted form: a retried or double-tapped submit returns the first document instead of posting twice.
+  idempotencyKey String?  @unique
+  requestHash    String?
+  /// advance | reimbursement | advance_return
+  type           String
+  date           String
+  amount         Decimal  @db.Decimal(18, 2)
+  cashAccountId  String
+  notes          String?
+  createdById    String?
+  createdBy      String
+  createdAt      DateTime @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId])
+}
+
+// ---------------------------------------------------------------------------
+// Integrations: one credential per external channel (n8n, Hermes, …), scoped,
+// revocable; every call logged. The ERP stays the source of truth — integrations
+// only submit work (orders) and read status back.
+// ---------------------------------------------------------------------------
+
+model Integration {
+  id         String    @id @default(cuid())
+  /// n8n | hermes | … (also the order `source` it writes)
+  code       String    @unique
+  name       String
+  /// sha256 of the key; the key itself is shown once, at creation.
+  keyHash    String    @unique
+  /// First characters of the key, to recognise it in logs and screens.
+  keyPrefix  String
+  /// orders.create | orders.status
+  scopes     String[]
+  active     Boolean   @default(true)
+  lastUsedAt DateTime?
+  createdBy  String
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+  revokedBy  String?
+
+  logs IntegrationLog[]
+}
+
+model IntegrationLog {
+  id            String   @id @default(cuid())
+  integrationId String?
+  /// The integration code, or "legacy" for the shared environment key, or "unknown".
+  caller        String
+  method        String
+  path          String
+  status        Int
+  externalId    String?
+  /// What the call produced (an order number), when it succeeded.
+  result        String?
+  error         String?
+  durationMs    Int
+  createdAt     DateTime @default(now())
+
+  integration Integration? @relation(fields: [integrationId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+  @@index([integrationId, createdAt])
+}
+
+/// Every sign-in attempt (and current-password check). Drives the lockout across all
+/// app instances and restarts, and is the failed-login record. Append-only.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  /// Lower-cased as typed (it may not be a real account).
+  username  String
+  success   Boolean
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([username, createdAt])
+}
+
+/// Which journal entry carried each stock movement's value into the GL (one row per
+/// movement, written in the movement's own transaction). entryId is null when the
+/// movement had no value to post (unknown cost).
+model StockValuationPosting {
+  movementId String        @id
+  entryId    String?
+  createdAt  DateTime      @default(now())
+  movement   StockMovement @relation(fields: [movementId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "StockValuationPosting_movement_fkey")
+  entry      JournalEntry? @relation(fields: [entryId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "StockValuationPosting_entry_fkey")
+
+  @@index([entryId])
+}
+
+/// A customer's or supplier's balance brought over at go-live (from Odoo). Part of the
+/// party's statement and aging like any document, and posted to the ledger against
+/// opening-balance equity. Append-only; a mistake is corrected by another one.
+model PartyOpeningBalance {
+  id             String   @id @default(cuid())
+  /// customer | supplier
+  partyType      String
+  partyId        String
+  /// One key per submitted form: a retried or double-tapped submit returns the first document instead of posting twice.
+  idempotencyKey String?  @unique
+  requestHash    String?
+  date           String
+  /// Positive: they owe us (customer) / we owe them (supplier). Negative: the reverse.
+  amount         Decimal  @db.Decimal(18, 2)
+  dueDate        String
+  reference      String?
+  createdById    String?
+  createdBy      String
+  createdAt      DateTime @default(now())
+
+  receiptAllocations ReceiptAllocation[]
+  paymentAllocations PaymentAllocation[]
+
+  @@index([partyType, partyId])
+}
+
+/// A customer receipt taken back: a bounced cheque, money recorded on the wrong customer.
+/// The receipt stays as it was (append-only); this document cancels it — its allocations
+/// stop counting, the invoices reopen, and the reversal posts its own journal entry on its
+/// own date. A receipt is reversed at most once.
+model CustomerReceiptReversal {
+  id          String   @id @default(cuid())
+  receiptId   String   @unique
+  date        String
+  reason      String
+  createdById String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  receipt CustomerReceipt @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+}
+
+/// The supplier-side mirror: a payment taken back (stopped cheque, transfer returned).
+model SupplierPaymentReversal {
+  id          String   @id @default(cuid())
+  paymentId   String   @unique
+  date        String
+  reason      String
+  createdById String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  payment SupplierPayment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+}
+
+/// Money paid back to a customer out of the credit they hold with us (a return or an
+/// overpayment after they had paid). Never more than that credit. Dr AR / Cr cash.
+model CustomerRefund {
+  id             String   @id @default(cuid())
+  /// RFD-YYYY-#####
+  number         String   @unique
+  idempotencyKey String?  @unique
+  customerId     String
+  cashAccountId  String
+  date           String
+  amount         Decimal  @db.Decimal(18, 2)
+  /// cash | bank_transfer | cheque | wallet | other
+  method         String
+  reference      String?
+  reason         String
+  createdById    String?
+  createdBy      String
+  createdAt      DateTime @default(now())
+
+  customer    Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  cashAccount CashAccount @relation(fields: [cashAccountId], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
+}
+
+/// Money a supplier pays back to us out of the credit we hold with them (a debit note or
+/// an overpayment after we had paid). Never more than that credit. Dr cash / Cr AP.
+model SupplierRefund {
+  id             String   @id @default(cuid())
+  /// SRF-YYYY-#####
+  number         String   @unique
+  idempotencyKey String?  @unique
+  supplierId     String
+  cashAccountId  String
+  date           String
+  amount         Decimal  @db.Decimal(18, 2)
+  method         String
+  reference      String?
+  reason         String
+  createdById    String?
+  createdBy      String
+  createdAt      DateTime @default(now())
+
+  supplier    Supplier    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  cashAccount CashAccount @relation(fields: [cashAccountId], references: [id], onDelete: Restrict)
+
+  @@index([supplierId])
+}
+
+// ---------------------------------------------------------------------------
+// ETA e-invoicing (compliance layer). Only what ETA needs and UNITED's core models do
+// not already hold; the invoice, customer, company, product, unit and tax models are
+// read, never extended. See docs/erp/ETA_EINVOICE.md.
+// ---------------------------------------------------------------------------
+
+/// The issuer's ETA registration details beyond Company (name and registration number
+/// are read from Company). One per company.
+model EtaIssuerProfile {
+  id                    String   @id @default(cuid())
+  companyId             String   @unique
+  /// ETA's branch code for the issuing branch ("branchID").
+  etaBranchId           String?
+  /// Activity code UNITED is registered under ("taxpayerActivityCode").
+  activityCode          String?
+  country               String?
+  governate             String?
+  regionCity            String?
+  street                String?
+  buildingNumber        String?
+  postalCode            String?
+  floor                 String?
+  room                  String?
+  landmark              String?
+  additionalInformation String?
+  version               Int      @default(1)
+  updatedById           String?
+  updatedBy             String
+  updatedAt             DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+}
+
+/// A customer's ETA receiver details beyond Customer (name and registration number are
+/// frozen on the invoice). Absent = derived: B with a registration number, P without.
+model EtaReceiverProfile {
+  id                    String   @id @default(cuid())
+  customerId            String   @unique
+  /// B (business in Egypt) | P (person) | F (foreigner); NULL = derive.
+  receiverType          String?
+  /// National ID (P) or passport/foreign id (F). A B receiver's id is its registration number.
+  receiverId            String?
+  country               String?
+  governate             String?
+  regionCity            String?
+  street                String?
+  buildingNumber        String?
+  postalCode            String?
+  floor                 String?
+  room                  String?
+  landmark              String?
+  additionalInformation String?
+  version               Int      @default(1)
+  updatedById           String?
+  updatedBy             String
+  updatedAt             DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+}
+
+/// The ETA-registered code of a product (GS1 or EGS).
+model EtaItemCode {
+  id          String   @id @default(cuid())
+  productId   String   @unique
+  /// GS1 | EGS
+  itemType    String
+  itemCode    String
+  updatedById String?
+  updatedBy   String
+  updatedAt   DateTime @updatedAt
+
+  product StockProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+}
+
+/// ETA unit-type code for a UNITED unit of measure.
+model EtaUnitType {
+  uomCode     String   @id
+  etaUnitType String
+  updatedById String?
+  updatedBy   String
+  updatedAt   DateTime @updatedAt
+
+  uom UnitOfMeasure @relation(fields: [uomCode], references: [code], onDelete: Restrict)
+}
+
+/// ETA state of one UNITED document. Unique per source: one UNITED invoice can never own
+/// two ETA submissions.
+model EtaDocument {
+  id                  String    @id @default(cuid())
+  /// sales_invoice | credit_note | debit_note (the last two prepared, not yet mapped)
+  sourceType          String
+  sourceId            String
+  /// The UNITED number sent as internalID.
+  internalId          String
+  /// i | c | d
+  documentType        String
+  documentTypeVersion String
+  /// pending | submitting | submitted | valid | invalid | rejected | failed | unknown | cancelled
+  status              String    @default("pending")
+  submissionId        String?
+  uuid                String?   @unique
+  longId              String?
+  hashKey             String?
+  /// sha256 of the last document sent (what ETA received).
+  payloadHash         String?
+  attempts            Int       @default(0)
+  submittedAt         DateTime?
+  acceptedAt          DateTime?
+  rejectedAt          DateTime?
+  cancelledAt         DateTime?
+  lastError           Json?
+  lastResponse        Json?
+  version             Int       @default(1)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  events EtaDocumentEvent[]
+
+  @@unique([sourceType, sourceId])
+  @@index([status])
+}
+
+/// Append-only history of every ETA action on a document: claim, send, result, refresh.
+model EtaDocumentEvent {
+  id            String   @id @default(cuid())
+  etaDocumentId String
+  /// claim | submit_ok | submit_rejected | submit_failed | submit_unknown | refresh | reconcile
+  action        String
+  fromStatus    String?
+  toStatus      String
+  detail        Json?
+  actorId       String?
+  actorName     String
+  createdAt     DateTime @default(now())
+
+  etaDocument EtaDocument @relation(fields: [etaDocumentId], references: [id], onDelete: Restrict)
+
+  @@index([etaDocumentId, createdAt])
+}

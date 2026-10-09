@@ -1,0 +1,40 @@
+# Dependencies
+node_modules
+
+# Next.js build output
+.next
+.next-verify
+out
+
+# Environment & secrets — never commit real values.
+# .env.example is the documented template and IS committed.
+.env
+.env.*
+!.env.example
+backups/.env*
+
+# Databases, dumps and snapshots.
+# These carry real rows including bcrypt password hashes, so the whole
+# backups/ directory is excluded rather than pattern-matched file by file —
+# "dev.db.backup_20260913_154215" is not caught by *.db, which is exactly the
+# kind of near-miss that leaks credentials into a repository.
+*.db
+*.db-journal
+*.db.backup*
+*.sqlite
+*.sqlite3
+backups/
+
+# Build info
+tsconfig.tsbuildinfo
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+
+# Local-only agent state (shared config in .claude/ is committed)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# local attachment storage (development / tests)
+/storage/

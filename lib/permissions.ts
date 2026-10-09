@@ -1,0 +1,212 @@
+import type { Role } from "@/lib/types";
+
+/**
+ * The permission catalogue and the role bundles — the single source of truth for
+ * who can do what. Nothing else in the codebase may define authorization: routes,
+ * services, pages and navigation all resolve against this file.
+ *
+ * These are deliberately code constants rather than editable rows. The database
+ * mirrors them (see syncPermissionCatalogue) so permissions can be inspected and
+ * audited with plain SQL, but an UPDATE on a row can never widen access on its own —
+ * the next sync puts it back. Per-user exceptions are the supported way to deviate,
+ * and those are recorded, attributed and audited.
+ */
+
+export const PERMISSION_GROUPS = ["orders", "stock", "reports", "audit", "users", "settings", "core", "sales", "purchasing", "operations", "accounting", "hr", "integrations"] as const;
+export type PermissionGroup = (typeof PERMISSION_GROUPS)[number];
+
+export type PermissionDef = {
+  key: string;
+  group: PermissionGroup;
+  label: string;
+  description: string;
+};
+
+export const PERMISSION_DEFS = [
+  // --- orders ------------------------------------------------------------
+  { key: "orders.view", group: "orders", label: "عرض الأوردرات", description: "يشوف الأوردرات وتفاصيلها وسجل الأوردر الواحد" },
+  { key: "orders.create", group: "orders", label: "إنشاء أوردر", description: "يعمل أوردر يدوي أو ينسخ أوردر موجود" },
+  { key: "orders.edit", group: "orders", label: "تعديل أوردر", description: "يعدّل بيانات الأوردر والكمية المطلوبة، يلغي، يعيد الفتح، ويغيّر الحالة يدويًا" },
+  { key: "orders.approve", group: "orders", label: "اعتماد الفروقات", description: "يعتمد النقص ويفك وقف الأوردر المحتاج مراجعة" },
+  { key: "orders.prepare", group: "orders", label: "تجهيز", description: "يسجّل كميات التجهيز وينقل الأوردر لمرحلة التجهيز/الجاهز للتحميل" },
+  { key: "orders.load", group: "orders", label: "تحميل", description: "يسجّل كميات التحميل وينقل الأوردر لمرحلة التحميل/تم التحميل" },
+  { key: "orders.dispatch", group: "orders", label: "تأكيد خروج العربية", description: "يأكد خروج الأوردر ببيانات السواق والعربية والبرنيكة" },
+  // --- stock -------------------------------------------------------------
+  { key: "stock.view", group: "stock", label: "عرض المخزون", description: "يشوف لوحة المخزون والرصيد والسجل والاستلامات" },
+  { key: "stock.receive", group: "stock", label: "تسجيل استلام", description: "يسجّل استلام خامات جديدة من مورد" },
+  { key: "stock.sort", group: "stock", label: "تعديل الفرز", description: "يعدّل كميات الاستلام والفرز أو يلغي استلام" },
+  { key: "stock.adjust", group: "stock", label: "تسوية المخزون", description: "يعمل تسوية يدوية على رصيد صنف بسبب مكتوب" },
+  { key: "stock.manage_products", group: "stock", label: "إدارة أصناف المخزون", description: "يضيف ويعدّل ويوقف أصناف المخزون" },
+  { key: "stock.manage_suppliers", group: "stock", label: "إدارة الموردين", description: "يضيف ويعدّل ويوقف الموردين" },
+  { key: "stock.transfer", group: "stock", label: "تحويل بين الأماكن", description: "ينقل مخزون بين أماكن التخزين (مثلًا من الاستلام لغرفة التبريد)" },
+  { key: "stock.reserve", group: "stock", label: "حجز مخزون", description: "يحجز أو يفك حجز كمية لأوردر" },
+  { key: "stock.approve_adjustments", group: "stock", label: "اعتماد تسويات المخزون", description: "يوافق أو يرفض التسويات الكبيرة اللي محتاجة موافقة" },
+  { key: "stock.valuation.view", group: "stock", label: "عرض تكلفة وقيمة المخزون", description: "يشوف متوسط التكلفة وقيمة المخزون" },
+  // --- reports / audit ---------------------------------------------------
+  { key: "reports.view", group: "reports", label: "عرض التقارير", description: "يشوف تقرير التشغيل اليومي ومركز التحكم والاستثناءات" },
+  { key: "reports.finance", group: "reports", label: "تقارير الإدارة المالية", description: "يشوف المبيعات والهامش والأرصدة وقيمة المخزون والنقدية وقائمة الدخل" },
+  { key: "audit.view", group: "audit", label: "عرض سجل المراجعة", description: "يشوف سجل المراجعة الكامل لكل الأوردرات" },
+  // --- users -------------------------------------------------------------
+  { key: "users.view", group: "users", label: "عرض المستخدمين", description: "يدخل لوحة الإدارة ويشوف المستخدمين وصلاحياتهم" },
+  { key: "users.create", group: "users", label: "إنشاء مستخدم", description: "يضيف مستخدم جديد" },
+  { key: "users.edit", group: "users", label: "تعديل مستخدم", description: "يعدّل اسم المستخدم أو الاسم المعروض" },
+  { key: "users.disable", group: "users", label: "إيقاف/تفعيل مستخدم", description: "يوقف أو يفعّل حساب مستخدم" },
+  { key: "users.change_role", group: "users", label: "تغيير الدور", description: "يغيّر دور المستخدم" },
+  // --- settings ----------------------------------------------------------
+  { key: "settings.manage", group: "settings", label: "إدارة الصلاحيات", description: "يدير الاستثناءات الفردية للصلاحيات وإعدادات النظام" },
+  // --- core (ERP master data) -------------------------------------------
+  // New ERP modules use namespaced keys (module.area.action). The keys above keep
+  // their original names: renaming one would orphan per-user overrides in production.
+  { key: "core.masterdata.view", group: "core", label: "عرض البيانات الأساسية", description: "يشوف الشركة والفروع والمخازن وأماكن التخزين ووحدات القياس والعملات" },
+  { key: "core.masterdata.manage", group: "core", label: "إدارة البيانات الأساسية", description: "يضيف ويعدّل ويوقف الشركة والفروع والمخازن وأماكن التخزين ووحدات القياس والعملات" },
+  // --- sales -------------------------------------------------------------
+  { key: "sales.customers.view", group: "sales", label: "عرض العملاء", description: "يشوف بيانات العملاء وجهات الاتصال وشروط الدفع" },
+  { key: "sales.customers.manage", group: "sales", label: "إدارة العملاء", description: "يضيف ويعدّل العملاء وأسماءهم البديلة ويربط أسماء العملاء في الأوردرات بحساباتهم" },
+  { key: "sales.pricing.view", group: "sales", label: "عرض الأسعار", description: "يشوف قوائم الأسعار وأسعار وقيمة الأوردرات" },
+  { key: "sales.pricing.manage", group: "sales", label: "إدارة الأسعار", description: "يعمل قوائم الأسعار ويسجل الأسعار اليومية ويحدد ضريبة الصنف وقائمة العميل" },
+  { key: "sales.price_override", group: "sales", label: "تعديل سعر أوردر", description: "يغيّر سعر أو خصم سطر في أوردر بسبب مكتوب، ويعيد تسعير الأوردر" },
+  { key: "sales.quotations.view", group: "sales", label: "عرض عروض الأسعار", description: "يشوف عروض الأسعار وحالتها" },
+  { key: "sales.quotations.manage", group: "sales", label: "إدارة عروض الأسعار", description: "يعمل ويبعت عروض الأسعار ويسجل رد العميل ويحوّلها لأوردر" },
+  { key: "sales.invoices.view", group: "sales", label: "عرض الفواتير", description: "يشوف الفواتير والإشعارات الدائنة وكشف حساب العميل وأعمار الديون" },
+  { key: "sales.invoices.manage", group: "sales", label: "إصدار الفواتير", description: "يعمل ويصدر فواتير المبيعات والإشعارات الدائنة" },
+  { key: "sales.tax.manage", group: "sales", label: "إدارة التصنيف الضريبي", description: "يحدد ضريبة القيمة المضافة لكل صنف (معفى / 14% / صفر)" },
+  { key: "sales.credit.manage", group: "sales", label: "إدارة الائتمان", description: "يحدد حد الائتمان ومدة السداد ويوقف أو يفك إيقاف التعامل الآجل مع العميل" },
+  // --- purchasing --------------------------------------------------------
+  { key: "purchasing.suppliers.view", group: "purchasing", label: "عرض الموردين", description: "يشوف بيانات الموردين وجهات الاتصال وشروط الدفع" },
+  { key: "purchasing.suppliers.manage", group: "purchasing", label: "إدارة الموردين (التجاري)", description: "يعدّل الشروط التجارية للمورد: الرقم الضريبي، مدة السداد، مدة التوريد، جهات الاتصال" },
+  { key: "purchasing.prices.view", group: "purchasing", label: "عرض أسعار الشراء", description: "يشوف أسعار الموردين وقيم أوامر الشراء وعروض الموردين" },
+  { key: "purchasing.prices.manage", group: "purchasing", label: "إدارة أسعار الموردين", description: "يسجل أسعار الموردين المتفق عليها بالتاريخ" },
+  { key: "purchasing.rfq.manage", group: "purchasing", label: "طلبات عروض الأسعار", description: "يعمل طلب عرض سعر للموردين ويسجل عروضهم ويرسّي" },
+  { key: "purchasing.orders.view", group: "purchasing", label: "عرض أوامر الشراء", description: "يشوف أوامر الشراء والكميات المطلوبة والمستلمة (الأسعار محتاجة صلاحية عرض أسعار الشراء)" },
+  { key: "purchasing.orders.manage", group: "purchasing", label: "إدارة أوامر الشراء", description: "يعمل ويعدّل ويبعت ويلغي أوامر الشراء" },
+  { key: "purchasing.orders.approve", group: "purchasing", label: "اعتماد أوامر الشراء", description: "يوافق على أوامر الشراء اللي فوق حد الاعتماد" },
+  { key: "purchasing.bills.view", group: "purchasing", label: "عرض فواتير الموردين", description: "يشوف فواتير الموردين وأرصدتهم وأعمار الدائنين" },
+  { key: "purchasing.bills.manage", group: "purchasing", label: "تسجيل فواتير الموردين", description: "يسجل فواتير الموردين ويطابقها مع أمر الشراء والاستلام، ويعمل إشعارات مدينة" },
+  { key: "accounting.view", group: "accounting", label: "عرض الحسابات", description: "يشوف دليل الحسابات والقيود وميزان المراجعة والنقدية" },
+  { key: "accounting.manage", group: "accounting", label: "إدارة الحسابات", description: "قيود يدوية وعكسها، ترحيل تقييم المخزون، تسوية البنك" },
+  { key: "accounting.receipts.manage", group: "accounting", label: "تحصيل من العملاء", description: "يسجل إيصالات التحصيل ويخصصها على الفواتير" },
+  { key: "accounting.payments.manage", group: "accounting", label: "سداد للموردين", description: "يسجل سندات الصرف للموردين ويخصصها على فواتيرهم" },
+  { key: "accounting.periods.close", group: "accounting", label: "قفل الفترات المحاسبية", description: "يقفل الشهر المحاسبي فمينفعش يترحّل فيه تاني" },
+  { key: "accounting.eta.view", group: "accounting", label: "متابعة الفاتورة الإلكترونية", description: "يشوف حالة إرسال الفواتير لمصلحة الضرائب وجاهزيتها وأخطاء الرفض" },
+  { key: "accounting.eta.manage", group: "accounting", label: "إرسال الفاتورة الإلكترونية", description: "يرسل الفواتير لمصلحة الضرائب ويحدّث حالتها ويظبط أكواد الأصناف والوحدات وبيانات المُصدِر" },
+  { key: "hr.employees.manage", group: "hr", label: "إدارة الموظفين", description: "يسجل الأقسام والموظفين ويشوف أرصدتهم (سلف ومستحقات)" },
+  { key: "hr.expenses.submit", group: "hr", label: "تسجيل المصروفات", description: "يسجل مصروف (نقدي أو على موظف)؛ اللي فوق الحد بيستنى اعتماد" },
+  { key: "hr.expenses.approve", group: "hr", label: "اعتماد المصروفات", description: "يوافق على المصروفات اللي فوق حد الاعتماد" },
+  { key: "hr.advances.manage", group: "hr", label: "سلف ومستحقات الموظفين", description: "يصرف سلفة أو مستحقات لموظف أو يستلم رد سلفة" },
+  { key: "integrations.manage", group: "integrations", label: "إدارة التكاملات", description: "يعمل ويلغي مفاتيح التكامل (n8n، Hermes) ويشوف سجل الاتصالات" },
+  { key: "operations.trips.manage", group: "operations", label: "تخطيط الرحلات والأسطول", description: "يسجل العربيات والسواقين، ويعمل الرحلات ويوزّع عليها الأوردرات ويلغيها" },
+  { key: "purchasing.bills.approve", group: "purchasing", label: "اعتماد فروق فواتير الموردين", description: "يوافق على فاتورة مورد مختلفة عن السعر المتفق عليه أو الكمية المستلمة أكتر من السماحية" },
+] as const satisfies readonly PermissionDef[];
+
+export type Permission = (typeof PERMISSION_DEFS)[number]["key"];
+
+export const ALL_PERMISSIONS: Permission[] = PERMISSION_DEFS.map((p) => p.key);
+const PERMISSION_SET = new Set<string>(ALL_PERMISSIONS);
+
+export function isPermission(value: unknown): value is Permission {
+  return typeof value === "string" && PERMISSION_SET.has(value);
+}
+
+export function permissionDef(key: Permission): PermissionDef {
+  return PERMISSION_DEFS.find((p) => p.key === key)!;
+}
+
+/**
+ * Role bundles.
+ *
+ * These reproduce exactly what each role could already do before permissions
+ * existed, so no working account gains or loses anything on the day this ships:
+ *  - PREPARER could read orders and record preparation.
+ *  - LOADER could read orders, record loading, and confirm dispatch.
+ *  - SUPERVISOR could do every order action, read reports and the full audit log,
+ *    and had full access to the stock module.
+ *  - STOCK_CONTROLLER was walled off from orders entirely and owned stock.
+ * SUPER_ADMIN is new and holds everything.
+ */
+const ORDER_OPERATIONS: Permission[] = [
+  "orders.view",
+  "orders.create",
+  "orders.edit",
+  "orders.approve",
+  "orders.prepare",
+  "orders.load",
+  "orders.dispatch",
+];
+
+const STOCK_OPERATIONS: Permission[] = [
+  "stock.view",
+  "stock.receive",
+  "stock.sort",
+  "stock.adjust",
+  "stock.manage_products",
+  "stock.manage_suppliers",
+  "stock.transfer",
+  "stock.reserve",
+];
+
+/** Stock decisions a supervisor makes but the person doing the counting does not:
+ * approving their own large adjustments, and seeing what the stock is worth. */
+const STOCK_OVERSIGHT: Permission[] = ["stock.approve_adjustments", "stock.valuation.view"];
+
+/** Customer accounts: who the business sells to. Credit terms are a finance
+ * decision and sit apart (sales.credit.manage). */
+const CUSTOMER_MASTER: Permission[] = ["sales.customers.view", "sales.customers.manage"];
+/** Prices: sales sets the daily prices and may change a line's price (with a reason). */
+const PRICING: Permission[] = ["sales.pricing.view", "sales.pricing.manage", "sales.price_override"];
+const QUOTATIONS: Permission[] = ["sales.quotations.view", "sales.quotations.manage"];
+/** Buying: suppliers' commercial side, their prices, RFQs and purchase orders. */
+const PURCHASING: Permission[] = [
+  "purchasing.suppliers.view",
+  "purchasing.suppliers.manage",
+  "purchasing.prices.view",
+  "purchasing.prices.manage",
+  "purchasing.rfq.manage",
+  "purchasing.orders.view",
+  "purchasing.orders.manage",
+];
+
+export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
+  SUPER_ADMIN: ALL_PERMISSIONS,
+  SUPERVISOR: [...ORDER_OPERATIONS, ...STOCK_OPERATIONS, ...STOCK_OVERSIGHT, ...CUSTOMER_MASTER, "operations.trips.manage", "hr.expenses.submit", "accounting.eta.view", "sales.pricing.view", "sales.quotations.view", "purchasing.suppliers.view", "purchasing.orders.view", "purchasing.prices.view", "reports.view", "audit.view"],
+  // Receives against purchase orders, so sees them — quantities only (no prices).
+  STOCK_CONTROLLER: [...STOCK_OPERATIONS, "purchasing.orders.view"],
+  PREPARER: ["orders.view", "orders.prepare"],
+  LOADER: ["orders.view", "orders.load", "orders.dispatch"],
+  // New in Phase 3. Sales staff take and follow orders and own the customer master;
+  // they do not touch the floor workflow or stock.
+  SALES: ["orders.view", "orders.create", ...CUSTOMER_MASTER, ...PRICING, ...QUOTATIONS, "sales.invoices.view"],
+  // Accounting reads what was sold and what stock is worth, owns credit, invoicing and
+  // tax classification, and reads the audit trail. Not the floor: no operational
+  // reports (reports.view is the operations board), no order or stock actions.
+  ACCOUNTANT: ["orders.view", "stock.view", "stock.valuation.view", "sales.customers.view", "sales.pricing.view", "sales.quotations.view", "sales.invoices.view", "sales.invoices.manage", "sales.credit.manage", "sales.tax.manage",
+    // Finance controls spend and owns payables: approves POs above the threshold, books supplier bills.
+    "purchasing.suppliers.view", "purchasing.suppliers.manage", "purchasing.prices.view", "purchasing.orders.view", "purchasing.orders.approve", "purchasing.bills.view", "purchasing.bills.manage",
+    // The ledger, cash and bank: Phase 6.
+    "accounting.view", "accounting.manage", "accounting.receipts.manage", "accounting.payments.manage", "accounting.periods.close", "reports.finance",
+    // E-invoicing (ETA): submission and its codes sit with finance; supervisors follow status.
+    "accounting.eta.view", "accounting.eta.manage",
+    "hr.employees.manage", "hr.expenses.submit", "hr.advances.manage",
+    "audit.view"],
+  // New in Phase 4. Buys: suppliers, their prices, RFQs, purchase orders; reads stock
+  // levels to know what to buy. Does not approve its own spend, book bills, or move stock.
+  PURCHASER: [...PURCHASING, "stock.view", "purchasing.bills.view"],
+};
+
+/**
+ * SUPER_ADMIN always resolves to every permission and ignores per-user overrides.
+ * That is not a convenience — it is the reason it is impossible to lock every
+ * administrator out of the system by editing permissions, which is the classic way
+ * an RBAC rollout bricks a production app.
+ */
+export const ABSOLUTE_ROLE: Role = "SUPER_ADMIN";
+
+/** Permission required to move an order INTO each status. */
+export const STATUS_PERMISSION: Record<string, Permission> = {
+  new: "orders.edit",
+  preparing: "orders.prepare",
+  ready_for_loading: "orders.prepare",
+  loading: "orders.load",
+  loaded: "orders.load",
+  dispatched: "orders.dispatch",
+  cancelled: "orders.edit",
+};

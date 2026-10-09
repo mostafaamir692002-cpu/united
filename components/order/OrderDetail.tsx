@@ -1,0 +1,712 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiFetch, apiPatch, apiPost, ApiClientError } from "@/lib/api-client";
+import type { OrderDTO, OrderItemDTO } from "@/lib/client-types";
+import { usePermissions } from "@/lib/use-session";
+import { homePathFor } from "@/lib/nav";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Timeline } from "@/components/Timeline";
+import { AttachmentsPanel } from "@/components/AttachmentsPanel";
+import { OrderPricingPanel } from "@/components/sales/OrderPricingPanel";
+import { ItemRow } from "@/components/order/ItemRow";
+import { DispatchButton } from "@/components/order/DispatchButton";
+import { ReasonAction } from "@/components/ReasonAction";
+import { CloneOrderAction } from "@/components/order/CloneOrderAction";
+import { LoadingState, ErrorState } from "@/components/States";
+import { LiveIndicator } from "@/components/ui/LiveIndicator";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { useToast } from "@/components/ui/Toast";
+import { orderUrgency, URGENCY_LABEL, STATUS_LABEL } from "@/lib/orderPresentation";
+import { nextAction, rollUpQuantities, stageOf, STATUS_MEANING } from "@/lib/orderSummary";
+import { deliverySlot, qty as qtyLabel, orDash } from "@/lib/format";
+import { ORDER_STATUSES } from "@/lib/types";
+import type { OrderStatus } from "@/lib/types";
+import { invalidateOrderData, invalidateDerivedOrderData } from "@/lib/queryInvalidation";
+import { applyOrderToCache, applyOrderItemToCache, cachedOrderFromLists } from "@/lib/orderCache";
+import { OrderDetailSkeleton } from "@/components/order/OrderDetailSkeleton";
+import { useOperationalSettings } from "@/lib/use-operational-settings";
+
+const SOURCE_LABEL: Record<string, string> = {
+  n8n: "🤖 وصل أوتوماتيك من n8n",
+  hermes: "🤖 وصل عبر Hermes",
+  manual: "✍️ أوردر يدوي",
+  system: "⚙️ النظام",
+  user: "✍️ يدوي",
+};
+
+export function OrderDetail({ orderId }: { orderId: string }) {
+  const ops = useOperationalSettings();
+  const router = useRouter();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const { can, permissions } = usePermissions();
+  const [error, setError] = useState<string | null>(null);
+  // A SET of in-flight action ids, not a single one. The old single-slot version meant
+  // confirming item A also disabled item B — on a six-line order that serialises the
+  // whole screen behind one request. A repeat of the SAME id is still ignored, which is
+  // what actually guards against a double-tap.
+  const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
+  const isBusy = (id: string) => busyIds.has(id);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    customer_account_id: "",
+    customer_name: "",
+    delivery_date: "",
+    delivery_time: "",
+    notes: "",
+    reason: "",
+  });
+  const [overrideTo, setOverrideTo] = useState<OrderStatus | "">("");
+  const [overrideReason, setOverrideReason] = useState("");
+
+  // The board the user just tapped through from already holds this order in full, so
+  // render it immediately instead of showing a spinner for data we have. Marking it as
+  // stale (updatedAt 0) means the real fetch still runs in the background and replaces
+  // it — this removes the spinner, not the refresh.
+  const seeded = cachedOrderFromLists(qc, orderId);
+
+  const { data, isLoading, isError, refetch, dataUpdatedAt } = useQuery({
+    queryKey: ["order", orderId],
+    queryFn: () => apiFetch<{ order: OrderDTO }>(`/api/orders/${orderId}`),
+    refetchInterval: 5000,
+    ...(seeded ? { initialData: { order: seeded }, initialDataUpdatedAt: 0 } : {}),
+  });
+  const order = data?.order;
+  const customerCards = useQuery({
+    queryKey: ["sales", "customers", "", true],
+    queryFn: () => apiFetch<{ customers: { id: string; code: string; name: string; nameAr: string | null; active: boolean }[] }>("/api/sales/customers?q=&include_inactive=1"),
+    enabled: can("sales.customers.view"),
+    staleTime: 60_000,
+  });
+
+  /**
+   * Run one action and apply its result.
+   *
+   * The endpoints already return the updated order (or item), so the screen is brought
+   * up to date from that response — no refetch, no spinner, and the data is the
+   * server's, not an optimistic guess. Only the derived views (production totals, the
+   * report, the timeline) are marked stale afterwards, and that is not awaited.
+   */
+  async function run(
+    id: string,
+    fn: () => Promise<{ order?: OrderDTO; item?: OrderItemDTO } | void>,
+    successMsg?: string
+  ): Promise<void> {
+    if (busyIds.has(id)) return; // same action already in flight — ignore the double tap
+    setError(null);
+    setBusyIds((prev) => new Set(prev).add(id));
+    try {
+      const result = await fn();
+      if (result && "order" in result && result.order) {
+        applyOrderToCache(qc, result.order);
+      } else if (result && "item" in result && result.item) {
+        applyOrderItemToCache(qc, orderId, result.item);
+      }
+      invalidateDerivedOrderData(qc, orderId);
+      if (successMsg) toast.show(successMsg, "success");
+    } catch (err) {
+      const msg = err instanceof ApiClientError ? err.message : "حصل خطأ، حاول تاني";
+      setError(msg);
+      toast.show(msg, "error");
+      // The cache may now disagree with the server (a 409 means someone else moved
+      // first) — pull the truth rather than leaving a stale screen.
+      void qc.invalidateQueries({ queryKey: ["order", orderId] });
+    } finally {
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
+
+  if (isLoading && !order) return <OrderDetailSkeleton />;
+  // Only replace the whole screen when there is truly nothing to show yet. React
+  // Query keeps the last-good `order` in cache across a failed poll, and every other
+  // board in the app (PrepBoard, LoadBoard, SupervisorBoard...) keeps rendering that
+  // stale-but-valid data under an error banner rather than blanking the screen — this
+  // is the one place a preparer/loader is actively tapping through item by item, so a
+  // brief Wi-Fi blip must not make the action buttons disappear mid-task.
+  if (!order) return <ErrorState message="مش قادرين نفتح الأوردر دلوقتي" onRetry={() => refetch()} />;
+
+  // Same landing rule as the header: derived from what this account can reach, so
+  // "back" never lands on a page it is about to be refused from.
+  const backHref = homePathFor(permissions);
+  const urgency = orderUrgency(order.status, order.deliveryDate, order.deliveryTime, ops.deliverySoonMinutes);
+  // Affordances follow effective permissions, never the role name — otherwise a role
+  // that holds the permission (SUPER_ADMIN) or an account granted it by an override
+  // would be shown no controls for something the server would happily accept.
+  const canPrep = can("orders.prepare");
+  const canLoad = can("orders.load");
+  const isSupervisor = can("orders.edit");
+
+  const roll = rollUpQuantities(order.items);
+  const stage = stageOf(order.status);
+  const action = nextAction(order);
+  const preparedCount = order.items.filter((i) => i.preparationStatus === "done").length;
+  const loadedCount = order.items.filter((i) => i.loadingStatus === "done").length;
+  const allPrepared = preparedCount === order.items.length;
+  const allLoaded = loadedCount === order.items.length;
+  const showLoadProgress = ["loading", "loaded", "dispatched"].includes(order.status);
+
+  function startEditing() {
+    setEditForm({
+      customer_account_id: order!.customerAccountId ?? "",
+      customer_name: order!.customerName,
+      delivery_date: order!.deliveryDate,
+      delivery_time: order!.deliveryTime ?? "",
+      notes: order!.notes ?? "",
+      reason: "",
+    });
+    setEditing(true);
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editForm.reason.trim()) {
+      setError("لازم تكتب سبب التعديل");
+      return;
+    }
+    await run(
+      "edit",
+      () =>
+        apiPatch(`/api/orders/${orderId}`, {
+          customer_name: editForm.customer_name,
+          customer_account_id: editForm.customer_account_id,
+          delivery_date: editForm.delivery_date,
+          delivery_time: editForm.delivery_time,
+          notes: editForm.notes,
+          reason: editForm.reason,
+          expected_version: order!.version,
+        }),
+      "اتحفظ التعديل"
+    );
+    setEditing(false);
+  }
+
+  async function submitOverride() {
+    if (!overrideTo || !overrideReason.trim()) return;
+    await run(
+      "override",
+      () =>
+        apiPost(`/api/orders/${orderId}/status`, {
+          to: overrideTo,
+          reason: overrideReason,
+          expected_version: order!.version,
+        }),
+      "اتغيرت الحالة"
+    );
+    setOverrideTo("");
+    setOverrideReason("");
+  }
+
+  // Sticky primary action for this stage, if any — kept in one place so it's
+  // always in the same spot at the bottom, one-tap reachable on a tablet.
+  let stickyAction: React.ReactNode = null;
+  if (isSupervisor && order.needsReview) {
+    // The supervisor is the one who can actually unblock this order — put the
+    // approval control itself in the sticky slot instead of the disabled
+    // preparer/loader button, which just says "ask the supervisor" while the
+    // supervisor is the one looking at it.
+    stickyAction = (
+      <ReasonAction
+        label="🔴 اعتماد الفرق — الأوردر محتاج اعتمادك"
+        confirmLabel="اعتماد الفرق"
+        className="btn-dark w-full text-xl !bg-united-danger"
+        onConfirm={(reason) =>
+          run(
+            "approve",
+            () => apiPost(`/api/orders/${orderId}/approve`, { reason, expected_version: order.version }),
+            "اتعمد الفرق"
+          )
+        }
+      />
+    );
+  } else if (canPrep && order.status === "new") {
+    stickyAction = (
+      <button
+        disabled={isBusy("start-prep")}
+        onClick={() =>
+          run(
+            "start-prep",
+            () =>
+              apiPost(`/api/orders/${orderId}/status`, {
+                to: "preparing",
+                expected_version: order.version,
+              }),
+            "بدأ التجهيز"
+          )
+        }
+        className="btn-primary w-full text-xl"
+      >
+        ابدأ التجهيز
+      </button>
+    );
+  } else if (canPrep && order.status === "preparing") {
+    stickyAction = (
+      <button
+        disabled={!allPrepared || order.needsReview || isBusy("finish-prep")}
+        onClick={() =>
+          run(
+            "finish-prep",
+            async () => {
+              await apiPost(`/api/orders/${orderId}/status`, {
+                to: "ready_for_loading",
+                expected_version: order.version,
+              });
+              router.push(backHref);
+            },
+            "الأوردر جاهز للتحميل"
+          )
+        }
+        className="btn-dark w-full text-xl"
+      >
+        {order.needsReview
+          ? "محتاج اعتماد المشرف الأول"
+          : !allPrepared
+          ? `لسه فاضل ${order.items.length - preparedCount} صنف`
+          : "خلصت التجهيز ✓"}
+      </button>
+    );
+  } else if (canLoad && order.status === "ready_for_loading") {
+    stickyAction = (
+      <button
+        disabled={isBusy("start-load")}
+        onClick={() =>
+          run(
+            "start-load",
+            () =>
+              apiPost(`/api/orders/${orderId}/status`, {
+                to: "loading",
+                expected_version: order.version,
+              }),
+            "بدأ التحميل"
+          )
+        }
+        className="btn-primary w-full text-xl"
+      >
+        ابدأ التحميل
+      </button>
+    );
+  } else if (canLoad && order.status === "loading") {
+    stickyAction = (
+      <button
+        disabled={!allLoaded || order.needsReview || isBusy("finish-load")}
+        onClick={() =>
+          run(
+            "finish-load",
+            () => apiPost(`/api/orders/${orderId}/status`, { to: "loaded", expected_version: order.version }),
+            "الأوردر تم تحميله"
+          )
+        }
+        className="btn-dark w-full text-xl"
+      >
+        {order.needsReview
+          ? "محتاج اعتماد المشرف الأول"
+          : !allLoaded
+          ? `لسه فاضل ${order.items.length - loadedCount} صنف`
+          : "تم التحميل ✓"}
+      </button>
+    );
+  } else if (canLoad && order.status === "loaded") {
+    stickyAction = (
+      <DispatchButton
+        busy={isBusy("dispatch")}
+        onConfirm={({ vehicle, driverName, crateCount }) =>
+          run(
+            "dispatch",
+            () =>
+              apiPost(`/api/orders/${orderId}/status`, {
+                to: "dispatched",
+                expected_version: order.version,
+                vehicle,
+                driver_name: driverName,
+                crate_count: crateCount,
+              }),
+            // Deliberately stay on the order after dispatch — it's the moment the
+            // print/dispatch sheet is needed for the driver's signature, and once
+            // dispatched this order drops off the loader's own board entirely, so
+            // this may be the last easy chance to reach it.
+            "العربية خرجت 🚚"
+          )
+        }
+      />
+    );
+  }
+
+  return (
+    <div className="p-4 max-w-2xl mx-auto pb-32">
+      <div className="flex items-center justify-between mb-3">
+        <Link
+          href={backHref}
+          className="inline-flex items-center gap-1 text-united-muted font-bold hover:text-united-dark"
+        >
+          <span>→</span> رجوع
+        </Link>
+        <LiveIndicator dataUpdatedAt={dataUpdatedAt} isLoading={isLoading} />
+      </div>
+
+      {isError && (
+        <div className="card p-3 mb-3 border-r-4 border-united-warn flex items-center justify-between gap-2">
+          <p className="text-sm font-bold text-united-warn">
+            ⚠️ مش قادرين نحدّث البيانات دلوقتي — اللي ظاهر ممكن يكون قديم شوية
+          </p>
+          <button onClick={() => refetch()} className="btn-secondary text-xs px-3 shrink-0">
+            حاول تاني
+          </button>
+        </div>
+      )}
+
+      {/* Header / operational record */}
+      <div className="card p-5">
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <h1 className="text-2xl font-extrabold text-united-dark">{order.customerName}</h1>
+          <StatusBadge status={order.status} />
+        </div>
+        {/* What the stage actually means, not just its name. */}
+        <p className="text-sm font-bold text-united-muted mb-2">{STATUS_MEANING[order.status]}</p>
+
+        <p className="text-united-green font-bold mb-2">
+          تسليم {deliverySlot(order.deliveryDate, order.deliveryTime)}
+        </p>
+
+        {/* Reference data: identifiers are secondary to the operational facts above. */}
+        <dl className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-united-muted mb-3">
+          <div className="flex gap-1">
+            <dt>رقم الأوردر:</dt>
+            <dd dir="ltr" className="font-bold text-united-dark/70">{order.orderNumber}</dd>
+          </div>
+          <div className="flex gap-1">
+            <dt>مرجع العميل:</dt>
+            <dd dir="ltr" className="font-bold text-united-dark/70">{orDash(order.externalId, "مفيش")}</dd>
+          </div>
+          <div className="flex gap-1">
+            <dt>مصدر الأوردر:</dt>
+            <dd className="font-bold text-united-dark/70">{SOURCE_LABEL[order.source] ?? order.source}</dd>
+          </div>
+        </dl>
+
+        {/* The three numbers that matter, rolled up across every line. */}
+        <div className="grid grid-cols-3 gap-2 text-center mb-3">
+          <SummaryFigure label="المطلوب" value={qtyLabel(roll.required)} unit={roll.singleUnit} />
+          <SummaryFigure label="اتجهز" value={qtyLabel(roll.prepared)} unit={roll.singleUnit} tone="green" />
+          <SummaryFigure
+            label={stage === "load" || stage === "done" ? "اتحمل" : "فاضل تجهيز"}
+            value={qtyLabel(stage === "load" || stage === "done" ? roll.loaded : roll.remainingToPrepare)}
+            unit={roll.singleUnit}
+            tone={stage === "load" || stage === "done" ? "green" : roll.remainingToPrepare > 0 ? "warn" : "green"}
+          />
+        </div>
+
+        {/* What has to happen next, stated once, at the top. */}
+        <div className="rounded-xl bg-united-dark/[0.04] px-4 py-3 mb-3">
+          <div className="text-[11px] font-extrabold text-united-muted">المطلوب دلوقتي</div>
+          <div
+            className={`font-extrabold ${
+              action.tone === "blocked" ? "text-united-danger" : "text-united-dark"
+            }`}
+          >
+            {action.label}
+            {action.owner !== "—" && (
+              <span className="text-xs font-bold text-united-muted"> · {action.owner}</span>
+            )}
+          </div>
+        </div>
+
+        {order.notes && <p className="text-united-dark/70 text-sm mb-1">📝 {order.notes}</p>}
+        {order.vehicle && (
+          <p className="text-united-dark/70 text-sm mb-1">
+            🚚 العربية: {order.vehicle}
+            {order.driverName && ` · السواق: ${order.driverName}`}
+            {order.crateCount != null && ` · ${order.crateCount} برنيكة`}
+          </p>
+        )}
+
+        <div className="flex flex-col gap-2 mt-3">
+          <ProgressBar label="التجهيز" done={preparedCount} total={order.items.length} />
+          {showLoadProgress && (
+            <ProgressBar label="التحميل" done={loadedCount} total={order.items.length} tone="orange" />
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2 mt-3 border-t border-united-border pt-3">
+          {isSupervisor && (
+            <a
+              href={`/orders/${orderId}/print/delivery`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary text-sm px-3 py-2"
+            >
+              🖨️ مستند التسليم
+            </a>
+          )}
+          {canPrep && (
+            <a
+              href={`/orders/${orderId}/print/picking`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary text-sm px-3 py-2"
+            >
+              🖨️ شيت التجهيز
+            </a>
+          )}
+          {canLoad && (
+            <a
+              href={`/orders/${orderId}/print/dispatch`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary text-sm px-3 py-2"
+            >
+              🖨️ شيت التحميل/التسليم
+            </a>
+          )}
+        </div>
+      </div>
+
+      {(urgency === "late" || urgency === "soon") && (
+        <p
+          className={`font-bold rounded-xl p-3 mt-3 ${
+            urgency === "late" ? "bg-red-50 text-united-danger" : "bg-amber-50 text-united-warn"
+          }`}
+        >
+          {URGENCY_LABEL[urgency]}
+        </p>
+      )}
+
+      {order.needsReview && (
+        <p className="bg-red-50 text-united-danger font-bold rounded-xl p-3 mt-3">
+          🔴 محتاج مراجعة المشرف — الفرق كبير ومينفعش الأوردر يكمل من غير اعتماد
+        </p>
+      )}
+
+      {error && <p className="bg-red-50 text-united-danger font-bold rounded-xl p-3 mt-3">{error}</p>}
+
+      {/* Items */}
+      <div className="mt-4">
+        <h2 className="font-extrabold text-united-dark mb-2">
+          الأصناف <span className="text-united-muted font-bold">({order.items.length})</span>
+        </h2>
+        <div className="flex flex-col gap-3">
+          {order.items.map((item) => {
+            let mode: "display" | "prepare" | "load" = "display";
+            if (canPrep && order.status === "preparing") mode = "prepare";
+            if (canLoad && order.status === "loading") mode = "load";
+
+            return (
+              <ItemRow
+                key={item.id}
+                item={item}
+                mode={mode}
+                busy={isBusy(item.id)}
+                onConfirm={async (qty) => {
+                  await run(item.id, () =>
+                    apiPost(
+                      `/api/orders/${orderId}/items/${item.id}/${mode === "prepare" ? "prepare" : "load"}`,
+                      { quantity: qty, mark_done: true, expected_version: item.version }
+                    )
+                  );
+                }}
+                supervisorEdit={
+                  isSupervisor
+                    ? {
+                        onSave: (qty, reason) =>
+                          run(`req-${item.id}`, () =>
+                            apiPost(`/api/orders/${orderId}/items/${item.id}/required`, {
+                              quantity: qty,
+                              reason,
+                              expected_version: item.version,
+                            })
+                          ),
+                      }
+                    : undefined
+                }
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Supervisor panel */}
+      {isSupervisor && (
+        <div className="card p-5 mt-4 flex flex-col gap-3">
+          <h2 className="font-extrabold text-united-dark">إجراءات المشرف</h2>
+
+          {!editing ? (
+            <button onClick={startEditing} className="btn-secondary self-start text-sm">
+              ✏️ تعديل بيانات الأوردر
+            </button>
+          ) : (
+            <form onSubmit={saveEdit} className="flex flex-col gap-2 bg-united-dark/5 rounded-xl p-3">
+              <select
+                value={editForm.customer_account_id}
+                onChange={(e) => {
+                  const customer = customerCards.data?.customers.find((c) => c.id === e.target.value);
+                  setEditForm((f) => ({
+                    ...f,
+                    customer_account_id: e.target.value,
+                    customer_name: customer?.nameAr ?? customer?.name ?? "",
+                  }));
+                }}
+                className="field"
+              >
+                <option value="">اختار العميل من دليل العملاء</option>
+                {customerCards.data?.customers.map((c) => (
+                  <option key={c.id} value={c.id}>{c.code} · {c.nameAr ?? c.name}{!c.active ? " (موقوف)" : ""}</option>
+                ))}
+              </select>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={editForm.delivery_date}
+                  onChange={(e) => setEditForm((f) => ({ ...f, delivery_date: e.target.value }))}
+                  className="field flex-1"
+                />
+                <input
+                  type="time"
+                  value={editForm.delivery_time}
+                  onChange={(e) => setEditForm((f) => ({ ...f, delivery_time: e.target.value }))}
+                  className="field flex-1"
+                />
+              </div>
+              <input
+                value={editForm.notes}
+                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder="ملاحظات"
+                className="field"
+              />
+              <input
+                value={editForm.reason}
+                onChange={(e) => setEditForm((f) => ({ ...f, reason: e.target.value }))}
+                placeholder="سبب التعديل (مطلوب)"
+                className="field"
+              />
+              <div className="flex gap-2">
+                <button disabled={isBusy("edit")} className="btn-primary flex-1">
+                  حفظ
+                </button>
+                <button type="button" onClick={() => setEditing(false)} className="btn-secondary">
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Approval itself lives in the sticky bar below (it's the primary action
+              when needed) — this row only holds the less urgent supervisor actions. */}
+          <div className="flex flex-wrap gap-2">
+            {order.status !== "cancelled" && order.status !== "dispatched" && (
+              <ReasonAction
+                label="🚫 إلغاء الأوردر"
+                className="btn-danger text-sm px-4 py-2"
+                onConfirm={(reason) =>
+                  run(
+                    "cancel",
+                    () => apiPost(`/api/orders/${orderId}/cancel`, { reason, expected_version: order.version }),
+                    "اتلغى الأوردر"
+                  )
+                }
+              />
+            )}
+            {(order.status === "cancelled" || order.status === "loaded" || order.status === "dispatched") && (
+              <ReasonAction
+                label="🔓 إعادة فتح (رجّعه للتجهيز)"
+                className="btn-secondary text-sm px-4 py-2"
+                onConfirm={(reason) =>
+                  run(
+                    "reopen",
+                    () =>
+                      apiPost(`/api/orders/${orderId}/reopen`, {
+                        to: "preparing",
+                        reason,
+                        expected_version: order.version,
+                      }),
+                    "اتفتح الأوردر تاني"
+                  )
+                }
+              />
+            )}
+            <CloneOrderAction orderId={orderId} />
+          </div>
+
+          <details className="border-t border-united-border pt-3">
+            <summary className="text-sm font-bold text-united-muted cursor-pointer">
+              تغيير الحالة يدويًا (override)
+            </summary>
+            <div className="flex flex-col gap-2 mt-2">
+              <select
+                value={overrideTo}
+                onChange={(e) => setOverrideTo(e.target.value as OrderStatus)}
+                className="field"
+              >
+                <option value="">اختار حالة</option>
+                {ORDER_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABEL[s]}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                placeholder="السبب (مطلوب)"
+                className="field"
+              />
+              <button
+                disabled={!overrideTo || !overrideReason.trim() || isBusy("override")}
+                onClick={submitOverride}
+                className="btn-dark"
+              >
+                تنفيذ
+              </button>
+            </div>
+          </details>
+        </div>
+      )}
+
+      <div className="card p-5 mt-4">
+        <h2 className="font-extrabold mb-2 text-united-dark">المستندات</h2>
+        <OrderPricingPanel orderId={orderId} />
+        <AttachmentsPanel entityType="order" entityId={orderId} canManage={isSupervisor} />
+      </div>
+
+      <div className="card p-5 mt-4">
+        <h2 className="font-extrabold mb-2 text-united-dark">سجل الأوردر</h2>
+        <Timeline orderId={orderId} />
+      </div>
+
+      {stickyAction && (
+        <div className="fixed bottom-0 inset-x-0 bg-white border-t-2 border-united-green/20 p-4 z-10">
+          <div className="max-w-2xl mx-auto">{stickyAction}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** One rolled-up figure in the order header. */
+function SummaryFigure({
+  label,
+  value,
+  unit,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  unit: string | null;
+  tone?: "neutral" | "green" | "warn";
+}) {
+  const toneClass = { neutral: "text-united-dark", green: "text-united-green", warn: "text-united-warn" }[tone];
+  return (
+    <div className="rounded-xl bg-united-dark/[0.03] py-2">
+      <div className="text-[11px] font-bold text-united-muted">{label}</div>
+      <div dir="ltr" className={`text-xl font-extrabold ${toneClass}`}>
+        {value}
+        {unit && <span className="text-[10px] font-bold text-united-dark/40"> {unit}</span>}
+      </div>
+    </div>
+  );
+}

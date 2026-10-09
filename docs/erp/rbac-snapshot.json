@@ -1,0 +1,2686 @@
+{
+  "permissions": [
+    "orders.view",
+    "orders.create",
+    "orders.edit",
+    "orders.approve",
+    "orders.prepare",
+    "orders.load",
+    "orders.dispatch",
+    "stock.view",
+    "stock.receive",
+    "stock.sort",
+    "stock.adjust",
+    "stock.manage_products",
+    "stock.manage_suppliers",
+    "stock.transfer",
+    "stock.reserve",
+    "stock.approve_adjustments",
+    "stock.valuation.view",
+    "reports.view",
+    "reports.finance",
+    "audit.view",
+    "users.view",
+    "users.create",
+    "users.edit",
+    "users.disable",
+    "users.change_role",
+    "settings.manage",
+    "core.masterdata.view",
+    "core.masterdata.manage",
+    "sales.customers.view",
+    "sales.customers.manage",
+    "sales.pricing.view",
+    "sales.pricing.manage",
+    "sales.price_override",
+    "sales.quotations.view",
+    "sales.quotations.manage",
+    "sales.invoices.view",
+    "sales.invoices.manage",
+    "sales.tax.manage",
+    "sales.credit.manage",
+    "purchasing.suppliers.view",
+    "purchasing.suppliers.manage",
+    "purchasing.prices.view",
+    "purchasing.prices.manage",
+    "purchasing.rfq.manage",
+    "purchasing.orders.view",
+    "purchasing.orders.manage",
+    "purchasing.orders.approve",
+    "purchasing.bills.view",
+    "purchasing.bills.manage",
+    "accounting.view",
+    "accounting.manage",
+    "accounting.receipts.manage",
+    "accounting.payments.manage",
+    "accounting.periods.close",
+    "accounting.eta.view",
+    "accounting.eta.manage",
+    "hr.employees.manage",
+    "hr.expenses.submit",
+    "hr.expenses.approve",
+    "hr.advances.manage",
+    "integrations.manage",
+    "operations.trips.manage",
+    "purchasing.bills.approve"
+  ],
+  "bundles": {
+    "SUPER_ADMIN": [
+      "*"
+    ],
+    "SUPERVISOR": [
+      "accounting.eta.view",
+      "audit.view",
+      "hr.expenses.submit",
+      "operations.trips.manage",
+      "orders.approve",
+      "orders.create",
+      "orders.dispatch",
+      "orders.edit",
+      "orders.load",
+      "orders.prepare",
+      "orders.view",
+      "purchasing.orders.view",
+      "purchasing.prices.view",
+      "purchasing.suppliers.view",
+      "reports.view",
+      "sales.customers.manage",
+      "sales.customers.view",
+      "sales.pricing.view",
+      "sales.quotations.view",
+      "stock.adjust",
+      "stock.approve_adjustments",
+      "stock.manage_products",
+      "stock.manage_suppliers",
+      "stock.receive",
+      "stock.reserve",
+      "stock.sort",
+      "stock.transfer",
+      "stock.valuation.view",
+      "stock.view"
+    ],
+    "STOCK_CONTROLLER": [
+      "purchasing.orders.view",
+      "stock.adjust",
+      "stock.manage_products",
+      "stock.manage_suppliers",
+      "stock.receive",
+      "stock.reserve",
+      "stock.sort",
+      "stock.transfer",
+      "stock.view"
+    ],
+    "PREPARER": [
+      "orders.prepare",
+      "orders.view"
+    ],
+    "LOADER": [
+      "orders.dispatch",
+      "orders.load",
+      "orders.view"
+    ],
+    "SALES": [
+      "orders.create",
+      "orders.view",
+      "sales.customers.manage",
+      "sales.customers.view",
+      "sales.invoices.view",
+      "sales.price_override",
+      "sales.pricing.manage",
+      "sales.pricing.view",
+      "sales.quotations.manage",
+      "sales.quotations.view"
+    ],
+    "ACCOUNTANT": [
+      "accounting.eta.manage",
+      "accounting.eta.view",
+      "accounting.manage",
+      "accounting.payments.manage",
+      "accounting.periods.close",
+      "accounting.receipts.manage",
+      "accounting.view",
+      "audit.view",
+      "hr.advances.manage",
+      "hr.employees.manage",
+      "hr.expenses.submit",
+      "orders.view",
+      "purchasing.bills.manage",
+      "purchasing.bills.view",
+      "purchasing.orders.approve",
+      "purchasing.orders.view",
+      "purchasing.prices.view",
+      "purchasing.suppliers.manage",
+      "purchasing.suppliers.view",
+      "reports.finance",
+      "sales.credit.manage",
+      "sales.customers.view",
+      "sales.invoices.manage",
+      "sales.invoices.view",
+      "sales.pricing.view",
+      "sales.quotations.view",
+      "sales.tax.manage",
+      "stock.valuation.view",
+      "stock.view"
+    ],
+    "PURCHASER": [
+      "purchasing.bills.view",
+      "purchasing.orders.manage",
+      "purchasing.orders.view",
+      "purchasing.prices.manage",
+      "purchasing.prices.view",
+      "purchasing.rfq.manage",
+      "purchasing.suppliers.manage",
+      "purchasing.suppliers.view",
+      "stock.view"
+    ]
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/accounting/accounts/[id]/ledger",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/accounts",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/accounts",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/cash",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/customer-refunds",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/customer-refunds",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.payments.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/customers/[id]/open-invoices",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/integrity",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/journals/[id]/reverse",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/journals/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/journals",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/journals",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/opening-balances",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/opening-balances",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/opening-stock",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/payments/[id]/allocate",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.payments.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/payments/[id]/reverse",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/payments",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/payments",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.payments.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/periods/[code]/close",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.periods.close"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/periods",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/receipts/[id]/allocate",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.receipts.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/receipts/[id]/reverse",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/receipts",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/receipts",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.receipts.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/reconciliations/[id]/complete",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/reconciliations/[id]/mark",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/reconciliations/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/reconciliations",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/stock-valuation",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/supplier-refunds",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/supplier-refunds",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.receipts.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/suppliers/[id]/open-bills",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounting/sync",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/trial-balance",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/vat-summary",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/data-import",
+      "gate": {
+        "kind": "per-import-kind",
+        "basePermission": "users.view",
+        "permissions": [
+          "accounting.manage",
+          "purchasing.prices.manage",
+          "purchasing.suppliers.manage",
+          "sales.credit.manage",
+          "sales.customers.manage",
+          "sales.pricing.manage",
+          "sales.tax.manage",
+          "stock.manage_products"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/data-import",
+      "gate": {
+        "kind": "per-import-kind",
+        "basePermission": "users.view",
+        "permissions": [
+          "accounting.manage",
+          "purchasing.prices.manage",
+          "purchasing.suppliers.manage",
+          "sales.credit.manage",
+          "sales.customers.manage",
+          "sales.pricing.manage",
+          "sales.tax.manage",
+          "stock.manage_products"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integrations/[id]/revoke",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "integrations.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/integrations",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "integrations.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integrations",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "integrations.manage"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/master/[entity]/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "core.masterdata.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/master/[entity]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "core.masterdata.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/master",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "core.masterdata.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/overview",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "users.view"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/settings/[key]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "settings.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settings",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "settings.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/users/[id]/permissions",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "users.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/users/[id]/permissions",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "settings.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/users/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "users.view"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/users/[id]",
+      "gate": {
+        "kind": "per-field"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/users/[id]/sessions/revoke",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "users.disable"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/users",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "users.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/users",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "users.create"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/approvals/[id]/decide",
+      "gate": {
+        "kind": "authenticated"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/approvals",
+      "gate": {
+        "kind": "authenticated"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/attachments/[id]/download",
+      "gate": {
+        "kind": "authenticated"
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/attachments/[id]",
+      "gate": {
+        "kind": "authenticated"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/attachments",
+      "gate": {
+        "kind": "authenticated"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/attachments",
+      "gate": {
+        "kind": "authenticated"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/audit",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "audit.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "gate": {
+        "kind": "public"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "gate": {
+        "kind": "public"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "gate": {
+        "kind": "public"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/password",
+      "gate": {
+        "kind": "public"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/core/reference",
+      "gate": {
+        "kind": "any",
+        "permissions": [
+          "core.masterdata.view",
+          "stock.view",
+          "orders.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/eta/invoices/[id]/reconcile",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.eta.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/eta/invoices/[id]/refresh",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.eta.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/eta/invoices/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.eta.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/eta/invoices/[id]/submit",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.eta.manage"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/api/eta/issuer",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.eta.manage"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/api/eta/items/[productId]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.eta.manage"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/api/eta/receivers/[customerId]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.eta.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/eta",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.eta.view"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/api/eta/units/[code]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.eta.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "gate": {
+        "kind": "public"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/hr/departments",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "hr.employees.manage"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/hr/employees/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "hr.employees.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/hr/employees/[id]/statement",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "hr.employees.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/hr/employees",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "hr.expenses.submit"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/hr/employees",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "hr.employees.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/hr/expense-accounts",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "hr.expenses.submit"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/hr/expenses",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "hr.expenses.submit"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/hr/expenses",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "hr.expenses.submit"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/hr/transactions",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "hr.advances.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/orders/[externalId]",
+      "gate": {
+        "kind": "api-key",
+        "scope": "orders.status"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/inventory/adjustments",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.adjust"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/inventory/documents/[id]/reverse",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.adjust"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/inventory/documents",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/inventory/exceptions/[id]/resolve",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.adjust"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/inventory/exceptions",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/inventory/lots/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.sort"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/inventory/products/[id]/packagings",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.manage_products"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/inventory/products/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/inventory/products/[id]/settings",
+      "gate": {
+        "kind": "any",
+        "permissions": [
+          "stock.manage_products",
+          "accounting.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/inventory/reports/expiring",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/inventory/reports/valuation",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.valuation.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/inventory/reservations/[id]/release",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.reserve"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/inventory/reservations",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/inventory/reservations",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.reserve"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/inventory/returns",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.receive"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/inventory/scrap",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.adjust"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/inventory/stock",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/inventory/transfers",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.transfer"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/management/finance",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "reports.finance"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/management/operations",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "reports.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/notifications/read",
+      "gate": {
+        "kind": "authenticated"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications",
+      "gate": {
+        "kind": "authenticated"
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/operations/drivers/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "operations.trips.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/operations/drivers",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "operations.trips.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/operations/exceptions/[id]/assign",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.approve"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/operations/exceptions/[id]/resolve",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.approve"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/operations/exceptions",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/operations/exceptions",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/operations/fleet",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/operations/stops/[id]/delivery",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.dispatch"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/operations/trips/[id]/cancel",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "operations.trips.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/operations/trips/[id]/depart",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.dispatch"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/operations/trips/[id]/dispatch",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.dispatch"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/operations/trips/[id]/loaded",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.load"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/operations/trips/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.view"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/api/operations/trips/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "operations.trips.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/operations/trips/[id]/start-loading",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.load"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/operations/trips/plannable",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "operations.trips.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/operations/trips",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/operations/trips",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "operations.trips.manage"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/operations/vehicles/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "operations.trips.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/operations/vehicles",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "operations.trips.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/[id]/approve",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.approve"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/[id]/assign",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.approve"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/[id]/cancel",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.edit"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/[id]/clone",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.create"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/[id]/items/[itemId]/load",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.load"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/[id]/items/[itemId]/prepare",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.prepare"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/orders/[id]/items/[itemId]/price",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.price_override"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/[id]/items/[itemId]/required",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.edit"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/[id]/pricing",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.pricing.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/[id]/reopen",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.edit"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/[id]/reprice",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.price_override"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.view"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/orders/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.edit"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/[id]/status",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders",
+      "gate": {
+        "kind": "api-key-or",
+        "permissions": [
+          "orders.create"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/production/daily",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/bills/[id]/cancel",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.bills.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/bills/[id]/debit-notes",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.bills.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/bills/[id]/post",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.bills.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/purchasing/bills/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.bills.view"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/api/purchasing/bills/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.bills.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/purchasing/bills",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.bills.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/bills",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.bills.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/orders/[id]/cancel",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.orders.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/orders/[id]/close",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.orders.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/purchasing/orders/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.orders.view"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/api/purchasing/orders/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.orders.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/orders/[id]/send",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.orders.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/orders/[id]/submit",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.orders.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/purchasing/orders",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.orders.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/orders",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.orders.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/purchasing/products/[id]/prices",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.prices.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/purchasing/receiving",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.receive"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/purchasing/reports/ap-aging",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.bills.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/rfqs/[id]/award",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.rfq.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/rfqs/[id]/cancel",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.rfq.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/rfqs/[id]/quotes",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.rfq.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/purchasing/rfqs/[id]",
+      "gate": {
+        "kind": "any",
+        "permissions": [
+          "purchasing.rfq.manage",
+          "purchasing.prices.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/rfqs/[id]/send",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.rfq.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/purchasing/rfqs",
+      "gate": {
+        "kind": "any",
+        "permissions": [
+          "purchasing.rfq.manage",
+          "purchasing.prices.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/rfqs",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.rfq.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/purchasing/suppliers/[id]/billable",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.bills.view"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/purchasing/suppliers/[id]/contacts/[contactId]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.suppliers.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/suppliers/[id]/contacts",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.suppliers.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/purchasing/suppliers/[id]/prices",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.prices.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/suppliers/[id]/prices",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.prices.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/purchasing/suppliers/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.suppliers.view"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/purchasing/suppliers/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.suppliers.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/purchasing/suppliers/[id]/statement",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.bills.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/purchasing/suppliers",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.suppliers.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/purchasing/suppliers",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.suppliers.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/daily",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "reports.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/catalog",
+      "gate": {
+        "kind": "any",
+        "permissions": [
+          "sales.quotations.view",
+          "sales.pricing.view",
+          "purchasing.orders.view",
+          "purchasing.rfq.manage",
+          "purchasing.prices.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/customers/[id]/aliases",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.manage"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/sales/customers/[id]/contacts/[contactId]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/customers/[id]/contacts",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.manage"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/sales/customers/[id]/credit",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.credit.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/customers/[id]/exposure",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/customers/[id]/history",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.view"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/sales/customers/[id]/price-list",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.pricing.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/customers/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.view"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/sales/customers/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/customers/[id]/statement",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.invoices.view"
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/sales/customers/aliases/[aliasId]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/customers/map",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/customers",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/customers",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/customers/unmapped",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/invoices/[id]/credit-notes",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.invoices.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/invoices/[id]/issue",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.invoices.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/invoices/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.invoices.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/invoices/[id]/void",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.invoices.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/invoices",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.invoices.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/invoices",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.invoices.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/invoices/to-invoice",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.invoices.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/price-lists/[id]/prices",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.pricing.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/price-lists/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.pricing.view"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/sales/price-lists/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.pricing.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/price-lists",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.pricing.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/price-lists",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.pricing.manage"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/sales/products/[id]/tax",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.tax.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/quotations/[id]/convert",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.quotations.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/quotations/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.quotations.view"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/api/sales/quotations/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.quotations.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/quotations/[id]/transition",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.quotations.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/quotations",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.quotations.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/quotations",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.quotations.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/reports/aging",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.invoices.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/tax-rates",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.pricing.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/settings/operational",
+      "gate": {
+        "kind": "authenticated"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/stock/adjustments",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.adjust"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/stock/audit",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/stock/dashboard",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/stock/intakes/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/stock/intakes/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.sort"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/stock/intakes/[id]/void",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.sort"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/stock/intakes",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/stock/intakes",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.receive"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/stock/ledger",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/stock/products/[id]/aliases/[aliasId]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.manage_products"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/stock/products/[id]/aliases",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.manage_products"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/stock/products/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.manage_products"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/stock/products/coverage",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/stock/products/mapping",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.manage_products"
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/stock/products/mapping",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.manage_products"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/stock/products/resolve",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/stock/products",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/stock/products",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.manage_products"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/stock/suppliers/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.manage_suppliers"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/stock/suppliers",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/stock/suppliers",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.manage_suppliers"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/supervisor/intelligence",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "reports.view"
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "href": "/prep",
+      "permission": "orders.prepare",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/load",
+      "permission": "orders.load",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/production",
+      "permission": "orders.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/operations",
+      "permission": "orders.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/supervisor",
+      "permission": "reports.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/supervisor/exceptions",
+      "permission": "reports.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/supervisor/report",
+      "permission": "reports.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/supervisor/audit",
+      "permission": "audit.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/approvals",
+      "permission": [
+        "orders.approve",
+        "stock.approve_adjustments",
+        "sales.credit.manage",
+        "purchasing.orders.approve",
+        "purchasing.bills.approve",
+        "hr.expenses.approve"
+      ],
+      "pageOpenToAll": true
+    },
+    {
+      "href": "/sales",
+      "permission": "sales.customers.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/purchasing",
+      "permission": "purchasing.orders.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/accounting",
+      "permission": "accounting.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/eta",
+      "permission": "accounting.eta.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/hr",
+      "permission": "hr.expenses.submit",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/management",
+      "permission": "reports.finance",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/management/operations",
+      "permission": "reports.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/stock",
+      "permission": "stock.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/stock/inventory",
+      "permission": "stock.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/stock/entries",
+      "permission": "stock.receive",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/stock/ledger",
+      "permission": "stock.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/stock/setup",
+      "permission": "stock.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/admin",
+      "permission": "users.view",
+      "pageOpenToAll": false
+    }
+  ]
+}
