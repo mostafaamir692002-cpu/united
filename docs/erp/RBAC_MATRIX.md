@@ -105,6 +105,7 @@ Enforcement is verified end to end by `tests/security.test.ts` (every handler ×
 | GET | `/api/accounting/accounts/[id]/ledger` | `accounting.view` | ✓ |  |  |  |  |  | ✓ |  |
 | GET | `/api/accounting/accounts` | `accounting.view` | ✓ |  |  |  |  |  | ✓ |  |
 | POST | `/api/accounting/accounts` | `accounting.manage` | ✓ |  |  |  |  |  | ✓ |  |
+| GET | `/api/accounting/balance-sheet` | `accounting.view` | ✓ |  |  |  |  |  | ✓ |  |
 | GET | `/api/accounting/cash` | `accounting.view` | ✓ |  |  |  |  |  | ✓ |  |
 | GET | `/api/accounting/customer-refunds` | `accounting.view` | ✓ |  |  |  |  |  | ✓ |  |
 | POST | `/api/accounting/customer-refunds` | `accounting.payments.manage` | ✓ |  |  |  |  |  | ✓ |  |
@@ -123,6 +124,7 @@ Enforcement is verified end to end by `tests/security.test.ts` (every handler ×
 | POST | `/api/accounting/payments` | `accounting.payments.manage` | ✓ |  |  |  |  |  | ✓ |  |
 | POST | `/api/accounting/periods/[code]/close` | `accounting.periods.close` | ✓ |  |  |  |  |  | ✓ |  |
 | GET | `/api/accounting/periods` | `accounting.view` | ✓ |  |  |  |  |  | ✓ |  |
+| GET | `/api/accounting/pnl` | `accounting.view` | ✓ |  |  |  |  |  | ✓ |  |
 | POST | `/api/accounting/receipts/[id]/allocate` | `accounting.receipts.manage` | ✓ |  |  |  |  |  | ✓ |  |
 | POST | `/api/accounting/receipts/[id]/reverse` | `accounting.manage` | ✓ |  |  |  |  |  | ✓ |  |
 | GET | `/api/accounting/receipts` | `accounting.view` | ✓ |  |  |  |  |  | ✓ |  |

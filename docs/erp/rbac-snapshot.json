@@ -207,6 +207,16 @@
     },
     {
       "method": "GET",
+      "path": "/api/accounting/balance-sheet",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
       "path": "/api/accounting/cash",
       "gate": {
         "kind": "all",
@@ -378,6 +388,16 @@
     {
       "method": "GET",
       "path": "/api/accounting/periods",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounting/pnl",
       "gate": {
         "kind": "all",
         "permissions": [

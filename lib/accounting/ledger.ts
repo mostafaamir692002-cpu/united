@@ -433,6 +433,91 @@ export async function closePeriod(code: string, actor: ServiceActor) {
 // Reads: chart, trial balance, account ledger, party balances
 // ---------------------------------------------------------------------------
 
+/**
+ * P&L — revenue and expense lines over a period, with totals and net income.
+ */
+export async function profitLoss(from: string, to: string) {
+  if (!isValidISODate(from) || !isValidISODate(to) || from > to) throw new ApiError(400, "الفترة غير صالحة");
+  const rows = await prisma.$queryRaw<{ type: string; code: string; nameAr: string; amount: Prisma.Decimal }[]>`
+    SELECT a."type", a."code", a."nameAr",
+      sum(CASE WHEN a."type" IN ('revenue') THEN l."credit" - l."debit" ELSE l."debit" - l."credit" END) AS amount
+    FROM "JournalLine" l JOIN "JournalEntry" e ON e."id" = l."entryId" JOIN "Account" a ON a."id" = l."accountId"
+    WHERE a."type" IN ('revenue', 'expense') AND e."date" BETWEEN ${from} AND ${to}
+    GROUP BY a."type", a."code", a."nameAr" ORDER BY a."type", a."code"`;
+  const plLines = rows.map((r) => ({ type: r.type, code: r.code, name: r.nameAr, amount: D(r.amount).toFixed(2) }));
+  const rev = plLines.filter((l) => l.type === "revenue").reduce((s, l) => s.plus(D(l.amount)), D(0));
+  const exp = plLines.filter((l) => l.type === "expense").reduce((s, l) => s.plus(D(l.amount)), D(0));
+  return { from, to, lines: plLines, revenue: rev.toFixed(2), expenses: exp.toFixed(2), netIncome: rev.minus(exp).toFixed(2) };
+}
+
+/**
+ * Balance Sheet as at a date — assets, liabilities, equity, closing.
+ * Shows absolute values so each section is readable on its own.
+ */
+export async function balanceSheet(asOf: string, openingFrom?: string) {
+  if (!isValidISODate(asOf)) throw new ApiError(400, "التاريخ غير صالح");
+  const from = openingFrom ?? `${asOf.slice(0, 4)}-01-01`;
+  if (!isValidISODate(from) || from > asOf) throw new ApiError(400, "الفترة غير صالحة");
+
+  // Per-account closing position over [from, asOf] — signed (debit − credit).
+  const rows = await prisma.$queryRaw<{ accountId: string; closing: Prisma.Decimal }[]>`
+    SELECT l."accountId",
+      coalesce(sum(CASE WHEN e."date" < ${from} THEN l."debit" - l."credit" END), 0) +
+      coalesce(sum(CASE WHEN e."date" >= ${from} AND e."date" <= ${asOf} THEN l."debit" - l."credit" END), 0) AS closing
+    FROM "JournalLine" l JOIN "JournalEntry" e ON e."id" = l."entryId"
+    WHERE e."date" <= ${asOf}
+    GROUP BY l."accountId"`;
+  const accounts = new Map((await prisma.account.findMany()).map((a) => [a.id, a]));
+  const groups: Record<string, any[]> = { asset: [], liability: [], equity: [], revenue: [], expense: [] };
+  const signedSums = { asset: D(0), liability: D(0), equity: D(0), revenue: D(0), expense: D(0) };
+
+  for (const r of rows) {
+    const a = accounts.get(r.accountId);
+    if (!a) continue;
+    const signed = D(r.closing);
+    const line: Record<string, any> = { code: a.code, name: a.nameAr, type: a.type, amount: signed.abs().toFixed(2) };
+    if (groups[a.type]) {
+      groups[a.type].push(line);
+      signedSums[a.type as "asset" | "liability" | "equity" | "revenue" | "expense"] = signedSums[a.type as "asset" | "liability" | "equity" | "revenue" | "expense"].plus(signed);
+    }
+  }
+  for (const key of Object.keys(groups)) {
+    groups[key].sort((a: any, b: any) => a.code.localeCompare(b.code));
+  }
+
+  // Balance sheet totals from signed sums (not from group amounts, which are abs).
+  //   Assets = what the company holds = signedAsset (positive = actual asset)
+  //   Liabilities = what the company owes = -signedLiability
+  //   Net income = -signedRevenue - signedExpense (P&L → retained earnings)
+  const totalAssets = signedSums.asset.abs();
+  const totalLiabilities = signedSums.liability.negated().abs();
+  const netIncome = signedSums.revenue.negated().minus(signedSums.expense);
+  const openingEquity = signedSums.equity.negated();
+  const totalEquity = openingEquity.plus(netIncome);
+
+  // Build the equity section: existing equity lines + net income
+  const allEquity = [...groups.equity];
+  if (!netIncome.isZero()) {
+    allEquity.push({
+      code: "3200", name: "صافي الدخل (الأرباح المحتجزة)", nameAr: "صافي الدخل",
+      type: "equity", amount: netIncome.abs().toFixed(2),
+    });
+  }
+
+  return {
+    asOf,
+    openingFrom: from,
+    sections: {
+      assets: { lines: groups.asset, total: totalAssets.toFixed(2) },
+      liabilities: { lines: groups.liability, total: totalLiabilities.toFixed(2) },
+      equity: { lines: allEquity, total: totalEquity.toFixed(2) },
+    },
+    totalAssets: totalAssets.toFixed(2),
+    totalLiabilitiesAndEquity: totalLiabilities.plus(totalEquity).toFixed(2),
+    _balanced: totalAssets.equals(totalLiabilities.plus(totalEquity)),
+  };
+}
+
 export async function chartOfAccounts() {
   return prisma.account.findMany({ orderBy: { code: "asc" } });
 }

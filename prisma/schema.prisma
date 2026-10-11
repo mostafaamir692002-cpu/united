@@ -432,16 +432,21 @@ model StockIntake {
   id                  String   @id @default(cuid())
   receiptNumber       String   @unique // RC-YYYYMMDD-####
   /// Client key for one submitted receiving form: a retried or duplicated request
-  /// returns the first receipt instead of posting the stock twice.
+  /// returns the first receipt instead of recording the same delivery twice.
   idempotencyKey      String?  @unique
-  receivedDate        String // YYYY-MM-DD, the operator's local calendar day
+  receivedDate        String
   supplierId          String
   productId           String
   /// Quantities in the product's BASE unit (KG for every product today).
   receivedQty         Decimal  @db.Decimal(14, 3)
   crateCount          Int?
+  /// Quantity sorted out as unsaleable waste (هالك) at the receiving dock.
+  wasteQty            Decimal  @default(0) @db.Decimal(14, 3)
+  /// Quantity sorted as second-grade / فرزة — lower quality but still saleable.
+  gradeBQty           Decimal  @default(0) @db.Decimal(14, 3)
+  /// Rejected quantity (rejected not otherwise categorised). Sum of all non-good.
   rejectedQty         Decimal  @default(0) @db.Decimal(14, 3)
-  goodQty             Decimal  @db.Decimal(14, 3) // = receivedQty - rejectedQty, computed server-side
+  goodQty             Decimal  @db.Decimal(14, 3) // = receivedQty - wasteQty - gradeBQty - rejectedQty, computed server-side
   /// What the receiver actually counted, when it was not the base unit (e.g. 40 CRATE).
   enteredQty          Decimal? @db.Decimal(14, 3)
   enteredUom          String?

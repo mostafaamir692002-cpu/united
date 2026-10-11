@@ -10,7 +10,7 @@ import type { StockActor } from "@/lib/stock-auth";
 import { isValidISODate } from "@/lib/dates";
 import { nextDocumentNumber } from "@/lib/core/sequences";
 import { D, num, parseMoney, parseQty, type Dec } from "@/lib/inventory/decimal";
-import { postMovements } from "@/lib/inventory/ledger";
+import { postMovements, type MoveInput } from "@/lib/inventory/ledger";
 import { resolveLocation, resolveWarehouse } from "@/lib/inventory/context";
 import { toBaseQuantity } from "@/lib/inventory/packaging";
 import { createAdjustment as createAdjustmentDocument } from "@/lib/inventory/documents";
@@ -293,6 +293,10 @@ export type IntakeInput = {
   received_qty?: unknown;
   rejected_kg?: unknown;
   rejected_qty?: unknown;
+  /** Quantity sorted as second-grade / فرزة at intake. */
+  grade_b_qty?: unknown;
+  /** Quantity identified as unsaleable waste / هالك at intake. */
+  waste_qty?: unknown;
   /** Counted in another unit (e.g. 40 CRATE) — converted through the product's packaging. */
   entered_qty?: unknown;
   entered_uom?: unknown;
@@ -332,11 +336,13 @@ function validateCrates(crateCount: number | null) {
   }
 }
 
-function receivedNumbers(receivedRaw: unknown, rejectedRaw: unknown) {
+function receivedNumbers(receivedRaw: unknown, rejectedRaw: unknown, gradeBRaw?: unknown, wasteRaw?: unknown) {
   const received = parseQty(receivedRaw, "الكمية المستلمة");
   const rejected = parseQty(rejectedRaw ?? 0, "كمية الفرز/المرفوض", { allowZero: true });
-  if (rejected.greaterThan(received)) throw new ApiError(400, "المرفوض مينفعش يكون أكبر من الكمية المستلمة");
-  return { received, rejected, good: received.minus(rejected) };
+  const gradeB = parseQty(gradeBRaw ?? 0, "كمية الفُرزة", { allowZero: true });
+  const waste = parseQty(wasteRaw ?? 0, "كمية الهالك", { allowZero: true });
+  if (gradeB.plus(waste).plus(rejected).greaterThan(received)) throw new ApiError(400, "مجموع الفُرزة والهالك والمرفوض مينفعش يكون أكبر من الكمية المستلمة");
+  return { received, rejected, gradeB, waste, good: received.minus(gradeB).minus(waste).minus(rejected) };
 }
 
 function addDays(dateISO: string, days: number) {
@@ -401,7 +407,7 @@ export async function recordIntake(input: IntakeInput, actor: StockActor) {
     receivedRaw = (await toBaseQuantity(prisma, product, qty, input.entered_uom)).toFixed();
     entered = { qty, uom: input.entered_uom };
   }
-  const { received, rejected, good } = receivedNumbers(receivedRaw, input.rejected_qty ?? input.rejected_kg);
+  const { received, rejected, gradeB, waste, good } = receivedNumbers(receivedRaw, input.rejected_qty ?? input.rejected_kg, input.grade_b_qty, input.waste_qty);
   const expiryDate =
     input.expiry_date || (product.shelfLifeDays ? addDays(receivedDate, product.shelfLifeDays) : null);
   if (expiryDate && expiryDate < receivedDate) throw new ApiError(400, "تاريخ الصلاحية قبل تاريخ الاستلام");
@@ -449,6 +455,8 @@ export async function recordIntake(input: IntakeInput, actor: StockActor) {
         supplierId: supplier.id,
         productId: product.id,
         receivedQty: received,
+        gradeBQty: gradeB,
+        wasteQty: waste,
         rejectedQty: rejected,
         goodQty: good,
         enteredQty: entered?.qty ?? null,
@@ -467,24 +475,64 @@ export async function recordIntake(input: IntakeInput, actor: StockActor) {
       include: INTAKE_INCLUDE,
     });
 
+    const movements: MoveInput[] = [];
     if (good.gt(0)) {
-      await postMovements(
-        tx,
-        [
-          {
-            productId: product.id,
-            warehouseId: warehouse.id,
-            locationId: location.id,
-            lotId: lot!.id,
-            quantity: good,
-            kind: "intake",
-            intakeId: created.id,
-            unitCost,
-            costSource: "purchase",
-          },
-        ],
-        { actorId: actor.id, actorName: actor.name, effectiveDate: receivedDate }
-      );
+      movements.push({
+        productId: product.id,
+        warehouseId: warehouse.id,
+        locationId: location.id,
+        lotId: lot!.id,
+        quantity: good,
+        kind: "intake",
+        intakeId: created.id,
+        unitCost,
+        costSource: "purchase",
+      });
+    }
+    if (gradeB.gt(0)) {
+      // Grade B enters stock at the same unit cost as good. Both grades
+      // share the input cost proportionally by quantity; waste absorbs
+      // none (zero value, written off immediately). Total allocated cost
+      // = good×cost + gradeB×cost + waste×0 = (good+gradeB)×cost, which
+      // together = receivedQty×cost − wasteQty×cost. The waste portion is
+      // recognised as a period loss through the scrap posting — it is not
+      // silently omitted from GRNI. The accountant can tune the per-product
+      // costing method at any time (AVCO, FIFO, standard) — the intake
+      // writes the purchase cost; valuation layers preserve the history.
+      movements.push({
+        productId: product.id,
+        warehouseId: warehouse.id,
+        locationId: "loc_grade_b",
+        lotId: lot!.id,
+        quantity: gradeB,
+        kind: "intake",
+        intakeId: created.id,
+        unitCost,
+        costSource: "purchase",
+      });
+    }
+    if (waste.gt(0)) {
+      // Waste is sent to the waste location at the purchase cost, tracked by
+      // the same lot. It stays there as a stock record until a separate
+      // adjustment or count writes it off through the standard scrap/ adjustment
+      // workflow — the ledger and the GL see the full cost at intake, so GRNI
+      // clears correctly when the supplier bill arrives. The waste location's
+      // balance is the inventory value awaiting write-off; periodic counts
+      // trigger the write-off through the existing adjustment-approval path.
+      movements.push({
+        productId: product.id,
+        warehouseId: warehouse.id,
+        locationId: "loc_waste",
+        lotId: lot!.id,
+        quantity: waste,
+        kind: "intake",
+        intakeId: created.id,
+        unitCost,
+        costSource: "purchase",
+      });
+    }
+    if (movements.length > 0) {
+      await postMovements(tx, movements, { actorId: actor.id, actorName: actor.name, effectiveDate: receivedDate });
     }
 
     await writeAudit(

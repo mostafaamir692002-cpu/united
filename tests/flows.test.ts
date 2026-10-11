@@ -68,8 +68,8 @@ async function main() {
   r = await call("karim", "POST", `/api/accounting/payments/${paid.id}/reverse`, { reason: "التحويل رجع" });
   const s3b = await snapshot();
   check("returned transfer reversed: AP +2400 owed again, bank +2400, bill open again", r.status === 201 && delta(s3, s3b, "ap") === -2400 && delta(s3, s3b, "bank") === 2400 && (await call("karim", "GET", `/api/purchasing/bills/${bill.id}`)).body.bill.open === "2400.00" && (await payable(supplier.id)) === "5400.00", r.body);
-  r = await call("karim", "POST", "/api/accounting/payments", { party_id: supplier.id, cash_account_id: "bank_main", amount: 2400, method: "bank_transfer", auto: true });
-  check("…paid again (oldest due first): bill closed, back to the opening 3000", r.status === 201 && (await call("karim", "GET", `/api/purchasing/bills/${bill.id}`)).body.bill.open === "0.00" && (await payable(supplier.id)) === "3000.00");
+  r = await call("karim", "POST", "/api/accounting/payments", { party_id: supplier.id, cash_account_id: "bank_main", amount: 2400, method: "bank_transfer", allocations: [{ document_id: bill.id, amount: 2400 }] });
+  check("…paid again: bill closed, back to the opening 3000", r.status === 201 && (await call("karim", "GET", `/api/purchasing/bills/${bill.id}`)).body.bill.open === "0.00" && (await payable(supplier.id)) === "3000.00");
 
   // -------------------------------------------------------------------------
   section("3. SALE: ORDER → RESERVE → PREPARE → LOAD → TRIP → PARTIAL DELIVERY → INVOICE → PAYMENT");
