@@ -103,8 +103,10 @@ async function main() {
   const invJe = await journalOf("sales_invoice", issued.number);
   check("a document's entry is not reversed by hand -> 409 (credit note instead)", (await call("karim", "POST", `/api/accounting/journals/${invJe.id}/reverse`, { reason: "x" })).status === 409);
   // A historical month of its own per run (the suite must be re-runnable on one database).
+  // Guaranteed before today's real transactions (2026+) so it never triggers the
+  // "close earlier open periods first" rule.
   const n = Math.floor(Date.now() / 1000);
-  const period = `${2000 + (n % 30)}-${String(1 + (Math.floor(n / 30) % 12)).padStart(2, "0")}`;
+  const period = `${2000 + (n % 10)}-${String(1 + (Math.floor(n / 30) % 12)).padStart(2, "0")}`;
   check("sales cannot close periods -> 403", (await call("mona", "POST", `/api/accounting/periods/${period}/close`, {})).status === 403);
   r = await call("karim", "POST", `/api/accounting/periods/${period}/close`, {});
   check(`close ${period}`, r.body.period?.status === "closed", r.body);

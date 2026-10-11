@@ -38,3 +38,10 @@ Thumbs.db
 
 # local attachment storage (development / tests)
 /storage/
+
+# Core dump — never commit
+/core
+/core.*
+
+# Test attachment artifacts
+/test-storage/
