@@ -53,6 +53,7 @@ export const SEQUENCE_DEFS = {
   "accounting.supplier_refund": { prefix: "SRF", padding: 5, reset: "yearly", label: "استرداد مبلغ من مورد" },
   "hr.employee": { prefix: "EMP", padding: 5, reset: "never", label: "كود موظف" },
   "hr.expense": { prefix: "EXP", padding: 5, reset: "yearly", label: "مصروف" },
+  "inventory.grading": { prefix: "GRD", padding: 5, reset: "yearly", label: "فرز منتجات" },
 } as const satisfies Record<string, SequenceDef>;
 
 export type SequenceKey = keyof typeof SEQUENCE_DEFS;

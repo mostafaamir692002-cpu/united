@@ -524,6 +524,19 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                       }
                     : undefined
                 }
+                onReject={
+                  isSupervisor && (item.preparationStatus === "done" || item.preparedQuantity != null)
+                    ? async (correctQuantity, reason) => {
+                        await run(`reject-${item.id}`, () =>
+                          apiPost(`/api/orders/${orderId}/items/${item.id}/reject-preparation`, {
+                            correct_quantity: correctQuantity,
+                            reason,
+                            expected_version: item.version,
+                          })
+                        );
+                      }
+                    : undefined
+                }
               />
             );
           })}

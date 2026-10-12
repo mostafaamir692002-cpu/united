@@ -38,3 +38,6 @@ Thumbs.db
 
 # local attachment storage (development / tests)
 /storage/
+core
+.next-release
+.next-test

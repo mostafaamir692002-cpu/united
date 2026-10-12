@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, apiPost, ApiClientError } from "@/lib/api-client";
-import { usePermissions } from "@/lib/use-session";
+import { usePermissions, useSession } from "@/lib/use-session";
 import type { OrderDTO } from "@/lib/client-types";
 import { invalidateOrderData } from "@/lib/queryInvalidation";
 import { useToast } from "@/components/ui/Toast";
 import { todayLocalISO } from "@/lib/localDate";
+import { saveDraft, loadDraft, clearDraft } from "@/lib/draft-persistence";
 
 type Row = { stock_product_id: string; quantity: string; unit: string };
 type CatalogProduct = {
@@ -19,14 +20,20 @@ type CatalogProduct = {
   packagings: { uomCode: string }[];
 };
 
+const DRAFT_FORM_TYPE = "order" as const;
+
 export function CreateOrderForm({ onDone }: { onDone: () => void }) {
   const qc = useQueryClient();
   const router = useRouter();
   const toast = useToast();
-  // Manual orders use master-data IDs. Names are snapshots for this document, not
-  // independent identities that can drift from the customer/product cards.
   const { can } = usePermissions();
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
+
   const [accountId, setAccountId] = useState("");
+  // Flag to prevent overwriting a restored draft with initial empty values
+  const restored = useRef(false);
+
   const accounts = useQuery({
     queryKey: ["sales", "customers", "", false],
     queryFn: () => apiFetch<{ customers: { id: string; code: string; name: string; nameAr: string | null; creditHold: boolean }[] }>("/api/sales/customers?q="),
@@ -45,6 +52,53 @@ export function CreateOrderForm({ onDone }: { onDone: () => void }) {
   const [rows, setRows] = useState<Row[]>([{ stock_product_id: "", quantity: "", unit: "" }]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [draftSaving, setDraftSaving] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // --- Draft persistence ---
+
+  /** Save the current form state as a draft (debounced). */
+  const triggerDraftSave = useCallback(
+    (fields: Record<string, unknown>) => {
+      if (!userId) return;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      setDraftSaving(true);
+      timerRef.current = setTimeout(() => {
+        saveDraft(userId, DRAFT_FORM_TYPE, fields);
+        setDraftSaving(false);
+      }, 2_000);
+    },
+    [userId]
+  );
+
+  /** Clear the draft after successful submission. */
+  const clearFormDraft = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (userId) clearDraft(userId, DRAFT_FORM_TYPE);
+    setDraftSaving(false);
+  }, [userId]);
+
+  /** Restore a draft on mount, once. */
+  useEffect(() => {
+    if (!userId || restored.current) return;
+    const saved = loadDraft(userId, DRAFT_FORM_TYPE);
+    if (!saved || !saved.fields) return;
+    restored.current = true;
+    const f = saved.fields as Record<string, unknown>;
+    if (typeof f.accountId === "string") setAccountId(f.accountId);
+    if (typeof f.date === "string") setDate(f.date);
+    if (typeof f.time === "string") setTime(f.time);
+    if (typeof f.notes === "string") setNotes(f.notes);
+    if (Array.isArray(f.rows)) setRows(f.rows as Row[]);
+  }, [userId]);
+
+  // Auto-save draft on every form field change
+  useEffect(() => {
+    if (!userId || !restored.current) return;
+    triggerDraftSave({ accountId, date, time, notes, rows });
+  }, [accountId, date, time, notes, rows, userId, triggerDraftSave]);
+
+  // --- Form logic ---
 
   function updateRow(i: number, patch: Partial<Row>) {
     setRows((r) => r.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
@@ -72,6 +126,7 @@ export function CreateOrderForm({ onDone }: { onDone: () => void }) {
         notes: notes || undefined,
         items,
       });
+      clearFormDraft();
       await invalidateOrderData(qc);
       toast.show(`اتعمل الأوردر ${order.orderNumber}`, "success");
       onDone();
@@ -85,13 +140,27 @@ export function CreateOrderForm({ onDone }: { onDone: () => void }) {
     }
   }
 
+  // --- Draft discard (on unmount when form is cancelled) ---
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
   return (
     <form onSubmit={submit} className="card p-5 flex flex-col gap-3">
-      <div>
-        <h2 className="text-xl font-extrabold text-united-dark">أوردر يدوي</h2>
-        <p className="text-sm text-united-muted">
-          الأوردرات الحقيقية بتيجي أوتوماتيك من n8n — الفورم ده للطوارئ/الاختبار بس
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-extrabold text-united-dark">أوردر يدوي</h2>
+          <p className="text-sm text-united-muted">
+            الأوردرات الحقيقية بتيجي أوتوماتيك من n8n — الفورم ده للطوارئ/الاختبار بس
+          </p>
+        </div>
+        {/* Draft indicator */}
+        {draftSaving && <span className="text-xs font-bold text-united-muted">جاري الحفظ...</span>}
+        {restored.current && !draftSaving && userId && (
+          <span className="text-xs font-bold text-united-green">تم حفظ المسودة ✓</span>
+        )}
       </div>
       {error && <p className="text-united-danger font-bold">{error}</p>}
 
@@ -177,9 +246,30 @@ export function CreateOrderForm({ onDone }: { onDone: () => void }) {
         </button>
       </div>
 
-      <button disabled={busy} className="btn-primary text-lg">
-        حفظ الأوردر
-      </button>
+      <div className="flex gap-2">
+        <button disabled={busy} className="btn-primary text-lg flex-1">
+          حفظ الأوردر
+        </button>
+        {restored.current && userId && (
+          <button
+            type="button"
+            onClick={() => {
+              clearFormDraft();
+              setError(null);
+              setAccountId("");
+              setDate(todayLocalISO());
+              setTime("");
+              setNotes("");
+              setRows([{ stock_product_id: "", quantity: "", unit: "" }]);
+              restored.current = false;
+              toast.show("اتحذفت المسودة", "success");
+            }}
+            className="btn-secondary text-sm"
+          >
+            ✕ إلغاء المسودة
+          </button>
+        )}
+      </div>
     </form>
   );
 }

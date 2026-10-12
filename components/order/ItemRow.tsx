@@ -7,18 +7,27 @@ import { qty as qtyLabel } from "@/lib/format";
 
 type Mode = "display" | "prepare" | "load";
 
+/** Parse a rejection reason from notes, if present. */
+function parseRejection(notes: string | null): string | null {
+  if (!notes) return null;
+  const m = /^\[رفض:\s*(.+?)\s*\]/.exec(notes);
+  return m ? m[1] : null;
+}
+
 export function ItemRow({
   item,
   mode,
   onConfirm,
   busy,
   supervisorEdit,
+  onReject,
 }: {
   item: OrderItemDTO;
   mode: Mode;
   onConfirm?: (quantity: number) => Promise<void>;
   busy?: boolean;
   supervisorEdit?: { onSave: (qty: number, reason: string) => Promise<void> };
+  onReject?: (correctQuantity: number, reason: string) => Promise<void>;
 }) {
   const startValue =
     mode === "load"
@@ -47,6 +56,13 @@ export function ItemRow({
   const [reqQty, setReqQty] = useState(String(item.requiredQuantity));
   const [reqReason, setReqReason] = useState("");
   const [outlierConfirmed, setOutlierConfirmed] = useState(false);
+  const [rejectQty, setRejectQty] = useState(String(item.requiredQuantity));
+  const [rejectReason, setRejectReason] = useState("");
+  const [showRejectForm, setShowRejectForm] = useState(false);
+
+  // Detect rejection: item was done/prepared with a quantity, now reset to pending
+  const rejectionReason = parseRejection(item.notes);
+  const wasRejected = rejectionReason !== null && item.preparationStatus === "pending" && item.preparedQuantity != null;
 
   // A typo (50 instead of 5, or vice versa) is easy to make on a tablet and hard to
   // notice at a glance — catch anything wildly off from what was required and make
@@ -83,7 +99,7 @@ export function ItemRow({
     item.loadedQuantity >= item.requiredQuantity;
 
   return (
-    <div className={`card p-4 sm:p-5 border-2 ${short ? "!border-united-danger/30" : "!border-united-border"}`}>
+    <div className={`card p-4 sm:p-5 border-2 ${wasRejected ? "!border-united-danger" : short ? "!border-united-danger/30" : "!border-united-border"}`}>
       <div className="flex items-center justify-between mb-3">
         <span className="text-lg sm:text-xl font-extrabold text-united-dark">{item.productName}</span>
         {done && (
@@ -91,7 +107,24 @@ export function ItemRow({
             ✓
           </span>
         )}
+        {wasRejected && (
+          <span className="text-sm font-bold text-united-danger bg-united-danger/10 px-2 py-1 rounded-lg">
+            🚫 مرفوض
+          </span>
+        )}
       </div>
+
+      {/* Rejection banner */}
+      {wasRejected && rejectionReason && (
+        <div className="bg-united-danger/5 border border-united-danger/20 rounded-lg p-3 mb-3">
+          <p className="text-sm font-bold text-united-danger">
+            🚫 رفض المشرف: {rejectionReason}
+          </p>
+          <p className="text-xs text-united-muted mt-1">
+            جهز {qtyLabel(item.preparedQuantity)} {item.unit} — المطلوب الآن {qtyLabel(item.requiredQuantity)} {item.unit}
+          </p>
+        </div>
+      )}
 
       {/* Required / prepared / loaded / remaining — every figure carries its unit, and
           "remaining" is shown rather than left for the operator to subtract. */}
@@ -163,12 +196,14 @@ export function ItemRow({
         <p className="text-united-warn font-bold mt-2">⚠️ الكمية مختلفة عن اللي اتجهزت</p>
       )}
 
+      {/* Supervisor actions: edit required qty + reject preparation */}
       {supervisorEdit && (
-        <div className="border-t border-united-border pt-3 mt-3">
+        <div className="border-t border-united-border pt-3 mt-3 space-y-3">
+          {/* Edit required quantity */}
           {!editingRequired ? (
             <button
               onClick={() => setEditingRequired(true)}
-              className="text-sm font-bold text-united-muted underline"
+              className="text-sm font-bold text-united-muted underline block"
             >
               عدّل الكمية المطلوبة
             </button>
@@ -205,6 +240,61 @@ export function ItemRow({
                 </button>
               </div>
             </div>
+          )}
+
+          {/* Reject preparation (only when the item has been prepared/done) */}
+          {(item.preparationStatus === "done" || item.preparedQuantity != null) && onReject && (
+            <>
+              {!showRejectForm ? (
+                <button
+                  onClick={() => {
+                    setRejectQty(String(item.requiredQuantity));
+                    setRejectReason("");
+                    setShowRejectForm(true);
+                  }}
+                  className="text-sm font-bold text-united-danger underline block"
+                >
+                  🚫 رفض التجهيز
+                </button>
+              ) : (
+                <div className="flex flex-col gap-2 bg-united-danger/5 p-3 rounded-lg border border-united-danger/20">
+                  <p className="text-sm font-bold text-united-danger">رفض التجهيز</p>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="text-xs text-united-muted">الكمية الصحيحة</label>
+                      <input
+                        type="number"
+                        value={rejectQty}
+                        onChange={(e) => setRejectQty(e.target.value)}
+                        className="field w-full text-center"
+                      />
+                    </div>
+                  </div>
+                  <input
+                    placeholder="سبب الرفض..."
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    className="field w-full"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      disabled={!rejectReason.trim() || !rejectQty || busy}
+                      onClick={async () => {
+                        await onReject(Number(rejectQty), rejectReason);
+                        setShowRejectForm(false);
+                        setRejectReason("");
+                      }}
+                      className="btn-danger flex-1"
+                    >
+                      {busy ? "جاري..." : "تأكيد الرفض"}
+                    </button>
+                    <button onClick={() => setShowRejectForm(false)} className="btn-secondary">
+                      إلغاء
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

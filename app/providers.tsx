@@ -4,6 +4,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { unlockAudio } from "@/lib/sound";
+import { useCrossTabLogout } from "@/lib/use-clear-session";
+
+function CrossTabSync() {
+  useCrossTabLogout();
+  return null;
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // Browsers won't play audio until a real user gesture happens — catch the
@@ -40,7 +46,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
   return (
     <QueryClientProvider client={client}>
-      <ToastProvider>{children}</ToastProvider>
+      <ToastProvider>
+        <CrossTabSync />
+        {children}
+      </ToastProvider>
     </QueryClientProvider>
   );
 }

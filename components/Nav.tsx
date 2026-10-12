@@ -10,6 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ROLE_LABEL } from "@/lib/types";
 import { visibleNavLinks, homePathFor, NAV_GROUPS, type NavGroup } from "@/lib/nav";
 import { NotificationBell } from "@/components/NotificationBell";
+import { broadcastLogout } from "@/lib/use-clear-session";
 
 export function Nav() {
   const { data } = useSession();
@@ -23,6 +24,7 @@ export function Nav() {
   async function logout() {
     try {
       await apiPost("/api/auth/logout");
+      broadcastLogout();
     } finally {
       qc.clear();
       router.push("/login");

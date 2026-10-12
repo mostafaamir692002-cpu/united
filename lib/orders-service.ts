@@ -907,6 +907,95 @@ export async function editRequiredQuantity(
   });
 }
 
+/**
+ * Supervisor rejects the preparation of an item, resetting it to pending with a
+ * correction reason. The supervisor also specifies the correct quantity required.
+ *
+ * Flow:
+ *  1. Supervisor sets the correct required quantity + rejection reason.
+ *  2. Item's preparationStatus resets to "pending".
+ *  3. The original prepared quantity is preserved in audit; the preparer sees the
+ *     supervisor's correction in `notes` and the updated required quantity.
+ *  4. The preparer fixes the quantity and re-marks it done.
+ *  5. The supervisor can then approve the corrected preparation.
+ */
+export async function rejectPreparation(
+  orderId: string,
+  itemId: string,
+  actor: Actor,
+  opts: {
+    /** The correct quantity the supervisor requires. */
+    correctQuantity: number;
+    /** Why the preparation was rejected. */
+    reason: string;
+    expectedVersion?: number;
+  }
+) {
+  assertPermission(actor, "orders.approve", "بس المشرف يقدر يرفض التجهيز");
+  if (!asText(opts.reason, "reason")?.trim()) throw new ApiError(400, "لازم تكتب سبب رفض التجهيز");
+  assertValidQuantity(opts.correctQuantity, "الكمية المطلوبة المصححة");
+
+  const item = await prisma.orderItem.findUnique({ where: { id: itemId } });
+  if (!item || item.orderId !== orderId) throw new ApiError(404, "الصنف مش موجود");
+  assertVersion(item.version, opts.expectedVersion, "الصنف");
+
+  // Only reject items that have been prepared (done) or have a quantity set
+  if (item.preparationStatus !== "done" && item.preparedQuantity == null) {
+    throw new ApiError(400, "مفيش تجهيز على الصنف ده عشان ترفضه");
+  }
+
+  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
+  if (!order || order.status === "cancelled") throw new ApiError(400, "الأوردر ملغي");
+  if (order.status !== "preparing" && order.status !== "ready_for_loading") {
+    throw new ApiError(409, "الأوردر مش في مرحلة بتسمح برفض التجهيز");
+  }
+
+  const thresholdPct = await shortageTolerance();
+  const autoReserve = await getSetting("sales.auto_reserve");
+
+  return inTx(async (tx) => {
+    // Build a rejection note that prepends to existing notes
+    const rejectionNote = `[رفض: ${opts.reason}]`;
+    const updated = await casItemUpdate(itemId, item.version, (where) =>
+      tx.orderItem.update({
+        where,
+        data: {
+          requiredQuantity: opts.correctQuantity,
+          preparationStatus: "pending",
+          // If the prepared quantity was set, keep it (audit trail) but reset the status
+          // so the preparer must re-confirm. The preparer can see what was originally
+          // prepared vs what the supervisor requires.
+          notes: item.notes
+            ? `${rejectionNote}\n${item.notes}`
+            : rejectionNote,
+          version: { increment: 1 },
+        },
+      })
+    );
+
+    await writeAudit({
+      userId: actor.id,
+      userName: actor.name,
+      role: actor.role,
+      action: "preparation_rejected",
+      entityType: "order_item",
+      entityId: itemId,
+      orderId,
+      fieldChanged: "preparationStatus",
+      oldValue: item.preparationStatus,
+      newValue: "pending",
+      reason: `${opts.reason} — الكمية المصححة: ${opts.correctQuantity} (كانت ${item.requiredQuantity})`,
+      source: actor.source,
+      deviceId: actor.deviceId,
+    }, tx);
+
+    if (autoReserve) await syncOrderReservations(tx, orderId, stockActor(actor));
+    await recomputeOrderFlags(tx, orderId, thresholdPct, actor);
+
+    return updated;
+  });
+}
+
 export async function approveShortage(
   orderId: string,
   actor: Actor,
