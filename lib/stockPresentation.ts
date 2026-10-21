@@ -44,6 +44,8 @@ export const MOVEMENT_LABEL: Record<MovementKind, string> = {
   scrap: "تالف / إعدام",
   sorting_out: "فرز (خروج)",
   sorting_in: "فرز (دخول)",
+  release_out: "إفراج محجوز (خروج)",
+  release_in: "إفراج محجوز (دخول)",
 };
 
 export const MOVEMENT_ICON: Record<MovementKind, string> = {
@@ -59,6 +61,8 @@ export const MOVEMENT_ICON: Record<MovementKind, string> = {
   scrap: "🗑️",
   sorting_out: "🔀",
   sorting_in: "🔀",
+  release_out: "🔓",
+  release_in: "🔓",
 };
 
 export const STOCK_AUDIT_LABEL: Record<string, string> = {
