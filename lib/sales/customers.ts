@@ -1,4 +1,4 @@
-import { Prisma, type Customer } from "@prisma/client";
+import { Prisma, type Customer, type CustomerLegalEntity } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/rbac";
@@ -53,6 +53,10 @@ const customerFields = {
   delivery_notes: optText("ملاحظات التوصيل", 1000).optional(),
   external_ref: optText("كود العميل في نظام الطلبات", 120).optional(),
   notes: optText("ملاحظات", 2000).optional(),
+  /// The legal billing entity this hotel bills under; NULL = bills under its own identity.
+  legal_entity_id: z.string().trim().nullable().optional(),
+  /// Commercial group ids this customer belongs to (M:N).
+  group_ids: z.array(z.string().trim().min(1)).optional(),
 };
 const customerCreateWithCommercialTerms = z.object(customerFields).extend({
   payment_terms_days: z.number({ invalid_type_error: "مدة السداد لازم تكون رقم" }).int().min(0).max(365).optional(),
@@ -131,7 +135,7 @@ async function releaseCanonical(tx: Tx, customerId: string, kind: "canonical" | 
 export async function listCustomers(opts: { q?: string; includeInactive?: boolean } = {}) {
   const q = opts.q?.trim();
   const normalized = q ? normalizeName(q) : "";
-  return prisma.customer.findMany({
+  const rows = await prisma.customer.findMany({
     where: {
       ...(opts.includeInactive ? {} : { active: true }),
       ...(q
@@ -142,14 +146,24 @@ export async function listCustomers(opts: { q?: string; includeInactive?: boolea
               { code: { contains: q.toUpperCase() } },
               { phone: { contains: q } },
               ...(normalized ? [{ aliases: { some: { normalized: { contains: normalized } } } }] : []),
+              { groupMembers: { some: { group: { OR: [{ code: { contains: q.toUpperCase() } }, { name: { contains: q, mode: "insensitive" } }, { nameAr: { contains: q } }] } } } },
+              { legalEntity: { OR: [{ code: { contains: q.toUpperCase() } }, { name: { contains: q, mode: "insensitive" } }, { nameAr: { contains: q } }] } },
             ],
           }
         : {}),
     },
     orderBy: [{ active: "desc" }, { name: "asc" }],
     take: 300,
-    include: { _count: { select: { orders: true } } },
+    include: {
+      _count: { select: { orders: true } },
+      groupMembers: { include: { group: { select: { id: true, code: true, name: true, nameAr: true } } } },
+      legalEntity: { select: { id: true, code: true, name: true, nameAr: true, taxRegistrationNo: true } },
+    },
   });
+  return rows.map(({ groupMembers, ...rest }) => ({
+    ...rest,
+    groups: groupMembers.map((m) => m.group),
+  }));
 }
 
 export async function getCustomer(id: string) {
@@ -159,6 +173,8 @@ export async function getCustomer(id: string) {
       aliases: { orderBy: { createdAt: "asc" } },
       contacts: { orderBy: [{ isPrimary: "desc" }, { name: "asc" }] },
       _count: { select: { orders: true } },
+      groupMembers: { include: { group: { select: { id: true, code: true, name: true, nameAr: true } } } },
+      legalEntity: true,
     },
   });
   if (!c) throw new ApiError(404, "العميل مش موجود");
@@ -168,7 +184,8 @@ export async function getCustomer(id: string) {
     take: 10,
     select: { id: true, orderNumber: true, deliveryDate: true, status: true },
   });
-  return { ...c, recentOrders };
+  const { groupMembers, ...rest } = c;
+  return { ...rest, groups: groupMembers.map((m) => m.group), recentOrders };
 }
 
 /** Everything recorded about one customer: its own edits and credit changes, its
@@ -206,11 +223,18 @@ export async function createCustomer(input: unknown, actor: ServiceActor) {
   }
   if ((v.credit_hold ?? false) && !v.credit_hold_reason) throw new ApiError(400, "اكتب سبب إيقاف التعامل الآجل");
   if (!(v.credit_hold ?? false) && v.credit_hold_reason) throw new ApiError(400, "سبب الإيقاف يستخدم فقط عند إيقاف التعامل الآجل");
+  // A hotel bills under EITHER its own tax identity OR a legal entity — never both:
+  // the tax number lives on the legal entity, not on every hotel row.
+  if (v.legal_entity_id && v.tax_registration_no) throw new ApiError(400, "الرقم الضريبي مسجل على الكيان القانوني — امسحه من صف الفندق أو أفصل الكيان");
   try {
     return await inTx(async (tx) => {
       await advisoryXactLock(tx, ALIAS_LOCK);
       const priceList = v.price_list_id ? await tx.priceList.findUnique({ where: { id: v.price_list_id } }) : null;
       if (v.price_list_id && (!priceList || !priceList.active || priceList.currencyCode !== "EGP")) throw new ApiError(400, "قائمة الأسعار غير موجودة أو موقوفة أو ليست بالجنيه المصري");
+      const legalEntity = v.legal_entity_id ? await tx.customerLegalEntity.findUnique({ where: { id: v.legal_entity_id } }) : null;
+      if (v.legal_entity_id && (!legalEntity || !legalEntity.active)) throw new ApiError(400, "الكيان القانوني غير موجود أو موقوف");
+      const groups = v.group_ids?.length ? await tx.customerGroup.findMany({ where: { id: { in: v.group_ids }, active: true }, select: { id: true, code: true } }) : [];
+      if (v.group_ids?.length && groups.length !== v.group_ids.length) throw new ApiError(400, "مجموعة من المجموعات المختارة غير موجودة أو موقوفة");
       const code = await nextDocumentNumber(tx, "sales.customer", todayLocalISO());
       const c = await tx.customer.create({
         data: {
@@ -218,7 +242,7 @@ export async function createCustomer(input: unknown, actor: ServiceActor) {
           name: v.name,
           nameAr: v.name_ar ?? null,
           type: v.type ?? "other",
-          taxRegistrationNo: v.tax_registration_no ?? null,
+          taxRegistrationNo: legalEntity ? null : (v.tax_registration_no ?? null),
           commercialRegNo: v.commercial_reg_no ?? null,
           phone: v.phone ?? null,
           email: v.email ?? null,
@@ -233,13 +257,21 @@ export async function createCustomer(input: unknown, actor: ServiceActor) {
           priceListId: priceList?.id ?? null,
           externalRef: v.external_ref ?? null,
           notes: v.notes ?? null,
+          legalEntityId: legalEntity?.id ?? null,
           createdById: actor.id,
           createdBy: actor.name,
         },
       });
+      if (groups.length) {
+        await tx.customerGroupMember.createMany({
+          data: groups.map((g) => ({ groupId: g.id, customerId: c.id, createdById: actor.id, createdBy: actor.name })),
+        });
+      }
       await claimName(tx, c.id, c.name, "canonical", actor);
       if (c.nameAr && normalizeName(c.nameAr) !== normalizeName(c.name)) await claimName(tx, c.id, c.nameAr, "canonical_ar", actor);
       await writeAudit(audit(actor, { action: "customer_created", entityType: "customer", entityId: c.id, newValue: `${c.code} · ${c.name}` }), tx);
+      if (legalEntity) await writeAudit(audit(actor, { action: "customer_edited", entityType: "customer", entityId: c.id, fieldChanged: "legalEntityId", newValue: `${legalEntity.code} · ${legalEntity.name}` }), tx);
+      for (const g of groups) await writeAudit(audit(actor, { action: "customer_edited", entityType: "customer", entityId: c.id, fieldChanged: "groupId", newValue: `${g.code}` }), tx);
       if (hasCreditTerms) {
         await writeAuditMany([
           ...(v.payment_terms_days !== undefined ? [audit(actor, { action: "customer_credit_initialized", entityType: "customer", entityId: c.id, fieldChanged: "paymentTermsDays", newValue: String(c.paymentTermsDays), reason: v.credit_reason })] : []),
@@ -292,6 +324,25 @@ export async function updateCustomer(id: string, input: unknown, actor: ServiceA
         data[col] = next;
         audits.push(audit(actor, { action: "customer_edited", entityType: "customer", entityId: id, fieldChanged: col, oldValue: prev == null ? null : String(prev), newValue: next == null ? null : String(next) }));
       }
+      // Legal entity link: a linked entity owns the tax number; a hotel's own tax
+      // row then must be cleared (its billing identity is the entity, not the hotel).
+      if (v.legal_entity_id !== undefined && (v.legal_entity_id ?? null) !== cur.legalEntityId) {
+        const nextId = v.legal_entity_id ?? null;
+        if (nextId) {
+          const legalEntity = await tx.customerLegalEntity.findUnique({ where: { id: nextId } });
+          if (!legalEntity || !legalEntity.active) throw new ApiError(400, "الكيان القانوني غير موجود أو موقوف");
+        }
+        data.legalEntityId = nextId;
+        audits.push(audit(actor, { action: "customer_edited", entityType: "customer", entityId: id, fieldChanged: "legalEntityId", oldValue: cur.legalEntityId ?? null, newValue: nextId }));
+        // Moving to an entity: the hotel's own tax number is owned by the entity now.
+        if (nextId && cur.taxRegistrationNo) {
+          data.taxRegistrationNo = null;
+          audits.push(audit(actor, { action: "customer_edited", entityType: "customer", entityId: id, fieldChanged: "taxRegistrationNo", oldValue: cur.taxRegistrationNo, newValue: null }));
+        }
+      } else if (v.legal_entity_id && v.tax_registration_no) {
+        // Same call sets both a link and an own tax number — never both.
+        throw new ApiError(400, "الرقم الضريبي مسجل على الكيان القانوني — امسحه من صف الفندق أو أفصل الكيان");
+      }
       if (audits.length === 0) return cur;
       let updated: Customer;
       try {
@@ -299,6 +350,29 @@ export async function updateCustomer(id: string, input: unknown, actor: ServiceA
       } catch (err) {
         if ((err as { code?: string })?.code === "P2025") throw new ApiError(409, "بيانات العميل اتغيرت من واحد تاني، حدّث الشاشة");
         throw err;
+      }
+      // Group membership: replace the whole set when group_ids is provided.
+      if (v.group_ids !== undefined) {
+        const current = await tx.customerGroupMember.findMany({ where: { customerId: id }, select: { groupId: true, group: { select: { code: true } } } });
+        const currentIds = new Set(current.map((m) => m.groupId));
+        const wanted = new Set(v.group_ids);
+        const remove: string[] = [];
+        for (const m of current) if (!wanted.has(m.groupId)) remove.push(m.groupId);
+        const keepAudit = current.filter((m) => wanted.has(m.groupId)).map((m) => m.group.code);
+        if (remove.length) await tx.customerGroupMember.deleteMany({ where: { customerId: id, groupId: { in: remove } } });
+        const add = wanted.size ? await tx.customerGroup.findMany({ where: { id: { in: [...wanted] }, active: true }, select: { id: true, code: true } }) : [];
+        if (add.length !== wanted.size) throw new ApiError(400, "مجموعة من المجموعات المختارة غير موجودة أو موقوفة");
+        const addAudit: string[] = [];
+        for (const g of add) {
+          if (currentIds.has(g.id)) continue;
+          await tx.customerGroupMember.create({ data: { groupId: g.id, customerId: id, createdById: actor.id, createdBy: actor.name } });
+          addAudit.push(g.code);
+        }
+        const before = current.map((m) => m.group.code).sort().join("، ");
+        const afterSet = new Set([...keepAudit, ...addAudit]);
+        if (remove.length || addAudit.length) {
+          audits.push(audit(actor, { action: "customer_edited", entityType: "customer", entityId: id, fieldChanged: "groupId", oldValue: before || null, newValue: [...afterSet].sort().join("، ") || null }));
+        }
       }
       // Canonical aliases follow the names; a manual alias is never touched here.
       if ("name" in data) {
@@ -491,4 +565,191 @@ export async function mapOrderCustomerName(rawName: unknown, customerId: unknown
     );
     return { alias, ordersLinked: ids.length };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Commercial groups (brands) and legal billing entities
+// ---------------------------------------------------------------------------
+
+const codeField = (label: string) =>
+  z
+    .string({ invalid_type_error: `${label} لازم يكون نص` })
+    .trim()
+    .min(1, `${label} مطلوب`)
+    .max(20, `${label} طويل أوي`)
+    .transform((v) => v.toUpperCase())
+    .refine((v) => /^[A-Z0-9_-]+$/.test(v), `${label} لازم حروف/أرقام/شرطة فقط`);
+
+const groupCreate = z.object({
+  code: codeField("كود المجموعة"),
+  name: text("اسم المجموعة"),
+  name_ar: optText("اسم المجموعة بالعربي").optional(),
+});
+
+const legalEntityCreate = z.object({
+  code: codeField("كود الكيان القانوني"),
+  name: text("الاسم القانوني"),
+  name_ar: optText("الاسم القانوني بالعربي").optional(),
+  tax_registration_no: taxId.optional(),
+  commercial_reg_no: optText("السجل التجاري", 40).optional(),
+  phone: optText("التليفون", 40).optional(),
+  email: optText("الإيميل").optional(),
+  address: optText("العنوان", 500).optional(),
+  area: optText("المنطقة", 120).optional(),
+  city: optText("المدينة", 80).optional(),
+  country: optText("الدولة", 60).optional(),
+  governate: optText("المحافظة", 60).optional(),
+  region_city: optText("المنطقة/المدينة", 60).optional(),
+  street: optText("الشارع", 120).optional(),
+  building_number: optText("رقم المبنى", 40).optional(),
+  postal_code: optText("الرقم البريدي", 20).optional(),
+  floor: optText("الدور", 40).optional(),
+  room: optText("الغرفة", 40).optional(),
+  landmark: optText("علامة مميزة", 120).optional(),
+  additional_information: optText("معلومات إضافية", 200).optional(),
+  receiver_type: z.enum(["B", "P", "F"], { errorMap: () => ({ message: "receiver_type لازم B أو P أو F" }) }).nullable().optional(),
+  receiver_id: optText("رقم هوية المستلم", 60).optional(),
+  notes: optText("ملاحظات", 2000).optional(),
+});
+
+const legalEntityUpdate = legalEntityCreate.partial().extend({ active: active.optional(), expected_version: version });
+
+/** Creates a commercial group/brand (JAZ, Four Seasons, ...). Purely commercial. */
+export async function createCustomerGroup(input: unknown, actor: ServiceActor) {
+  assertPermission(actor, "sales.customers.manage");
+  const v = parse(groupCreate, input);
+  try {
+    return await inTx(async (tx) => {
+      const g = await tx.customerGroup.create({
+        data: { code: v.code, name: v.name, nameAr: v.name_ar ?? null, createdById: actor.id, createdBy: actor.name },
+      });
+      await writeAudit(audit(actor, { action: "customer_group_created", entityType: "customer_group", entityId: g.id, newValue: `${g.code} · ${g.name}` }), tx);
+      return g;
+    });
+  } catch (err) {
+    const e = err as { code?: string; meta?: { target?: string[] | string } };
+    if (e?.code === "P2002" && String(e.meta?.target ?? "").includes("code")) throw new ApiError(409, "كود المجموعة مستخدم قبل كده");
+    throw err;
+  }
+}
+
+/** All active groups with their current hotel counts. */
+export async function listCustomerGroups() {
+  const groups = await prisma.customerGroup.findMany({
+    where: { active: true },
+    orderBy: [{ code: "asc" }],
+    include: { _count: { select: { members: true } } },
+  });
+  return groups.map(({ _count, ...g }) => ({ ...g, hotels: _count.members }));
+}
+
+/** Creates a legal billing entity that owns a tax number; hotels link to it. */
+export async function createCustomerLegalEntity(input: unknown, actor: ServiceActor) {
+  assertPermission(actor, "sales.customers.manage");
+  const v = parse(legalEntityCreate, input);
+  try {
+    return await inTx(async (tx) => {
+      const le = await tx.customerLegalEntity.create({
+        data: {
+          code: v.code,
+          name: v.name,
+          nameAr: v.name_ar ?? null,
+          taxRegistrationNo: v.tax_registration_no ?? null,
+          commercialRegNo: v.commercial_reg_no ?? null,
+          phone: v.phone ?? null,
+          email: v.email ?? null,
+          address: v.address ?? null,
+          area: v.area ?? null,
+          city: v.city ?? null,
+          country: v.country ?? null,
+          governate: v.governate ?? null,
+          regionCity: v.region_city ?? null,
+          street: v.street ?? null,
+          buildingNumber: v.building_number ?? null,
+          postalCode: v.postal_code ?? null,
+          floor: v.floor ?? null,
+          room: v.room ?? null,
+          landmark: v.landmark ?? null,
+          additionalInformation: v.additional_information ?? null,
+          receiverType: v.receiver_type ?? null,
+          receiverId: v.receiver_id ?? null,
+          notes: v.notes ?? null,
+          createdById: actor.id,
+          createdBy: actor.name,
+        },
+      });
+      await writeAudit(audit(actor, { action: "customer_legal_entity_created", entityType: "customer_legal_entity", entityId: le.id, newValue: `${le.code} · ${le.name}` }), tx);
+      return le;
+    });
+  } catch (err) {
+    const e = err as { code?: string; meta?: { target?: string[] | string } };
+    if (e?.code === "P2002") {
+      const target = String(e.meta?.target ?? "");
+      if (target.includes("taxRegistrationNo")) throw new ApiError(409, "الرقم الضريبي مسجل لكيان قانوني آخر");
+      if (target.includes("code")) throw new ApiError(409, "كود الكيان القانوني مستخدم قبل كده");
+    }
+    throw err;
+  }
+}
+
+/** All active legal entities with their linked hotel counts. */
+export async function listCustomerLegalEntities() {
+  const entities = await prisma.customerLegalEntity.findMany({
+    where: { active: true },
+    orderBy: [{ code: "asc" }],
+    include: { _count: { select: { customers: true } } },
+  });
+  return entities.map(({ _count, ...le }) => ({ ...le, hotels: _count.customers }));
+}
+
+/** Updates a legal entity (name, tax data, billing/e-invoice details). */
+export async function updateCustomerLegalEntity(id: string, input: unknown, actor: ServiceActor) {
+  assertPermission(actor, "sales.customers.manage");
+  const v = parse(legalEntityUpdate, input);
+  try {
+    return await inTx(async (tx) => {
+      const cur = await tx.customerLegalEntity.findUnique({ where: { id } });
+      if (!cur) throw new ApiError(404, "الكيان القانوني مش موجود");
+      if (v.expected_version !== undefined && v.expected_version !== cur.version) throw new ApiError(409, "بيانات الكيان القانوني اتغيرت، حدّث الشاشة");
+      const data: Prisma.CustomerLegalEntityUpdateInput = {};
+      const audits: AuditInput[] = [];
+      const pairs: [keyof z.infer<typeof legalEntityCreate>, keyof CustomerLegalEntity][] = [
+        ["name", "name"], ["name_ar", "nameAr"], ["tax_registration_no", "taxRegistrationNo"], ["commercial_reg_no", "commercialRegNo"],
+        ["phone", "phone"], ["email", "email"], ["address", "address"], ["area", "area"], ["city", "city"],
+        ["country", "country"], ["governate", "governate"], ["region_city", "regionCity"], ["street", "street"], ["building_number", "buildingNumber"],
+        ["postal_code", "postalCode"], ["floor", "floor"], ["room", "room"], ["landmark", "landmark"], ["additional_information", "additionalInformation"],
+        ["receiver_type", "receiverType"], ["receiver_id", "receiverId"], ["notes", "notes"],
+      ];
+      for (const [inKey, col] of pairs) {
+        if (v[inKey] === undefined) continue;
+        const next = v[inKey] as unknown;
+        const prev = col === "taxRegistrationNo" ? (cur.taxRegistrationNo ?? null) : (cur[col] as unknown);
+        if (next === prev) continue;
+        (data as Record<string, unknown>)[col] = next;
+        audits.push(audit(actor, { action: "customer_legal_entity_edited", entityType: "customer_legal_entity", entityId: id, fieldChanged: col, oldValue: prev == null ? null : String(prev), newValue: next == null ? null : String(next) }));
+      }
+      if (v.active !== undefined && v.active !== cur.active) {
+        data.active = v.active;
+        audits.push(audit(actor, { action: "customer_legal_entity_edited", entityType: "customer_legal_entity", entityId: id, fieldChanged: "active", oldValue: String(cur.active), newValue: String(v.active) }));
+      }
+      if (audits.length === 0) return cur;
+      let updated: CustomerLegalEntity;
+      try {
+        updated = await tx.customerLegalEntity.update({ where: { id, version: cur.version }, data: { ...data, version: { increment: 1 } } });
+      } catch (err) {
+        if ((err as { code?: string })?.code === "P2025") throw new ApiError(409, "بيانات الكيان القانوني اتغيرت، حدّث الشاشة");
+        throw err;
+      }
+      await writeAuditMany(audits, tx);
+      return updated;
+    });
+  } catch (err) {
+    const e = err as { code?: string; meta?: { target?: string[] | string } };
+    if (e?.code === "P2002") {
+      const target = String(e.meta?.target ?? "");
+      if (target.includes("taxRegistrationNo")) throw new ApiError(409, "الرقم الضريبي مسجل لكيان قانوني آخر");
+      if (target.includes("code")) throw new ApiError(409, "كود الكيان القانوني مستخدم قبل كده");
+    }
+    throw err;
+  }
 }

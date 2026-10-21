@@ -65,7 +65,9 @@ export type AuditInput = {
     | "expense"
     | "employee_transaction"
     | "integration"
-    | "product_packaging";
+    | "product_packaging"
+    | "customer_group"
+    | "customer_legal_entity";
   entityId: string;
   orderId?: string | null;
   fieldChanged?: string;

@@ -1045,6 +1045,14 @@ model StockIssueException {
 // Sales: customer master. Identity works like the product master — a customer name
 // on an incoming order resolves EXACTLY (normalized) to one account or stays
 // unmapped for a person to decide.
+//
+// A customer is the OPERATIONAL entity (hotel): its own code/name/address/credit.
+// It may additionally link to:
+//   - CustomerGroup(s): searchable commercial brands (JAZ, Four Seasons, ...),
+//     many-to-many, purely commercial — no legal meaning.
+//   - CustomerLegalEntity: the legal billing identity that owns the tax number.
+//     Multiple hotels may point at one legal entity; the tax number is stored and
+//     unique at the legal-entity level, never copied onto each hotel row.
 // ---------------------------------------------------------------------------
 model Customer {
   id                String   @id @default(cuid())
@@ -1054,7 +1062,9 @@ model Customer {
   nameAr            String?
   /// hotel | restaurant | cafe | retail | wholesale | institution | other
   type              String   @default("other")
-  /// Egyptian tax registration number (9 digits) — required for B2B e-invoices.
+  /// Egyptian tax registration number (9 digits) — legacy/standalone path for a
+  /// customer that bills under its own identity. Customers linked to a legal
+  /// entity leave this NULL; the entity owns the number.
   taxRegistrationNo String?  @unique
   commercialRegNo   String?
   phone             String?
@@ -1094,6 +1104,96 @@ model Customer {
   receipts           CustomerReceipt[]
   refunds            CustomerRefund[]
   etaReceiverProfile EtaReceiverProfile?
+
+  /// The legal billing entity this hotel bills under; NULL = bills under its own
+  /// identity (or has no known legal/tax data yet).
+  legalEntityId String?
+  legalEntity   CustomerLegalEntity? @relation(fields: [legalEntityId], references: [id], onDelete: Restrict)
+  groupMembers  CustomerGroupMember[]
+
+  @@index([active, name])
+  @@index([legalEntityId])
+}
+
+/// A searchable commercial brand/group (JAZ, Four Seasons, ...). Purely commercial:
+/// it has no legal identity and no tax registration number of its own.
+model CustomerGroup {
+  id        String   @id @default(cuid())
+  /// Stable uppercase code ("JAZ") — the import reference key.
+  code      String   @unique
+  name      String
+  nameAr    String?
+  active    Boolean  @default(true)
+  version   Int      @default(1)
+  createdById String?
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members CustomerGroupMember[]
+
+  @@index([active, name])
+}
+
+/// Many-to-many between customers and commercial groups.
+model CustomerGroupMember {
+  id         String   @id @default(cuid())
+  groupId    String
+  customerId String
+  createdById String?
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  group    CustomerGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@unique([groupId, customerId])
+  @@index([customerId])
+}
+
+/// The legal billing identity behind one or more hotels. Owns the tax registration
+/// number (unique here — one tax number can never belong to two legal entities) and
+/// the billing/E-invoice receiver details. Several Customer rows may link to it.
+model CustomerLegalEntity {
+  id        String   @id @default(cuid())
+  /// Stable uppercase code ("JAZ-EG") — the import reference key.
+  code      String   @unique
+  /// Legal company name as it must appear on invoices.
+  name      String
+  nameAr    String?
+  /// 9 digits; unique across legal entities (not across hotels — hotels link here).
+  taxRegistrationNo String?  @unique
+  commercialRegNo   String?
+  phone     String?
+  email     String?
+  /// Billing address (display / printed invoice).
+  address   String?
+  area      String?
+  city      String?
+  /// ETA receiver address — the structured fields the e-invoice validator needs.
+  country             String?
+  governate           String?
+  regionCity          String?
+  street              String?
+  buildingNumber      String?
+  postalCode          String?
+  floor               String?
+  room                String?
+  landmark            String?
+  additionalInformation String?
+  /// B (business in Egypt) | P (person) | F (foreigner); NULL = derive (B with tax, P without).
+  receiverType        String?
+  /// National ID (P) or passport/foreign id (F).
+  receiverId          String?
+  notes     String?
+  active    Boolean  @default(true)
+  version   Int      @default(1)
+  createdById String?
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customers Customer[]
 
   @@index([active, name])
 }

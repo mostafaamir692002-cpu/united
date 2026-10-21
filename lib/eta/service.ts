@@ -59,10 +59,16 @@ const addr = (a: Partial<Record<keyof AddressSource, string | null>> | null): Ad
 // ---------------------------------------------------------------------------
 
 export async function loadEtaSource(db: Tx | typeof prisma, invoiceId: string): Promise<EtaSource> {
-  const inv = await db.salesInvoice.findUnique({ where: { id: invoiceId }, include: { lines: { orderBy: { lineNo: "asc" } }, order: { select: { orderNumber: true } } } });
+  const inv = await db.salesInvoice.findUnique({ where: { id: invoiceId }, include: { lines: { orderBy: { lineNo: "asc" } }, order: { select: { orderNumber: true } }, customer: { include: { legalEntity: true } } } });
   if (!inv) throw new ApiError(404, "الفاتورة مش موجودة");
   const company = await db.company.findFirst({ where: { active: true }, orderBy: { createdAt: "asc" }, include: { etaIssuerProfile: true } });
-  const receiver = await db.etaReceiverProfile.findUnique({ where: { customerId: inv.customerId } });
+  const legacy = await db.etaReceiverProfile.findUnique({ where: { customerId: inv.customerId } });
+  // Receiver identity: a linked legal entity owns the billing/e-invoice receiver
+  // details; the legacy per-customer EtaReceiverProfile remains the fallback.
+  const le = inv.customer?.legalEntity ?? null;
+  const receiver = le
+    ? { type: (le.receiverType as "B" | "P" | "F" | null) ?? null, personalId: le.receiverId ?? null, address: addr(le) }
+    : { type: (legacy?.receiverType as "B" | "P" | "F" | null) ?? null, personalId: legacy?.receiverId ?? null, address: addr(legacy) };
   const productIds = [...new Set(inv.lines.map((l) => l.productId).filter((x): x is string => !!x))];
   const [products, codes, units, taxes] = await Promise.all([
     db.stockProduct.findMany({ where: { id: { in: productIds } }, select: { id: true, sku: true } }),
@@ -86,7 +92,7 @@ export async function loadEtaSource(db: Tx | typeof prisma, invoiceId: string): 
       activityCode: ip?.activityCode ?? null,
       address: addr(ip),
     },
-    receiver: { type: (receiver?.receiverType as "B" | "P" | "F" | null) ?? null, personalId: receiver?.receiverId ?? null, address: addr(receiver) },
+    receiver,
     lines: inv.lines.map((l) => {
       const code = codes.find((c) => c.productId === l.productId);
       const tax = taxes.find((t) => t.code === l.taxCode);

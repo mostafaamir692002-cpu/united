@@ -4,7 +4,7 @@ import { handleApiError, ApiError } from "@/lib/rbac";
 import { requireServiceActor } from "@/lib/core/actor";
 import { readJsonLimited, readLimitedBody } from "@/lib/http";
 import { parseCsv, type CsvRecord } from "@/lib/data-import/csv";
-import { createCustomer } from "@/lib/sales/customers";
+import { createCustomer, createCustomerGroup, createCustomerLegalEntity } from "@/lib/sales/customers";
 import { createSupplierFull } from "@/lib/purchasing/suppliers";
 import { createProduct, type ProductInput } from "@/lib/product-master-service";
 import { createOpeningBalance } from "@/lib/accounting/integrity";
@@ -21,7 +21,9 @@ import { normalizeProductName } from "@/lib/productIdentity";
 import { xlsxToCsv } from "@/lib/data-import/xlsx";
 
 const templates = {
-  customers: { headers: "name,name_ar,type,tax_registration_no,commercial_reg_no,phone,email,city,area,address,delivery_notes,external_ref,notes,payment_terms_days,credit_limit,credit_hold,credit_hold_reason,credit_reason,price_list_code,price_list_reason", required: ["name"] },
+  customers: { headers: "name,name_ar,type,tax_registration_no,commercial_reg_no,phone,email,city,area,address,delivery_notes,external_ref,notes,payment_terms_days,credit_limit,credit_hold,credit_hold_reason,credit_reason,price_list_code,price_list_reason,group_code,legal_entity_code", required: ["name"] },
+  customer_groups: { headers: "code,name,name_ar", required: ["code", "name"] },
+  customer_legal_entities: { headers: "code,name,name_ar,tax_registration_no,commercial_reg_no,phone,email,address,area,city,country,governate,region_city,street,building_number,postal_code,floor,room,landmark,additional_information,receiver_type,receiver_id,notes", required: ["code", "name"] },
   suppliers: { headers: "name,phone,notes,type,tax_registration_no,commercial_reg_no,email,city,address,payment_terms_days,lead_time_days,currency_code", required: ["name"] },
   products: { headers: "name,name_ar,sku,category,unit,stock_tracked,sales_tax_code", required: ["name", "unit"] },
   product_settings: { headers: "sku,shelf_life_days,removal_strategy,min_stock_qty,reorder_point_qty,max_stock_qty,cold_chain,costing_method,standard_cost", required: ["sku"] },
@@ -33,7 +35,7 @@ const templates = {
 } as const;
 export type ImportKind = keyof typeof templates;
 const permissionByKind: Record<ImportKind, Permission> = {
-  customers: "sales.customers.manage", suppliers: "purchasing.suppliers.manage", products: "stock.manage_products", product_settings: "stock.manage_products", product_packaging: "stock.manage_products",
+  customers: "sales.customers.manage", customer_groups: "sales.customers.manage", customer_legal_entities: "sales.customers.manage", suppliers: "purchasing.suppliers.manage", products: "stock.manage_products", product_settings: "stock.manage_products", product_packaging: "stock.manage_products",
   opening_stock: "accounting.manage", opening_balances: "accounting.manage", sales_prices: "sales.pricing.manage", supplier_prices: "purchasing.prices.manage",
 };
 
@@ -45,6 +47,8 @@ function kindOf(raw: unknown): ImportKind {
 function inputFor(kind: ImportKind, row: CsvRecord) {
   const v = row.values;
   if (kind === "customers") return { name: v.name, name_ar: v.name_ar || null, type: v.type || undefined, tax_registration_no: v.tax_registration_no || null, commercial_reg_no: v.commercial_reg_no || null, phone: v.phone || null, email: v.email || null, city: v.city || null, area: v.area || null, address: v.address || null, delivery_notes: v.delivery_notes || null, external_ref: v.external_ref || null, notes: v.notes || null, payment_terms_days: v.payment_terms_days ? Number(v.payment_terms_days) : undefined, credit_limit: v.credit_limit || undefined, credit_hold: v.credit_hold ? ["true", "1", "نعم"].includes(v.credit_hold.toLowerCase()) : undefined, credit_hold_reason: v.credit_hold_reason || undefined, credit_reason: v.credit_reason || undefined, price_list_reason: v.price_list_reason || undefined };
+  if (kind === "customer_groups") return { code: v.code, name: v.name, name_ar: v.name_ar || null };
+  if (kind === "customer_legal_entities") return { code: v.code, name: v.name, name_ar: v.name_ar || null, tax_registration_no: v.tax_registration_no || null, commercial_reg_no: v.commercial_reg_no || null, phone: v.phone || null, email: v.email || null, address: v.address || null, area: v.area || null, city: v.city || null, country: v.country || null, governate: v.governate || null, region_city: v.region_city || null, street: v.street || null, building_number: v.building_number || null, postal_code: v.postal_code || null, floor: v.floor || null, room: v.room || null, landmark: v.landmark || null, additional_information: v.additional_information || null, receiver_type: v.receiver_type || null, receiver_id: v.receiver_id || null, notes: v.notes || null };
   if (kind === "suppliers") return { name: v.name, phone: v.phone || null, notes: v.notes || null, type: v.type || undefined, tax_registration_no: v.tax_registration_no || null, commercial_reg_no: v.commercial_reg_no || null, email: v.email || null, city: v.city || null, address: v.address || null, payment_terms_days: v.payment_terms_days ? Number(v.payment_terms_days) : undefined, lead_time_days: v.lead_time_days ? Number(v.lead_time_days) : null, currency_code: v.currency_code || "EGP" };
   if (kind === "products") return { name: v.name, name_ar: v.name_ar || null, sku: v.sku || null, category: v.category || null, unit: v.unit, stock_tracked: v.stock_tracked ? ["true", "1", "نعم"].includes(v.stock_tracked.toLowerCase()) : true, sales_tax_code: v.sales_tax_code || undefined };
   if (kind === "opening_stock") return { ...v };
@@ -58,7 +62,7 @@ async function previewRows(kind: ImportKind, rows: CsvRecord[], body: Record<str
   const seen = new Map<string, number>();
   rows.forEach((r, i) => {
     const v = r.values;
-    const unique = kind === "products" ? (v.sku || v.name).toLowerCase() : kind === "customers" || kind === "suppliers" ? v.name.toLowerCase() : kind === "opening_balances" ? [v.party_type, v.party_code, v.date, v.due_date, v.amount, v.reference].join("|") : kind === "product_settings" ? v.sku.toLowerCase() : kind === "product_packaging" ? [v.sku, v.uom].join("|").toLowerCase() : kind === "sales_prices" ? [v.price_list_code, v.sku, v.uom, v.valid_from].join("|").toLowerCase() : kind === "supplier_prices" ? [v.supplier_code, v.sku, v.uom, v.valid_from].join("|").toLowerCase() : "";
+    const unique = kind === "products" ? (v.sku || v.name).toLowerCase() : kind === "customers" || kind === "suppliers" ? v.name.toLowerCase() : kind === "customer_groups" || kind === "customer_legal_entities" ? v.code.toUpperCase() : kind === "opening_balances" ? [v.party_type, v.party_code, v.date, v.due_date, v.amount, v.reference].join("|") : kind === "product_settings" ? v.sku.toLowerCase() : kind === "product_packaging" ? [v.sku, v.uom].join("|").toLowerCase() : kind === "sales_prices" ? [v.price_list_code, v.sku, v.uom, v.valid_from].join("|").toLowerCase() : kind === "supplier_prices" ? [v.supplier_code, v.sku, v.uom, v.valid_from].join("|").toLowerCase() : "";
     if (unique && seen.has(unique)) results[i].errors.push(`مكرر داخل الملف (صف ${seen.get(unique)})`);
     else if (unique) seen.set(unique, r.rowNumber);
   });
@@ -156,17 +160,41 @@ async function previewRows(kind: ImportKind, rows: CsvRecord[], body: Record<str
     const names = rows.flatMap((r) => [r.values.name, r.values.name_ar].filter(Boolean).map(normalizeProductName));
     const refs = rows.map((r) => r.values.external_ref).filter(Boolean);
     const taxes = rows.map((r) => r.values.tax_registration_no?.replace(/[\s-]/g, "")).filter(Boolean);
-    const [aliases, existing] = await Promise.all([
+    const groupCodes = [...new Set(rows.flatMap((r) => r.values.group_code?.split("|").map((x) => x.trim().toUpperCase()).filter(Boolean) ?? []))];
+    const legalCodes = [...new Set(rows.map((r) => r.values.legal_entity_code?.trim().toUpperCase()).filter((x): x is string => !!x))];
+    const [aliases, existing, groups, legalEntities, allLegalTaxRows] = await Promise.all([
       prisma.customerAlias.findMany({ where: { normalized: { in: names } }, select: { normalized: true, customer: { select: { name: true } } } }),
       prisma.customer.findMany({ where: { OR: [{ externalRef: { in: refs } }, { taxRegistrationNo: { in: taxes } }] }, select: { externalRef: true, taxRegistrationNo: true } }),
+      groupCodes.length ? prisma.customerGroup.findMany({ where: { code: { in: groupCodes }, active: true }, select: { code: true } }) : [],
+      legalCodes.length ? prisma.customerLegalEntity.findMany({ where: { code: { in: legalCodes }, active: true }, select: { code: true, taxRegistrationNo: true } }) : [],
+      prisma.customerLegalEntity.findMany({ where: { taxRegistrationNo: { not: null } }, select: { taxRegistrationNo: true } }),
     ]);
     const usedNames = new Set(aliases.map((a) => a.normalized));
     const usedRefs = new Set(existing.map((x) => x.externalRef).filter(Boolean));
     const usedTaxes = new Set(existing.map((x) => x.taxRegistrationNo).filter(Boolean));
+    const knownGroups = new Set(groups.map((g) => g.code));
+    const knownLegal = new Map(legalEntities.map((l) => [l.code, l]));
+    // Every tax number already owned by a legal entity — a hotel row may never
+    // carry one of these as its own number (ownership lives on the entity).
+    const legalTaxes = new Set(allLegalTaxRows.map((l) => l.taxRegistrationNo).filter((x): x is string => !!x));
     rows.forEach((r, i) => {
       if ([r.values.name, r.values.name_ar].filter(Boolean).some((n) => usedNames.has(normalizeProductName(n)))) results[i].errors.push("اسم العميل موجود في دليل العملاء");
       if (r.values.external_ref && usedRefs.has(r.values.external_ref)) results[i].errors.push("external_ref مستخدم لعميل آخر");
       if (r.values.tax_registration_no && usedTaxes.has(r.values.tax_registration_no.replace(/[\s-]/g, ""))) results[i].errors.push("الرقم الضريبي مسجل لعميل آخر");
+      if (r.values.tax_registration_no && legalTaxes.has(r.values.tax_registration_no.replace(/[\s-]/g, ""))) results[i].errors.push("الرقم الضريبي مسجل لكيان قانوني — اترك الصف من غير رقم واستخدم legal_entity_code");
+      // Same tax number twice in the file on standalone rows (no legal entity) is a duplicate.
+      if (r.values.tax_registration_no && !r.values.legal_entity_code) {
+        const t = r.values.tax_registration_no.replace(/[\s-]/g, "");
+        const prior = rows.findIndex((x, j) => j < i && x.values.tax_registration_no && x.values.tax_registration_no.replace(/[\s-]/g, "") === t && !x.values.legal_entity_code);
+        if (prior >= 0) results[i].errors.push(`الرقم الضريبي مكرر داخل الملف (صف ${rows[prior].rowNumber})`);
+      }
+      for (const code of (r.values.group_code ?? "").split("|").map((x) => x.trim().toUpperCase()).filter(Boolean)) {
+        if (!knownGroups.has(code)) results[i].errors.push(`group_code "${code}" غير موجود — استورد المجموعات الأول`);
+      }
+      if (r.values.legal_entity_code) {
+        const code = r.values.legal_entity_code.trim().toUpperCase();
+        if (!knownLegal.has(code)) results[i].errors.push(`legal_entity_code "${code}" غير موجود — استورد الكيانات القانونية الأول`);
+      }
     });
     const listCodes = [...new Set(rows.map((r) => r.values.price_list_code).filter(Boolean).map((x) => x.toUpperCase()))];
     if (listCodes.length) {
@@ -179,6 +207,33 @@ async function previewRows(kind: ImportKind, rows: CsvRecord[], body: Record<str
         else if (!list.active || list.currencyCode !== "EGP") results[i].errors.push("قائمة الأسعار موقوفة أو ليست بالجنيه المصري");
       });
     }
+  }
+  if (kind === "customer_groups") {
+    const codes = rows.map((r) => r.values.code).filter(Boolean).map((x) => x.toUpperCase());
+    const existing = await prisma.customerGroup.findMany({ where: { code: { in: codes } }, select: { code: true } });
+    const used = new Set(existing.map((g) => g.code));
+    rows.forEach((r, i) => {
+      if (r.values.code && used.has(r.values.code.toUpperCase())) results[i].errors.push(`كود المجموعة "${r.values.code}" مستخدم قبل كده`);
+    });
+  }
+  if (kind === "customer_legal_entities") {
+    const codes = rows.map((r) => r.values.code).filter(Boolean).map((x) => x.toUpperCase());
+    const taxes = rows.map((r) => r.values.tax_registration_no?.replace(/[\s-]/g, "")).filter(Boolean);
+    const [existing, customerTaxes] = await Promise.all([
+      prisma.customerLegalEntity.findMany({ where: { OR: [{ code: { in: codes } }, ...(taxes.length ? [{ taxRegistrationNo: { in: taxes } }] : [])] }, select: { code: true, taxRegistrationNo: true } }),
+      prisma.customer.findMany({ where: { taxRegistrationNo: { in: taxes } }, select: { taxRegistrationNo: true } }),
+    ]);
+    const usedCodes = new Set(existing.map((l) => l.code));
+    const usedTaxes = new Set(existing.map((l) => l.taxRegistrationNo).filter(Boolean));
+    const customerOwned = new Set(customerTaxes.map((c) => c.taxRegistrationNo).filter((x): x is string => !!x));
+    rows.forEach((r, i) => {
+      if (r.values.code && usedCodes.has(r.values.code.toUpperCase())) results[i].errors.push(`كود الكيان القانوني "${r.values.code}" مستخدم قبل كده`);
+      // One tax number = one legal entity. A number already on another entity or on
+      // a standalone hotel card may not be re-assigned here.
+      const t = r.values.tax_registration_no?.replace(/[\s-]/g, "");
+      if (t && usedTaxes.has(t)) results[i].errors.push("الرقم الضريبي مسجل لكيان قانوني آخر");
+      if (t && customerOwned.has(t)) results[i].errors.push("الرقم الضريبي مستخدم على كارت عميل مستقل — اربط العميل بالكيان بدل ما تكرر الرقم");
+    });
   }
   if (kind === "products") {
     const names = rows.flatMap((r) => [r.values.name, r.values.name_ar].filter(Boolean).map(normalizeProductName));
@@ -384,8 +439,24 @@ export async function POST(req: NextRequest) {
             if (!list) throw new ApiError(404, "قائمة الأسعار غير موجودة");
             input.price_list_id = list.id;
           }
+          // Resolve stable reference codes to row ids. The tax number lives on the
+          // legal entity — a linked hotel's own tax number is intentionally null.
+          if (row.values.legal_entity_code) {
+            const le = await prisma.customerLegalEntity.findUnique({ where: { code: row.values.legal_entity_code.trim().toUpperCase() }, select: { id: true } });
+            if (!le) throw new ApiError(404, "الكيان القانوني غير موجود بالكود");
+            input.legal_entity_id = le.id;
+            input.tax_registration_no = null;
+          }
+          const groupCodes = (row.values.group_code ?? "").split("|").map((x) => x.trim().toUpperCase()).filter(Boolean);
+          if (groupCodes.length) {
+            const groups = await prisma.customerGroup.findMany({ where: { code: { in: groupCodes }, active: true }, select: { id: true, code: true } });
+            if (groups.length !== groupCodes.length) throw new ApiError(404, "مجموعة من المجموعات غير موجودة");
+            input.group_ids = groups.map((g) => g.id);
+          }
           code = (await createCustomer(input, actor)).code;
         }
+        else if (kind === "customer_groups") await createCustomerGroup(inputFor(kind, row), actor);
+        else if (kind === "customer_legal_entities") await createCustomerLegalEntity(inputFor(kind, row), actor);
         else if (kind === "suppliers") code = (await createSupplierFull(inputFor(kind, row), actor)).code;
         else if (kind === "products") await createProduct(inputFor(kind, row) as ProductInput, actor);
         else {

@@ -18,6 +18,31 @@ export function validateImportRow(kind: string, row: ImportRow, required: readon
     if (holdEnabled && !v.credit_hold_reason) errors.push("credit_hold_reason مطلوب عند إيقاف التعامل الآجل");
     if (!holdEnabled && v.credit_hold_reason) errors.push("credit_hold_reason لا يستخدم إلا مع credit_hold=true");
     if (v.price_list_code && !v.price_list_reason) errors.push("price_list_reason مطلوب عند ربط قائمة الأسعار");
+    // A hotel links to a legal entity OR carries its own number — never both: the
+    // tax number lives on the legal entity (one number, many hotels) and inventing
+    // per-hotel numbers is what the uniqueness rule is designed to prevent.
+    if (v.legal_entity_code && v.tax_registration_no) errors.push("الرقم الضريبي بيتسجل على الكيان القانوني — امسحه من صف الفندق أو افصل الكيان");
+    if (v.tax_registration_no) {
+      const normalized = v.tax_registration_no.replace(/[\s-]/g, "");
+      if (!/^\d{9}$/.test(normalized)) errors.push("رقم التسجيل الضريبي لازم 9 أرقام");
+    }
+    if (v.group_code) {
+      for (const code of v.group_code.split("|").map((x) => x.trim()).filter(Boolean)) {
+        if (!/^[A-Za-z0-9_-]{1,20}$/.test(code)) errors.push(`group_code "${code}" غير صالح — حروف/أرقام/شرطة فقط`);
+      }
+    }
+    if (v.legal_entity_code && !/^[A-Za-z0-9_-]{1,20}$/.test(v.legal_entity_code.trim())) errors.push("legal_entity_code غير صالح — حروف/أرقام/شرطة فقط");
+  }
+  if (kind === "customer_groups") {
+    if (v.code && !/^[A-Za-z0-9_-]{1,20}$/.test(v.code.trim())) errors.push("code غير صالح — حروف/أرقام/شرطة فقط");
+  }
+  if (kind === "customer_legal_entities") {
+    if (v.code && !/^[A-Za-z0-9_-]{1,20}$/.test(v.code.trim())) errors.push("code غير صالح — حروف/أرقام/شرطة فقط");
+    if (v.tax_registration_no) {
+      const normalized = v.tax_registration_no.replace(/[\s-]/g, "");
+      if (!/^\d{9}$/.test(normalized)) errors.push("رقم التسجيل الضريبي لازم 9 أرقام");
+    }
+    if (v.receiver_type && !["B", "P", "F"].includes(v.receiver_type)) errors.push("receiver_type لازم B أو P أو F");
   }
   if (kind === "suppliers") {
     if (v.type && !["farm", "grower", "wholesaler", "market_trader", "importer", "packaging", "services", "other"].includes(v.type)) errors.push("type غير معروف");

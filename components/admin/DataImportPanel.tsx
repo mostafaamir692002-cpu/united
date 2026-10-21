@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { apiPostForm } from "@/lib/api-client";
 import { isValidISODate } from "@/lib/dates";
 
-type Kind = "customers" | "suppliers" | "products" | "product_settings" | "product_packaging" | "opening_stock" | "opening_balances" | "sales_prices" | "supplier_prices";
+type Kind = "customers" | "customer_groups" | "customer_legal_entities" | "suppliers" | "products" | "product_settings" | "product_packaging" | "opening_stock" | "opening_balances" | "sales_prices" | "supplier_prices";
 type Preview = { rows: { rowNumber: number; label: string; errors: string[] }[]; rowCount: number; errorCount: number };
 type Commit = { created: number; failed: number; results: { rowNumber: number | null; status: string; code?: string; document?: string; error?: string }[] };
 
@@ -14,7 +14,9 @@ function localISODate() {
 }
 
 const labels: Record<Kind, string> = {
-  customers: "كروت العملاء",
+  customers: "كروت الفنادق/العملاء",
+  customer_groups: "المجموعات التجارية (العلامات)",
+  customer_legal_entities: "الكيانات القانونية للفوترة",
   suppliers: "كروت الموردين",
   products: "كروت الأصناف",
   product_settings: "إعدادات الأصناف",
@@ -86,7 +88,9 @@ export function DataImportPanel({ allowed }: { allowed: Partial<Record<Kind, boo
         {kind === "products" && <p className="text-xs font-bold text-united-muted">قالب الأصناف يقبل الاسم وSKU والوحدة ومتابعة المخزون. عمود sales_tax_code اختياري ويتطلب صلاحية إدارة الضرائب؛ اتركه فارغًا فقط للأصناف المعفاة المعتمدة.</p>}
         {kind === "product_settings" && <p className="text-xs font-bold text-united-muted">يحدّث الملف إعدادات SKU موجود: الصلاحية، FEFO/FIFO، التبريد، حدود المخزون، وطريقة التكلفة. طريقة التكلفة والتكلفة المعيارية تحتاج صلاحية الحسابات.</p>}
         {kind === "product_packaging" && <p className="text-xs font-bold text-united-muted">كل صف يعرّف تعبئة لصنف: SKU + وحدة التعبئة + عدد وحدات الأساس داخلها. معاملات التعبئة مرتبطة بالصنف نفسه وليست عامة.</p>}
-        {kind === "customers" && <p className="text-xs font-bold text-united-muted">يمكن تحميل مدة السداد وحد الائتمان والإيقاف الآجل وقائمة الأسعار مع كارت العميل. الحقول المالية وربط القائمة تتطلب صلاحيات المالية والتسعير وسببًا مسجلًا.</p>}
+        {kind === "customers" && <p className="text-xs font-bold text-united-muted">عمود group_code (علامة تجارية، ويمكن الجمع بين مجموعات بـ | مثل JAZ|FS) وعمود legal_entity_code (كيان فوترة) اختياريان — استورد المجموعات والكيانات القانونية الأول ثم مرّرهما كأكواد مستقرة. الرقم الضريبي بيتسجل على الكيان القانوني مش على صف الفندق.</p>}
+        {kind === "customer_groups" && <p className="text-xs font-bold text-united-muted">مجموعة تجارية (JAZ، Four Seasons...) — كود فريد وأسماء فقط. مفيش رقم ضريبي هنا.</p>}
+        {kind === "customer_legal_entities" && <p className="text-xs font-bold text-united-muted">كيان الفوترة القانوني صاحب الرقم الضريبي وعنوان الفوترة وبيانات مستلم الفاتورة الإلكترونية. الرقم الضريبي فريد على مستوى الكيان — فيتنقل بين أكتر من فندق بالربط مش بالتكرار.</p>}
         {error && <p role="alert" className="rounded-xl bg-united-danger/10 p-3 text-sm font-bold text-united-danger">{error}</p>}
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-primary" disabled={busy || !file || (kind === "opening_stock" && !isValidISODate(businessDate))} onClick={() => submit("preview")}>{busy ? "جارٍ الفحص…" : "معاينة وفحص"}</button>

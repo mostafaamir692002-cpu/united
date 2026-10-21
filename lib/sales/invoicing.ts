@@ -203,7 +203,7 @@ export async function issueInvoice(id: string, input: unknown, actor: ServiceAct
   if (issueDate > today) throw new ApiError(400, "مينفعش تاريخ الفاتورة يكون في المستقبل");
   return inTx(async (tx) => {
     await advisoryXactLock(tx, `sales:invoice:${id}`);
-    const inv = await tx.salesInvoice.findUnique({ where: { id }, include: { customer: true } });
+    const inv = await tx.salesInvoice.findUnique({ where: { id }, include: { customer: { include: { legalEntity: true } } } });
     if (!inv) throw new ApiError(404, "الفاتورة مش موجودة");
     if (inv.status !== "draft") throw new ApiError(409, inv.status === "issued" ? "الفاتورة صدرت بالفعل" : "الفاتورة ملغية");
     if (v.expected_version !== undefined && v.expected_version !== inv.version) throw new ApiError(409, "الفاتورة اتغيرت، حدّث الشاشة");
@@ -235,7 +235,13 @@ export async function issueInvoice(id: string, input: unknown, actor: ServiceAct
     }
 
     const c = inv.customer;
-    const address = [c.address, c.area, c.city].filter(Boolean).join("، ") || null;
+    // The invoice's buyer is the LEGAL billing entity when the hotel is linked to
+    // one (legal name, its tax number, its billing address) — the hotel keeps its
+    // own display identity. Standalone hotels bill under their own data.
+    const le = c.legalEntity;
+    const buyerName = le ? (le.nameAr ?? le.name) : (c.nameAr ?? c.name);
+    const buyerTaxId = le ? le.taxRegistrationNo : c.taxRegistrationNo;
+    const address = (le ? [le.address, le.area, le.city] : [c.address, c.area, c.city]).filter(Boolean).join("، ") || null;
     const updated = await tx.salesInvoice.update({
       where: { id, version: inv.version, status: "draft" },
       data: {
@@ -243,8 +249,8 @@ export async function issueInvoice(id: string, input: unknown, actor: ServiceAct
         number: await nextDocumentNumber(tx, "sales.invoice", issueDate),
         issueDate,
         dueDate: addDays(issueDate, c.paymentTermsDays),
-        buyerName: c.nameAr ?? c.name,
-        buyerTaxId: c.taxRegistrationNo,
+        buyerName,
+        buyerTaxId,
         buyerAddress: address,
         notes: v.notes ?? inv.notes,
         issuedById: actor.id,

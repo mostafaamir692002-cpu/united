@@ -19,9 +19,13 @@ import { CustomerStatement, InvoicesView } from "@/components/sales/InvoicesView
  * that no account claims yet.
  */
 
+type GroupRef = { id: string; code: string; name: string; nameAr: string | null };
+type LegalEntityRef = { id: string; code: string; name: string; nameAr: string | null; taxRegistrationNo: string | null };
+
 type CustomerRow = {
   id: string; code: string; name: string; nameAr: string | null; type: string; phone: string | null; city: string | null; area: string | null;
   paymentTermsDays: number; creditLimit: string | null; creditHold: boolean; active: boolean; _count: { orders: number };
+  groups: GroupRef[]; legalEntity: LegalEntityRef | null;
 };
 type CustomerDetail = CustomerRow & {
   taxRegistrationNo: string | null; commercialRegNo: string | null; email: string | null; address: string | null; deliveryNotes: string | null;
@@ -112,7 +116,7 @@ function CustomerList({ onOpen }: { onOpen: (id: string) => void }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-2">
-        <input className="field" placeholder="اسم، كود، تليفون" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="field" placeholder="اسم، كود، تليفون، مجموعة" value={q} onChange={(e) => setQ(e.target.value)} />
         <button type="button" onClick={() => setInactive(!inactive)} className={`tap-target shrink-0 rounded-xl px-4 font-extrabold text-sm ${inactive ? "bg-united-dark text-white" : "bg-united-dark/5"}`}>الموقوفين</button>
       </div>
       {query.isLoading && <LoadingState />}
@@ -134,6 +138,12 @@ function CustomerList({ onOpen }: { onOpen: (id: string) => void }) {
                 {c.creditHold && <span className="text-united-danger">· موقوف آجل</span>}
                 {!c.active && <span className="text-united-danger">· موقوف</span>}
               </div>
+              {(c.groups.length > 0 || c.legalEntity) && (
+                <div className="flex flex-wrap gap-1.5">
+                  {c.groups.map((g) => <span key={g.id} className="rounded-lg bg-united-dark/5 px-2 py-0.5 text-[11px] font-extrabold text-united-dark" dir="ltr">{g.code}</span>)}
+                  {c.legalEntity && <span className="rounded-lg bg-united-green/10 px-2 py-0.5 text-[11px] font-extrabold text-united-green" title="الكيان القانوني">🏛 {c.legalEntity.name}</span>}
+                </div>
+              )}
             </button>
           </li>
         ))}
@@ -261,6 +271,8 @@ function CustomerPanel({ id, onClose }: { id: string; onClose: () => void }) {
         )}
       </section>
 
+      <GroupLegalSection c={c} canEdit={canManage} onSaved={refresh} />
+
       <CreditSection c={c} canEdit={can("sales.credit.manage")} onSaved={refresh} />
 
       {can("sales.invoices.view") && <CustomerStatement customerId={c.id} />}
@@ -309,6 +321,77 @@ function CustomerPanel({ id, onClose }: { id: string; onClose: () => void }) {
         </ul>
       </section>
     </div>
+  );
+}
+
+function GroupLegalSection({ c, canEdit, onSaved }: { c: CustomerDetail; canEdit: boolean; onSaved: () => void }) {
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const groups = useQuery({ queryKey: ["sales", "customer-groups"], queryFn: () => apiFetch<{ groups: (GroupRef & { hotels: number })[] }>("/api/sales/customer-groups") });
+  const legalEntities = useQuery({ queryKey: ["sales", "legal-entities"], queryFn: () => apiFetch<{ legalEntities: (LegalEntityRef & { hotels: number })[] }>("/api/sales/legal-entities") });
+  const [selected, setSelected] = useState<Set<string>>(new Set(c.groups.map((g) => g.id)));
+  const [legalId, setLegalId] = useState<string>(c.legalEntity?.id ?? "");
+  if (!editing) {
+    return (
+      <section className="card p-4 flex flex-col gap-2">
+        <div className="flex justify-between items-center">
+          <h3 className="font-extrabold">المجموعة والكيان القانوني</h3>
+          {canEdit && <button type="button" className="text-sm font-extrabold text-united-green underline" onClick={() => { setSelected(new Set(c.groups.map((g) => g.id))); setLegalId(c.legalEntity?.id ?? ""); setEditing(true); }}>تعديل</button>}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {c.groups.map((g) => <span key={g.id} className="rounded-lg bg-united-dark/5 px-2 py-0.5 text-xs font-extrabold" dir="ltr">{g.code} · {g.name}</span>)}
+          {c.groups.length === 0 && <span className="text-sm font-bold text-united-muted">—</span>}
+        </div>
+        {c.legalEntity ? (
+          <div className="text-sm font-bold flex flex-col gap-0.5">
+            <span className="text-united-green">🏛 {c.legalEntity.name}{c.legalEntity.nameAr ? ` · ${c.legalEntity.nameAr}` : ""}</span>
+            <span className="text-united-muted text-xs" dir="ltr">{c.legalEntity.code}{c.legalEntity.taxRegistrationNo ? ` · TAX ${c.legalEntity.taxRegistrationNo}` : " · بدون رقم ضريبي"}</span>
+          </div>
+        ) : (
+          <p className="text-sm font-bold text-united-muted">{c.taxRegistrationNo ? `الفوترة باسم الفندق · TAX ${c.taxRegistrationNo}` : "مفيش كيان قانوني ولا رقم ضريبي — الفوترة هتتطلب متابعة قبل إصدار الفاتورة الإلكترونية."}</p>
+        )}
+      </section>
+    );
+  }
+  return (
+    <section className="card p-4 flex flex-col gap-3">
+      <div className="flex justify-between items-center">
+        <h3 className="font-extrabold">المجموعة والكيان القانوني</h3>
+        <button type="button" className="text-sm font-extrabold text-united-muted underline" onClick={() => setEditing(false)}>إلغاء</button>
+      </div>
+      {(groups.data?.groups ?? []).length > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-extrabold text-united-muted">المجموعات التجارية (علامات)</span>
+          <div className="flex flex-wrap gap-2">
+            {(groups.data?.groups ?? []).map((g) => (
+              <label key={g.id} className="tap-target flex items-center gap-1.5 rounded-lg bg-united-dark/5 px-3 py-1.5 text-sm font-extrabold">
+                <input type="checkbox" className="w-5 h-5" checked={selected.has(g.id)} onChange={(e) => { const next = new Set(selected); if (e.target.checked) next.add(g.id); else next.delete(g.id); setSelected(next); }} />
+                <span dir="ltr">{g.code}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-extrabold text-united-muted">الكيان القانوني للفوترة (صاحب الرقم الضريبي)</span>
+        <select className="field font-bold" value={legalId} onChange={(e) => setLegalId(e.target.value)}>
+          <option value="">الفندق نفسه / مش محدد</option>
+          {(legalEntities.data?.legalEntities ?? []).map((l) => <option key={l.id} value={l.id}>{l.code} · {l.name}{l.taxRegistrationNo ? ` (TAX ${l.taxRegistrationNo})` : " (بدون رقم)"}</option>)}
+        </select>
+      </div>
+      <button
+        type="button"
+        className="btn-primary self-start"
+        onClick={async () => {
+          try {
+            await apiPatch(`/api/sales/customers/${c.id}`, { group_ids: [...selected], legal_entity_id: legalId || null, expected_version: c.version });
+            onSaved();
+            setEditing(false);
+            toast.show("اتحفظ", "success");
+          } catch (err) { fail(toast, err); }
+        }}
+      >حفظ الربط</button>
+    </section>
   );
 }
 
