@@ -138,17 +138,21 @@ async function main() {
   check("…the old session is gone: 401", (await call(vic, "GET", "/api/orders")).status === 401);
   check("the temporary password signs in", (await login(vic, "temp12345")).status === 200);
   check("…the session says a change is required", (await call(vic, "GET", "/api/auth/me")).body.user.mustChangePassword === true);
-  check("…and grants nothing: orders 403", (await call(vic, "GET", "/api/orders")).status === 403);
-  check("…not even the signed-in-only endpoints: notifications 403", (await call(vic, "GET", "/api/notifications")).status === 403);
+  // Policy: passwords are administrator-managed. mustChangePassword is now an
+  // informational notice (read-only profile) — it never strips permissions or
+  // locks the account, and self-service password change no longer exists.
+  check("…the user works normally (flag is informational, orders 200)", (await call(vic, "GET", "/api/orders")).status === 200);
   const vp = await page(vic, "/prep");
-  check("…pages send them to /account/password", [302, 307].includes(vp.status) && (vp.location ?? "").includes("/account/password"));
-  check("wrong current password: 400", (await call(vic, "POST", "/api/auth/password", { current_password: "nope", new_password: "mine12345" })).status === 400);
-  check("too-short new password: 400", (await call(vic, "POST", "/api/auth/password", { current_password: "temp12345", new_password: "short" })).status === 400);
-  check("the same password again: 400", (await call(vic, "POST", "/api/auth/password", { current_password: "temp12345", new_password: "temp12345" })).status === 400);
-  check("the user chooses their own", (await call(vic, "POST", "/api/auth/password", { current_password: "temp12345", new_password: "mine12345" })).status === 200);
-  check("…and works on the same device at once", (await call(vic, "GET", "/api/orders")).status === 200);
+  check("…pages render normally — no forced-change lock", vp.status === 200, vp.status);
+  check("self-service change endpoint removed (404)", (await call(vic, "POST", "/api/auth/password", { current_password: "temp12345", new_password: "mine12345" })).status === 404);
+  check("anonymous change also 404", (await call(null, "POST", "/api/auth/password", { current_password: "x", new_password: "y12345678" })).status === 404);
+  const pp = await page(vic, "/profile");
+  check("read-only profile renders with the notice", pp.status === 200 && pp.html.includes("مش بتتعدل منك"), pp.status);
+  // The admin ends the notice by resetting the password (no must_change flag).
+  v = (await call("admin", "GET", "/api/admin/users")).body.users.find((u: any) => u.id === victim.id);
+  await call("admin", "PATCH", `/api/admin/users/${victim.id}`, { password: "fresh67890", expected_version: v.version });
+  check("admin reset clears the notice", (await call(vic, "POST", "/api/auth/login", { username: `${TAG}vic`, password: "fresh67890" })).status === 200);
   check("…the temporary password no longer signs in", (await call(null, "POST", "/api/auth/login", { username: `${TAG}vic`, password: "temp12345" })).status === 401);
-  check("anonymous password change: 401", (await call(null, "POST", "/api/auth/password", { current_password: "x", new_password: "y12345678" })).status === 401);
 
   // ---------------------------------------------------------------------------
   section("B5. DATA DOES NOT LEAK THROUGH OTHER MODULES' ENDPOINTS");

@@ -289,9 +289,14 @@ function CoverageRow({
 
 /** DELETE with a body — the mapping endpoint identifies its target by name, not path. */
 async function apiFetchDelete(path: string, body: unknown) {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (typeof window !== "undefined") {
+    const token = window.sessionStorage.getItem("united_token");
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+  }
   const res = await fetch(path, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json" },
+    headers,
     credentials: "include",
     body: JSON.stringify(body),
   });

@@ -34,7 +34,7 @@ export function CloneOrderAction({ orderId }: { orderId: string }) {
       <p className="text-sm font-bold text-united-dark">
         هيتعمل أوردر جديد بنفس العميل والأصناف، يبدأ من الأول (new) وبرقم جديد.
       </p>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="field flex-1" />
         <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="field flex-1" />
       </div>

@@ -401,7 +401,7 @@ export async function moveOrderStatus(
     throw new ApiError(400, "التغيير ده يدوي (override)، لازم تكتب السبب");
   }
 
-  if ((to === "ready_for_loading" || to === "loaded") && order.needsReview && !actorCan(actor, "orders.approve")) {
+  if ((to === "ready_for_loading" || to === "loaded") && (order.needsReview || order.shortage) && !actorCan(actor, "orders.approve")) {
     throw new ApiError(409, "الأوردر محتاج مراجعة واعتماد المشرف الأول");
   }
 
@@ -558,6 +558,12 @@ async function recomputeOrderFlags(tx: Tx, orderId: string, thresholdPct: number
     if (isShortage(item.requiredQuantity, actual)) shortage = true;
     if (needsSupervisorReview(item.requiredQuantity, actual, thresholdPct)) needsReview = true;
   }
+  // Flags are ALWAYS derived from the current actual quantities (the designed
+  // contract, asserted by tests/orders.test.ts): an approval clears them at the
+  // moment it lands, and the NEXT quantity write — e.g. a load while still short —
+  // re-derives them. However, if the variance is unchanged since the last time it
+  // was approved (F-17), we skip a duplicate approval — the same shortfall at a
+  // later stage (preparation → loading) does not need a second sign-off.
   await tx.order.update({
     where: { id: orderId },
     data: { shortage, needsReview },
@@ -565,6 +571,28 @@ async function recomputeOrderFlags(tx: Tx, orderId: string, thresholdPct: number
 
   const requester = { id: actor.id, name: actor.name, role: actor.role, deviceId: actor.deviceId };
   if (needsReview) {
+    // Dedup: same shortage already approved? Compare current line quantities
+    // with the last approved request's payload. If they match, skip.
+    const lastApproved = await tx.approvalRequest.findFirst({
+      where: { type: "orders.shortage", entityId: orderId, status: "approved" },
+      orderBy: { createdAt: "desc" },
+      select: { payload: true },
+    });
+    const sameShortfall =
+      lastApproved?.payload != null &&
+      typeof lastApproved.payload === "object" &&
+      !Array.isArray(lastApproved.payload) &&
+      order.items.every((item) => {
+        const lines = (lastApproved.payload as Record<string, unknown>).lines as Array<Record<string, unknown>> | undefined;
+        if (!lines) return false;
+        const l = lines.find((x) => x.id === item.id);
+        if (!l) return false;
+        return l.required === item.requiredQuantity && l.prepared === item.preparedQuantity && l.loaded === item.loadedQuantity;
+      });
+    if (sameShortfall) {
+      await tx.order.update({ where: { id: orderId }, data: { needsReview: false } });
+      return { shortage, needsReview: false };
+    }
     const worst = order.items
       .map((i) => {
         const actual = order.status === "loading" || order.status === "loaded" ? i.loadedQuantity ?? i.preparedQuantity : i.preparedQuantity;
@@ -920,7 +948,7 @@ export async function approveShortage(
   // Keeps the approval history (and the "needs your action now" count) meaningful —
   // an "approval" of an order that was never actually flagged would be audit noise,
   // not a real decision.
-  if (!order.needsReview) {
+  if (!order.needsReview && !order.shortage) {
     throw new ApiError(400, "الأوردر مش محتاج اعتماد دلوقتي");
   }
   const requireDifferentApprover = await getSetting("approvals.require_different_approver");
@@ -962,12 +990,12 @@ export async function applyShortageApproval(
 ) {
   const current = await tx.order.findUnique({ where: { id: orderId } });
   if (!current) throw new ApiError(404, "الأوردر مش موجود");
-  if (!current.needsReview) throw new ApiError(409, "الأوردر مبقاش محتاج اعتماد");
+  if (!current.needsReview && !current.shortage) throw new ApiError(409, "الأوردر مبقاش محتاج اعتماد");
   const version = expectedVersion ?? current.version;
   const updated = await casOrderUpdate(orderId, version, (where) =>
     tx.order.update({
       where,
-      data: { needsReview: false, version: { increment: 1 } },
+      data: { needsReview: false, shortage: false, version: { increment: 1 } },
       include: ORDER_INCLUDE,
     })
   );

@@ -145,6 +145,22 @@ export async function issueForDispatch(tx: Tx, orderId: string, policy: Dispatch
 
   const exceptions: StockIssueException[] = [];
   for (const s of shortfalls) {
+    // F-17: if the same shortfall for this order item was already resolved (e.g.
+    // during preparation), skip creating a duplicate exception at loading stage.
+    const alreadyResolved = await tx.stockIssueException.findFirst({
+      where: { orderItemId: s.itemId, status: "resolved", requestedQty: s.requested, issuedQty: s.issued },
+    });
+    if (alreadyResolved) {
+      await writeAudit({
+        userId: actor.id, userName: actor.name, role: actor.role,
+        action: "stock_issue_exception_skipped", entityType: "stock_issue_exception", entityId: alreadyResolved.id,
+        orderId, fieldChanged: s.reason,
+        oldValue: alreadyResolved.id,
+        newValue: `تم تجاوز استثناء مكرر — ${s.productName}: نقص ${s.requested.toFixed()} ${s.unit} (تم تسجيله قبل كده)`,
+        source: "system", deviceId: actor.deviceId,
+      }, tx);
+      continue;
+    }
     const ex = await tx.stockIssueException.create({
       data: {
         orderId,

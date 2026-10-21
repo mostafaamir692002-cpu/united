@@ -36,6 +36,7 @@ export const NAV_LINKS: NavLink[] = [
   { href: "/prep", label: "التجهيز", permission: "orders.prepare", group: "ops", primary: true },
   { href: "/load", label: "التحميل", permission: "orders.load", group: "ops", primary: true },
   { href: "/production", label: "إنتاج النهارده", permission: "orders.view", group: "ops", primary: true },
+  { href: "/production/sheet", label: "شيت التجهيز الموحد", permission: "orders.view", group: "ops", primary: true },
   { href: "/operations", label: "التوزيع", permission: "orders.view", group: "ops", primary: true },
   { href: "/supervisor", label: "مركز التحكم", permission: "reports.view", group: "control", primary: true },
   { href: "/supervisor/exceptions", label: "نواقص التجهيز", permission: "reports.view", group: "control", primary: true },

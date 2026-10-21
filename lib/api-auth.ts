@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import { ApiError } from "@/lib/rbac";
 import { requirePermission, type AuthContext } from "@/lib/authz";
 import type { Permission } from "@/lib/permissions";
 import type { Actor } from "@/lib/orders-service";

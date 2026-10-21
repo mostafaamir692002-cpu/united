@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
  * change to a cost field keep the fact of the change but lose the old and new values.
  */
 
-const COST_KEYS = new Set(["unitCost", "standardCost", "averageCost", "stockValue", "totalValue", "valuation"]);
+const COST_KEYS = new Set(["unitCost", "standardCost", "averageCost", "stockValue", "totalValue", "valuation", "goodUnitCost", "gradeBUnitCost", "wasteUnitCost", "wasteLoss"]);
 
 type Viewer = { permissions?: readonly string[] | Set<string>; can?: (p: never) => boolean } | null | undefined;
 

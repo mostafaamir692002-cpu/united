@@ -141,6 +141,18 @@ export function ItemRow({
                 : "✓ اتحمل"}
             </button>
           </div>
+          {/* Inline prepared-vs-ordered comparison — updates immediately on every keystroke. */}
+          <div className="flex items-center gap-2 mt-2 text-sm font-bold">
+            <span className="text-united-muted">المطلوب:</span>
+            <span dir="ltr" className="text-united-dark">{qtyLabel(item.requiredQuantity)} {item.unit}</span>
+            <span className="text-united-muted">| التجهيز:</span>
+            <span dir="ltr" className={qty > item.requiredQuantity ? "text-united-warn" : "text-united-green"}>{qtyLabel(qty)} {item.unit}</span>
+          </div>
+          {qty > item.requiredQuantity && (
+            <p className="text-united-danger font-bold text-sm mt-1">
+              ⚠️ الكمية المعدة ({qtyLabel(qty)}) أكتر من المطلوب ({qtyLabel(item.requiredQuantity)})
+            </p>
+          )}
           {isOutlier && (
             <p className="text-united-warn font-bold text-sm mt-2">
               الكمية دي بعيدة عن المطلوب (<span dir="ltr">{qtyLabel(item.requiredQuantity)} {item.unit}</span>) —{" "}

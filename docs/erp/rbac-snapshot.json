@@ -217,6 +217,16 @@
     },
     {
       "method": "GET",
+      "path": "/api/accounting/cancelled-report",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
       "path": "/api/accounting/cash",
       "gate": {
         "kind": "all",
@@ -547,6 +557,16 @@
     },
     {
       "method": "GET",
+      "path": "/api/accounting/vat-summary/export",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "accounting.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
       "path": "/api/accounting/vat-summary",
       "gate": {
         "kind": "all",
@@ -817,13 +837,6 @@
     {
       "method": "GET",
       "path": "/api/auth/me",
-      "gate": {
-        "kind": "public"
-      }
-    },
-    {
-      "method": "POST",
-      "path": "/api/auth/password",
       "gate": {
         "kind": "public"
       }
@@ -1138,6 +1151,16 @@
     },
     {
       "method": "GET",
+      "path": "/api/inventory/reports/valuation/export",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.valuation.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
       "path": "/api/inventory/reports/valuation",
       "gate": {
         "kind": "all",
@@ -1213,6 +1236,16 @@
         "kind": "all",
         "permissions": [
           "stock.transfer"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/management/finance/export",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "reports.finance"
         ]
       }
     },
@@ -1621,6 +1654,16 @@
       }
     },
     {
+      "method": "GET",
+      "path": "/api/production/daily/sheet",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "orders.view"
+        ]
+      }
+    },
+    {
       "method": "POST",
       "path": "/api/purchasing/bills/[id]/cancel",
       "gate": {
@@ -1944,6 +1987,16 @@
     },
     {
       "method": "GET",
+      "path": "/api/purchasing/suppliers/[id]/statement/export",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "purchasing.bills.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
       "path": "/api/purchasing/suppliers/[id]/statement",
       "gate": {
         "kind": "all",
@@ -2088,6 +2141,16 @@
     },
     {
       "method": "GET",
+      "path": "/api/sales/customers/[id]/statement/export",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.invoices.view"
+        ]
+      }
+    },
+    {
+      "method": "GET",
       "path": "/api/sales/customers/[id]/statement",
       "gate": {
         "kind": "all",
@@ -2159,6 +2222,26 @@
     {
       "method": "POST",
       "path": "/api/sales/invoices/[id]/issue",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.invoices.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/invoices/[id]/recover",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.invoices.manage"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/invoices/[id]/reprice",
       "gate": {
         "kind": "all",
         "permissions": [
@@ -2415,6 +2498,16 @@
     },
     {
       "method": "POST",
+      "path": "/api/stock/intakes/[id]/sort",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.adjust"
+        ]
+      }
+    },
+    {
+      "method": "POST",
       "path": "/api/stock/intakes/[id]/void",
       "gate": {
         "kind": "all",
@@ -2597,6 +2690,11 @@
     },
     {
       "href": "/production",
+      "permission": "orders.view",
+      "pageOpenToAll": false
+    },
+    {
+      "href": "/production/sheet",
       "permission": "orders.view",
       "pageOpenToAll": false
     },

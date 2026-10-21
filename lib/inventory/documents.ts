@@ -13,7 +13,9 @@ import { nextDocumentNumber, type SequenceKey } from "@/lib/core/sequences";
 import { requestApproval } from "@/lib/core/approvals";
 import type { ServiceActor } from "@/lib/core/actor";
 import { D, parseQty, type Dec } from "@/lib/inventory/decimal";
-import { postMovements, bucketBalance, lockForMoves, lockProductValuations, type MoveInput } from "@/lib/inventory/ledger";
+import { postMovements, bucketBalance, lockForMoves, lockProductValuations, productValuation, type MoveInput } from "@/lib/inventory/ledger";
+import { computeGradingCosts, type GradingCostPolicy, type WasteLossPolicy } from "@/lib/inventory/grading";
+import { gradingPrices } from "@/lib/sales/pricing";
 import { allocate, lockAvailability, PickClaims } from "@/lib/inventory/picking";
 import { resolveLocation, resolveWarehouse, receivingLocation } from "@/lib/inventory/context";
 import { toBaseQuantity } from "@/lib/inventory/packaging";
@@ -29,7 +31,7 @@ import { requiresAdjustmentApproval } from "@/lib/inventory/adjustment-rules";
  * request return the document it already created instead of posting twice.
  */
 
-export type DocType = "transfer" | "adjustment" | "scrap" | "customer_return" | "supplier_return" | "issue";
+export type DocType = "transfer" | "adjustment" | "scrap" | "customer_return" | "supplier_return" | "issue" | "grading" | "release";
 
 const SEQUENCE: Record<DocType, SequenceKey> = {
   transfer: "inventory.transfer",
@@ -38,6 +40,8 @@ const SEQUENCE: Record<DocType, SequenceKey> = {
   customer_return: "inventory.return",
   supplier_return: "inventory.return",
   issue: "inventory.issue",
+  grading: "inventory.sorting",
+  release: "inventory.release",
 };
 
 const DOC_LABEL: Record<DocType, string> = {
@@ -47,6 +51,8 @@ const DOC_LABEL: Record<DocType, string> = {
   customer_return: "مرتجع من عميل",
   supplier_return: "مرتجع لمورد",
   issue: "صرف",
+  grading: "فرز",
+  release: "إفراج محجوز",
 };
 
 type RawLine = {
@@ -226,6 +232,7 @@ export async function createTransfer(input: Record<string, unknown>, actor: Serv
         const product = await loadProduct(tx, l.product_id);
         const qty = await lineQty(tx, product, l);
         const from = await resolveLocation(tx, wh.id, l.location_id as string);
+        if (from.type === "quarantine") throw new ApiError(400, "المخزون المحجوز لا يُنقل — استخدم التقرير للإفراج أولًا");
         if (!l.to_location_id) throw new ApiError(400, "حدد المكان اللي هيتحول له");
         const to = await resolveLocation(tx, wh.id, l.to_location_id as string);
         if (from.id === to.id) throw new ApiError(400, "مينفعش تحوّل لنفس المكان");
@@ -253,6 +260,72 @@ export async function createTransfer(input: Record<string, unknown>, actor: Serv
 }
 
 // ---------------------------------------------------------------------------
+// Quarantine release — approved exit of held stock (F-03)
+// ---------------------------------------------------------------------------
+
+/**
+ * Authorised release of quarantined stock to a non-quarantine, non-waste location.
+ * The entire bucket (product × location × lot) may be partially released; the
+ * server checks availability and the destination must be a valid sellable location.
+ * Idempotent via `idempotency_key`: a duplicate submit returns the same document.
+ */
+export async function releaseFromQuarantine(input: Record<string, unknown>, actor: ServiceActor) {
+  assertPermission(actor, "stock.adjust");
+  const key = idempotencyKey(input.idempotency_key);
+  const date = businessDate(input.business_date);
+  const requestHash = requestFingerprint(input);
+  const productId = typeof input.product_id === "string" && input.product_id ? input.product_id : "";
+  if (!productId) throw new ApiError(400, "حدد الصنف");
+  const locationId = typeof input.location_id === "string" && input.location_id ? input.location_id : "";
+  if (!locationId) throw new ApiError(400, "حدد المكان المحجوز");
+  const destinationId = typeof input.destination_id === "string" && input.destination_id ? input.destination_id : "";
+  if (!destinationId) throw new ApiError(400, "حدد المكان المطلوب الإفراج إليه");
+  const rawQty = parseQty(input.quantity, "الكمية المفرج عنها", { allowZero: false });
+  const lotId = typeof input.lot_id === "string" && input.lot_id ? input.lot_id : null;
+  const reason = typeof input.reason === "string" ? input.reason.trim() : "";
+  if (!reason) throw new ApiError(400, "لازم تكتب سبب الإفراج");
+  const inspectionNote = typeof input.inspection_note === "string" ? input.inspection_note.trim() : null;
+
+  const result = await idempotent(key, requestHash, () =>
+    inTx(async (tx) => {
+      const product = await loadProduct(tx, productId);
+      const wh = await resolveWarehouse(tx, input.warehouse_id as string | undefined);
+      const from = await resolveLocation(tx, wh.id, locationId);
+      if (from.type !== "quarantine") throw new ApiError(400, "المكان مش محجوز — الإفراج بيشتغل على المحجوز بس");
+      const to = await resolveLocation(tx, wh.id, destinationId);
+      if (to.type === "quarantine" || to.type === "waste") throw new ApiError(400, "مينفعش تفرج لمكان محجوز أو هالك");
+      // Lock the affected bucket so concurrent release cannot double-allocate.
+      await lockForMoves(tx, [{ productId: product.id, locationId: from.id, lotId }]);
+
+      // Build exactly two movements: out of quarantine (negative), into destination (positive).
+      const moves: MoveInput[] = [
+        {
+          productId: product.id, warehouseId: wh.id, locationId: from.id,
+          lotId, quantity: rawQty.negated(), kind: "release_out", reason,
+        },
+        {
+          productId: product.id, warehouseId: wh.id, locationId: to.id,
+          lotId, quantity: rawQty, kind: "release_in", reason,
+        },
+      ];
+
+      const doc = await createDoc(tx, "release", {
+        warehouseId: wh.id, businessDate: date, status: "posted",
+        reason, idempotencyKey: key, requestHash,
+        payload: { productId, fromLocationId: from.id, toLocationId: to.id, lotId, quantity: rawQty.toFixed(3), inspectionNote },
+      }, actor);
+
+      for (const m of moves) m.documentId = doc.id;
+      await postMovements(tx, moves, { actorId: actor.id, actorName: actor.name, effectiveDate: date });
+      await auditDoc(tx, doc, actor, "inventory_quarantine_release",
+        `إفراج ${rawQty.toFixed(3)} كجم ${product.name} من ${from.code} إلى ${to.code}${lotId ? ` · ${lotId.slice(0, 8)}` : ""}${inspectionNote ? ` · فحص: ${inspectionNote}` : ""}`);
+      return doc;
+    })
+  );
+  return { ...result, document: await withMovements(result.document.id) };
+}
+
+// ---------------------------------------------------------------------------
 // Adjustment / stock count — with approval above a threshold
 // ---------------------------------------------------------------------------
 
@@ -267,6 +340,13 @@ async function planAdjustment(tx: Tx, warehouseId: string, raw: RawLine[]): Prom
     const product = await loadProduct(tx, l.product_id);
     const locationId = typeof l.location_id === "string" && l.location_id ? (await resolveLocation(tx, warehouseId, l.location_id)).id : null;
     const lotId = typeof l.lot_id === "string" && l.lot_id ? l.lot_id : null;
+    if (!lotId && locationId && product.stockTracked) {
+      // For a product that already has lot-tracked stock, a null lot_id with
+      // a specific location would silently create or modify the "no lot" bucket
+      // instead of the intended lot bucket — reject so the caller picks the right lot.
+      const hasLots = await tx.stockMovement.findFirst({ where: { productId: product.id, lotId: { not: null } }, select: { id: true }, take: 1 });
+      if (hasLots) throw new ApiError(400, `الصنف "${product.name}" له دفعات — لازم تحدّد رقم الدفعة في التسوية`);
+    }
     let delta: Dec;
     if (l.counted_quantity !== undefined) {
       if (!locationId) throw new ApiError(400, "الجرد لازم يحدد المكان");
@@ -348,6 +428,14 @@ export async function createAdjustment(input: Record<string, unknown>, actor: Se
       }
       await lockForMoves(tx, countBuckets);
       const plan = await planAdjustment(tx, wh.id, raw);
+      // Quarantine stock can only leave through the release workflow, not via
+      // adjustment (even approved). Check every planned outgoing line.
+      for (const p of plan) {
+        if (p.locationId && D(p.quantity).lt(0)) {
+          const loc = await tx.storageLocation.findUnique({ where: { id: p.locationId }, select: { type: true } });
+          if (loc?.type === "quarantine") throw new ApiError(400, "مينفعش تعمل تسوية على المخزون المحجوز — استخدم التقرير للإفراج");
+        }
+      }
       const needsApproval = requiresAdjustmentApproval(plan, threshold);
       const doc = await createDoc(
         tx,
@@ -445,6 +533,207 @@ export async function createScrap(input: Record<string, unknown>, actor: Service
 }
 
 // ---------------------------------------------------------------------------
+// Sorting — post-receipt produce grading
+// ---------------------------------------------------------------------------
+
+/**
+ * Sorts produce that was received raw into good-grade, Grade B (separate SKU when
+ * configured), and waste. Reconciles outputs against the input quantity exactly
+ * (3-dp), posts all movements in one transaction, and links the document to the
+ * source intake for traceability. Reuses the ledger's own balances so an
+ * insufficient-stock sort is refused the same way every other reduction is.
+ */
+export async function createSorting(input: Record<string, unknown>, actor: ServiceActor) {
+  assertPermission(actor, "stock.adjust");
+  const reason = typeof input.reason === "string" ? input.reason.trim() : "";
+  if (!reason) throw new ApiError(400, "لازم تكتب سبب الفرز");
+  const key = idempotencyKey(input.idempotency_key);
+  const date = businessDate(input.business_date);
+  const requestHash = requestFingerprint(input);
+
+  const intakeId = typeof input.intake_id === "string" && input.intake_id ? input.intake_id : null;
+  if (!intakeId) throw new ApiError(400, "اختار الاستلام المراد فرزه");
+
+  // Exact quantities at 3-dp — the same precision the intake ledger uses.
+  const inputKg = parseQty(input.input_kg, "الكمية الإجمالية المفرزة");
+  const goodKg = parseQty(input.good_kg, "كمية الفرز الممتاز", { allowZero: true });
+  const gradeBKg = parseQty(input.grade_b_kg ?? 0, "كمية الفُرزة (ب)", { allowZero: true });
+  const wasteKg = parseQty(input.waste_kg ?? 0, "كمية الهالك", { allowZero: true });
+  // Outputs must reconcile exactly with the input — no rounding crumbs.
+  if (!inputKg.equals(goodKg.plus(gradeBKg).plus(wasteKg))) {
+    throw new ApiError(
+      400,
+      `مجموع مخرجات الفرز (${goodKg.plus(gradeBKg).plus(wasteKg).toFixed(3)}) لازم يساوي الكمية المدخلة (${inputKg.toFixed(3)})`
+    );
+  }
+  const gradeBProductId = typeof input.grade_b_product_id === "string" && input.grade_b_product_id ? input.grade_b_product_id : null;
+
+  const result = await idempotent(key, requestHash, () =>
+    inTx(async (tx) => {
+      const intake = await tx.stockIntake.findUnique({
+        where: { id: intakeId },
+        include: { product: true, location: true, lot: true },
+      });
+      if (!intake) throw new ApiError(404, "الاستلام مش موجود");
+      if (intake.status !== "posted") throw new ApiError(409, "الاستلام ده متلغى — مينفعش يترفرز");
+      if (!intake.product.stockTracked) throw new ApiError(400, `"${intake.product.name}" مش صنف بيتتبع مخزونه`);
+
+      // Grade B destination: separate product when one is named, otherwise the
+      // legacy loc_grade_b bucket on the same product.
+      let gradeBProduct = null;
+      if (gradeBProductId) {
+        gradeBProduct = await tx.stockProduct.findUnique({ where: { id: gradeBProductId } });
+        if (!gradeBProduct) throw new ApiError(400, "المنتج المحدد للفرزة مش موجود");
+        if (!gradeBProduct.stockTracked) throw new ApiError(400, "المنتج المحدد للفرزة مش متتبع مخزنيًا");
+      }
+
+      const wh = await resolveWarehouse(tx, intake.warehouseId);
+
+      // --- grading cost allocation (policy-gated; proportional by default) ---
+      // The raw product's current moving average is the value basis of this sort:
+      // sorting_out removes at it; the outputs carry the allocated unit costs.
+      // Lock the product valuation so the read and the posting cannot race.
+      await lockProductValuations(tx, [intake.productId]);
+      const rawVal = await productValuation(tx, intake.productId);
+      const avgRaw = rawVal.qty.gt(0) ? rawVal.value.dividedBy(rawVal.qty).toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP) : D(0);
+      const gradingPolicy: GradingCostPolicy = await getSetting("inventory.grading_cost_policy");
+      const wasteLossPolicy: WasteLossPolicy = await getSetting("inventory.grading_waste_loss");
+      const priceProds: { id: string; unit: string; name: string }[] = [];
+      if (inputKg.gt(0) && gradingPolicy === "nrv") {
+        if (goodKg.gt(0)) priceProds.push({ id: intake.productId, unit: intake.product.unit, name: intake.product.name });
+        if (gradeBProduct) priceProds.push({ id: gradeBProduct.id, unit: gradeBProduct.unit, name: gradeBProduct.name });
+      }
+      const prices: (Prisma.Decimal | null)[] = priceProds.length ? await gradingPrices(tx, priceProds, date) : [];
+      const gcSort = computeGradingCosts({
+        inputQty: inputKg, inputUnitCost: avgRaw,
+        goodQty: goodKg, gradeBQty: gradeBKg, wasteQty: wasteKg,
+        goodPrice: prices.length > 0 ? prices[0] : null,
+        gradeBPrice: prices.length > 1 ? prices[1] : null,
+        policy: gradingPolicy, wastePolicy: wasteLossPolicy,
+      });
+      if (gcSort.costBasis === "nrv_fallback_proportional" && (await getSetting("inventory.grading_price_missing")) === "refuse") {
+        throw new ApiError(400, "سعر المخرجات غير متاح — حدد أسعار المنتجات في قائمة الأسعار الأول");
+      }
+      if (gcSort.costBasis === "nrv_fallback_proportional") {
+        // Recorded AFTER createDoc so the audit row carries the real document id.
+      }
+      const moves: MoveInput[] = [];
+
+      // 1. Take the raw stock being sorted out of the intake's own bucket.
+      moves.push({
+        productId: intake.productId,
+        warehouseId: wh.id,
+        locationId: intake.locationId,
+        lotId: intake.lotId,
+        quantity: inputKg.negated(),
+        kind: "sorting_out",
+        documentId: null, // set below once the doc exists
+        intakeId: intake.id,
+        reason,
+        unitCost: avgRaw,
+        costSource: "average",
+      });
+
+      // 2. Good-grade stays on the raw product, back into the same bucket.
+      if (goodKg.gt(0)) {
+        moves.push({
+          productId: intake.productId,
+          warehouseId: wh.id,
+          locationId: intake.locationId,
+          lotId: intake.lotId,
+          quantity: goodKg,
+          kind: "sorting_in",
+          documentId: null,
+          intakeId: intake.id,
+          reason,
+          unitCost: gcSort.goodUnitCost,
+          costSource: "average",
+        });
+      }
+
+      // 3. Grade B: separate product gets its own lot (like intake does); legacy
+      //    mode uses loc_grade_b on the same product. The lot carries the
+      //    allocated unit cost so lot and valuation layer agree at creation time.
+      if (gradeBKg.gt(0)) {
+        let gradeBLot = intake.lotId;
+        if (gradeBProduct) {
+          const lot = await tx.stockLot.create({
+            data: {
+              productId: gradeBProduct.id,
+              lotNumber: await nextDocumentNumber(tx, "inventory.lot", date),
+              receivedDate: intake.receivedDate,
+              expiryDate: null,
+              supplierId: intake.supplierId,
+              unitCost: gcSort.gradeBUnitCost,
+            },
+          });
+          gradeBLot = lot.id;
+        }
+        moves.push({
+          productId: gradeBProduct ? gradeBProduct.id : intake.productId,
+          warehouseId: wh.id,
+          locationId: gradeBProduct ? (await receivingLocation(tx, wh.id)).id : "loc_grade_b",
+          lotId: gradeBLot,
+          quantity: gradeBKg,
+          kind: "sorting_in",
+          documentId: null,
+          intakeId: intake.id,
+          reason,
+          unitCost: gcSort.gradeBUnitCost,
+          costSource: "average",
+        });
+      }
+
+      // 4. Waste to the waste bucket at the allocated cost.
+      if (wasteKg.gt(0)) {
+        moves.push({
+          productId: intake.productId,
+          warehouseId: wh.id,
+          locationId: "loc_waste",
+          lotId: intake.lotId,
+          quantity: wasteKg,
+          kind: "sorting_in",
+          documentId: null,
+          intakeId: intake.id,
+          reason,
+          unitCost: gcSort.wasteUnitCost,
+          costSource: "average",
+        });
+      }
+
+      const doc = await createDoc(
+        tx,
+        "grading",
+        {
+          warehouseId: wh.id,
+          businessDate: date,
+          status: "posted",
+          reason,
+          sourceType: "stock_intake",
+          sourceId: intake.id,
+          idempotencyKey: key,
+          requestHash,
+          payload: { inputKg: inputKg.toFixed(3), goodKg: goodKg.toFixed(3), gradeBKg: gradeBKg.toFixed(3), wasteKg: wasteKg.toFixed(3), gradeBProductId, costBasis: gcSort.costBasis, fallbackReason: gcSort.fallbackReason, goodUnitCost: gcSort.goodUnitCost?.toFixed(4) ?? null, gradeBUnitCost: gcSort.gradeBUnitCost?.toFixed(4) ?? null, wasteUnitCost: gcSort.wasteUnitCost?.toFixed(4) ?? null, wasteLoss: gcSort.wasteLoss.toFixed(2) },
+        },
+        actor
+      );
+      for (const m of moves) m.documentId = doc.id;
+      await postMovements(tx, moves, { actorId: actor.id, actorName: actor.name, effectiveDate: date });
+      if (gcSort.costBasis === "nrv_fallback_proportional") {
+        await writeAudit({
+          userId: actor.id, userName: actor.name, role: actor.role, action: "grading_cost_fallback",
+          entityType: "inventory_document", entityId: doc.id, fieldChanged: "costBasis", oldValue: "nrv",
+          newValue: `proportional · ${gcSort.fallbackReason ?? "missing_price"}`, source: "user", deviceId: actor.deviceId, reason: "سعر المخرجات غير متاح — اتروزعت التكلفة بالتناسب",
+        }, tx);
+      }
+      await auditDoc(tx, doc, actor, "inventory_sorting_posted", `فرز ${inputKg.toFixed(3)} كجم → ممتاز ${goodKg.toFixed(3)} · فرزة ${gradeBKg.toFixed(3)} · هالك ${wasteKg.toFixed(3)}`);
+      return doc;
+    })
+  );
+  return { ...result, document: await withMovements(result.document.id) };
+}
+
+// ---------------------------------------------------------------------------
 // Returns
 // ---------------------------------------------------------------------------
 
@@ -477,6 +766,32 @@ export async function postCustomerReturnInTx(tx: Tx, input: Record<string, unkno
     if (!order) throw new ApiError(404, `الأوردر ${orderRef} مش موجود`);
     orderId = order.id;
   }
+  // Serialise customer returns for the same order so no two requests both see
+  // room to return the same goods. After the lock, enforce that cumulative
+  // returned goods never exceed what was dispatched for the order — a customer
+  // can only send back what actually left.
+  let issuedPerProduct: Map<string, Prisma.Decimal> | null = null;
+  let alreadyReturned: Map<string, Prisma.Decimal> | null = null;
+  if (orderId) {
+    await advisoryXactLock(tx, `inventory:customer-return:${orderId}`);
+    const eligible = await tx.$queryRaw<{ productId: string; qty: Prisma.Decimal }[]>`
+      SELECT m."productId", -sum(m."quantity") AS qty
+      FROM "StockMovement" m JOIN "InventoryDocument" d ON d."id" = m."documentId"
+      WHERE d."type" = 'issue' AND d."reversalOfId" IS NULL
+        AND d."sourceType" = 'order' AND d."sourceId" = ${orderId}
+        AND m."kind" = 'issue'
+      GROUP BY m."productId"`;
+    issuedPerProduct = new Map(eligible.map((r) => [r.productId, D(r.qty)]));
+    const already = await tx.$queryRaw<{ productId: string; qty: Prisma.Decimal }[]>`
+              SELECT m."productId", sum(m."quantity") AS qty
+              FROM "StockMovement" m
+                JOIN "InventoryDocument" d ON d."id" = m."documentId" AND d."type" = 'customer_return'
+              WHERE d."sourceType" = 'order' AND d."sourceId" = ${orderId}
+                AND d."status" = 'posted' AND d."reversalOfId" IS NULL
+                AND m."kind" = 'customer_return'
+              GROUP BY m."productId"`;
+    alreadyReturned = new Map(already.map((r) => [r.productId, D(r.qty)]));
+  }
   const doc = await createDoc(
     tx,
     "customer_return",
@@ -499,6 +814,19 @@ export async function postCustomerReturnInTx(tx: Tx, input: Record<string, unkno
     const loc = l.location_id ? await resolveLocation(tx, wh.id, l.location_id as string) : quarantine ?? (await receivingLocation(tx, wh.id));
     moves.push({ productId: product.id, warehouseId: wh.id, locationId: loc.id, lotId: typeof l.lot_id === "string" && l.lot_id ? l.lot_id : null, quantity: qty, kind: "customer_return", documentId: doc.id });
   }
+  // Enforce the cumulative physical-return invariant: cumulative returns for an
+  // order never exceed what was dispatched for it (issues, net of reversals).
+  // Unlinked returns (no order) stay a legitimate warehouse-only workflow. When
+  // the order was never issued (e.g. reserved and cancelled before dispatch), the
+  // cap does not apply — the sale never economically happened.
+  if (orderId && issuedPerProduct && issuedPerProduct.size > 0) {
+    for (const m of moves) {
+      const issued = issuedPerProduct.get(m.productId) ?? D(0);
+      const previously = alreadyReturned?.get(m.productId) ?? D(0);
+      if (m.quantity.plus(previously).greaterThan(issued))
+        throw new ApiError(409, `المرتجع التراكمي ${m.quantity.plus(previously).toFixed(3)} أكتر من اللي اتشحن للطلب (${issued.toFixed(3)})`);
+    }
+  }
   await postMovements(tx, moves, ctxOf(actor, date));
   await auditDoc(tx, doc, actor, "inventory_customer_return_posted", `${raw.length} سطر`);
   return doc;
@@ -517,12 +845,35 @@ export async function createSupplierReturn(input: Record<string, unknown>, actor
       const supplier = await tx.supplier.findUnique({ where: { id: input.supplier_id as string } });
       if (!supplier) throw new ApiError(404, "المورد مش موجود");
       const wh = await resolveWarehouse(tx, input.warehouse_id as string | undefined);
+      // A supplier can only take back what we actually received from them: enforce
+      // the cumulative received-vs-returned invariant per supplier+product.
+      await advisoryXactLock(tx, `inventory:supplier-return:${supplier.id}`);
+      const receivedByProduct = new Map(
+        (await tx.$queryRaw<{ productId: string; qty: Prisma.Decimal }[]>`
+          SELECT m."productId", sum(m."quantity") AS qty
+          FROM "StockMovement" m JOIN "StockIntake" si ON si."id" = m."intakeId"
+          WHERE si."supplierId" = ${supplier.id}
+          GROUP BY m."productId"`).map((r) => [r.productId, D(r.qty)])
+      );
+      const returnedByProduct = new Map(
+        (await tx.$queryRaw<{ productId: string; qty: Prisma.Decimal }[]>`
+          SELECT m."productId", sum(-m."quantity") AS qty
+          FROM "StockMovement" m
+            JOIN "InventoryDocument" d ON d."id" = m."documentId" AND d."type" = 'supplier_return'
+          WHERE d."supplierId" = ${supplier.id} AND d."status" = 'posted' AND d."reversalOfId" IS NULL
+            AND m."kind" = 'supplier_return'
+          GROUP BY m."productId"`).map((r) => [r.productId, D(r.qty)])
+      );
       const doc = await createDoc(tx, "supplier_return", { warehouseId: wh.id, businessDate: date, status: "posted", reason: input.reason as string, supplierId: supplier.id, idempotencyKey: key, requestHash }, actor);
       const moves: MoveInput[] = [];
       const claims = new PickClaims();
       for (const l of raw) {
         const product = await loadProduct(tx, l.product_id);
         const qty = await lineQty(tx, product, l);
+        const received = receivedByProduct.get(product.id) ?? D(0);
+        const alreadyReturned = returnedByProduct.get(product.id) ?? D(0);
+        if (qty.plus(alreadyReturned).greaterThan(received))
+          throw new ApiError(409, `المرتجع التراكمي ${qty.plus(alreadyReturned).toFixed(3)} أكتر من اللي اتسلم من المورد (${received.toFixed(3)})`);
         if (typeof l.lot_id === "string" && l.lot_id) {
           const lot = await tx.stockLot.findUnique({ where: { id: l.lot_id } });
           if (!lot || lot.productId !== product.id) throw new ApiError(400, "الدفعة مش تابعة للصنف");
@@ -603,13 +954,20 @@ export async function reverseDocumentInTx(tx: Tx, documentId: string, reason: st
     return reversal.id;
 }
 
-export async function listDocuments(filters: { type?: string; status?: string; limit?: number }) {
-  return prisma.inventoryDocument.findMany({
-    where: { ...(filters.type ? { type: filters.type } : {}), ...(filters.status ? { status: filters.status } : {}) },
-    orderBy: { createdAt: "desc" },
-    take: Math.min(Math.max(filters.limit ?? 50, 1), 200),
-    include: { movements: { include: { location: { select: { code: true } }, lot: { select: { lotNumber: true } }, product: { select: { name: true, unit: true } } } } },
-  });
+const MAX_LIST_PAGE = 200;
+
+export async function listDocuments(filters: { type?: string; status?: string; limit?: number; offset?: number }) {
+  const take = Math.min(Math.max(filters.limit ?? 50, 1), MAX_LIST_PAGE);
+  const skip = Math.max(filters.offset ?? 0, 0);
+  const where = { ...(filters.type ? { type: filters.type } : {}), ...(filters.status ? { status: filters.status } : {}) };
+  const [total, rows] = await Promise.all([
+    prisma.inventoryDocument.count({ where }),
+    prisma.inventoryDocument.findMany({
+      where, orderBy: { createdAt: "desc" }, skip, take,
+      include: { movements: { include: { location: { select: { code: true } }, lot: { select: { lotNumber: true } }, product: { select: { name: true, unit: true } } } } },
+    }),
+  ]);
+  return { documents: rows, pagination: { total, limit: take, offset: skip } };
 }
 
 export const DOCUMENT_TYPE_LABEL = DOC_LABEL;

@@ -62,6 +62,19 @@ leaves **no drift** against the Prisma schema, and the seed + permission sync su
 * The append-only triggers and the deferred balance check are part of the schema, so a
   restored database enforces the same rules.
 
+## Reports & exports
+
+Every report is available as an Excel-safe CSV download (UTF-8 BOM, RFC 4180 quoting) in addition to its JSON view, gated by the same permission as the JSON route:
+
+| Export endpoint | Permission | Contents |
+|---|---|---|
+| `GET /api/sales/customers/[id]/statement/export?from=&to=` | `sales.invoices.view` | Customer statement rows with running balance |
+| `GET /api/purchasing/suppliers/[id]/statement/export?from=&to=` | `purchasing.bills.view` | Supplier statement rows with running balance |
+| `GET /api/management/finance/export?from=&to=` | `reports.finance` | Sales by product, P&L, top customers/suppliers, inventory value, stock movement |
+| `GET /api/inventory/reports/valuation/export` | `stock.valuation.view` | Current inventory value per product |
+
+CSV bytes start with `EF BB BF` (UTF-8 BOM) so Excel renders Arabic correctly; filenames are `<report>-<entity>-<from>-<to>.csv`. Routes register in the RBAC snapshot (`docs/erp/rbac-snapshot.json`, regenerated with `npx tsx scripts/rbac/matrix.ts`); `tests/unit/rbac-snapshot.test.ts` fails if they drift, and `tests/exports.test.ts` covers format, permissions and BOM.
+
 ## Operating notes
 
 * Server errors return `{ "error": "خطأ في السيرفر", "ref": "xxxxxxxx" }`; the same ref is in

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { jsonFor } from "@/lib/security/redact";
 import { handleApiError } from "@/lib/rbac";
 import { requirePermission } from "@/lib/authz";

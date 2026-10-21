@@ -8,7 +8,7 @@ export async function GET(req: NextRequest, { params }: { params: Record<string,
   try {
     await requirePermission(req, "accounting.view");
     const sp = new URL(req.url).searchParams;
-    return NextResponse.json({ ledger: await accountLedger(params.id, sp.get("from") ?? `${todayLocalISO().slice(0, 4)}-01-01`, sp.get("to") ?? todayLocalISO()) });
+    return NextResponse.json({ ledger: await accountLedger(params.id, sp.get("from") ?? `${todayLocalISO().slice(0, 4)}-01-01`, sp.get("to") ?? todayLocalISO(), { limit: Number(sp.get("limit")) || undefined, offset: Number(sp.get("offset")) || undefined }) });
   } catch (err) {
     return handleApiError(err);
   }

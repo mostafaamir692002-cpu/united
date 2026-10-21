@@ -16,6 +16,7 @@ import { lineAmounts, sumAmounts, type LineAmounts } from "@/lib/sales/money";
 import { postCreditNote, postSalesInvoice } from "@/lib/accounting/ledger";
 import { postCustomerReturnInTx } from "@/lib/inventory/documents";
 import { idempotencyKeyField, lockKey, replayRequest, requestFingerprint } from "@/lib/core/idempotency";
+import { toBaseQuantity } from "@/lib/inventory/packaging";
 
 /**
  * Sales invoicing.
@@ -121,6 +122,53 @@ export async function voidDraftInvoice(id: string, input: unknown, actor: Servic
   });
 }
 
+const recoverInput = z.object({
+  reason: text("سبب استعادة المسودة", 500),
+  expected_version: version,
+});
+
+/**
+ * Recover a voided draft invoice back to draft status. Intended for the common
+ * mistake of voiding the wrong draft — the accountant recovers it and continues.
+ *
+ * Safety guards (all enforced before the write):
+ *  1. Invoice must exist and be in "void" status.
+ *  2. Version must match (optimistic concurrency).
+ *  3. Reason is mandatory.
+ *  4. Only invoices.manage permission.
+ *  5. Only void drafts may be recovered — an issued invoice has GL postings,
+ *     credit notes, and possibly receipts, and must be corrected with a credit
+ *     note instead. A draft that was never voided does not need recovery.
+ *  6. A void invoice that has dependent accounting documents cannot be recovered
+ *     (but in practice a void draft never had GL postings — only issue posts).
+ */
+export async function recoverVoidDraftInvoice(id: string, input: unknown, actor: ServiceActor) {
+  assertPermission(actor, "sales.invoices.manage");
+  const v = parse(recoverInput, input);
+  return inTx(async (tx) => {
+    const inv = await tx.salesInvoice.findUnique({ where: { id } });
+    if (!inv) throw new ApiError(404, "الفاتورة مش موجودة");
+    if (inv.status !== "void") throw new ApiError(409, inv.status === "issued" ? "الفاتورة صدرت — مش بنسترجعها، التصحيح بإشعار دائن" : "الفاتورة لسه في المسودة — مش محتاجة استعادة");
+    if (v.expected_version !== undefined && v.expected_version !== inv.version) throw new ApiError(409, "الفاتورة اتغيرت، حدّث الشاشة");
+    // A void draft exists because it was never issued, so it has no GL postings,
+    // no number, and no dependent credit notes or receipt allocations. Double-check:
+    const hasPostings = await tx.journalEntry.count({ where: { sourceType: "sales_invoice", sourceId: id } });
+    if (hasPostings) throw new ApiError(409, "الفاتورة ليها قيود محاسبية — مينفعش تسترجعها كمسودة");
+    const updated = await tx.salesInvoice.update({
+      where: { id, version: inv.version, status: "void" },
+      data: {
+        status: "draft",
+        // Keep the void reason for audit; it's harmless on a draft and the status
+        // check in the issue endpoint already validates status === "draft".
+        version: { increment: 1 },
+      },
+    });
+    if (!updated) throw new ApiError(409, "الفاتورة اتغيرت من وقت ما فتحتها");
+    await auditInv(tx, actor, "sales_invoice", id, "invoice_draft_recovered", v.reason, inv.orderId, v.reason);
+    return updated;
+  });
+}
+
 async function voidDraft(tx: Tx, inv: SalesInvoice, reason: string, actor: Actorish, expectedVersion?: number) {
   if (expectedVersion !== undefined && expectedVersion !== inv.version) throw new ApiError(409, "الفاتورة اتغيرت، حدّث الشاشة");
   const updated = await tx.salesInvoice.update({ where: { id: inv.id, version: inv.version, status: "draft" }, data: { status: "void", voidReason: reason, version: { increment: 1 } } });
@@ -154,10 +202,38 @@ export async function issueInvoice(id: string, input: unknown, actor: ServiceAct
   const issueDate = v.issue_date ?? today;
   if (issueDate > today) throw new ApiError(400, "مينفعش تاريخ الفاتورة يكون في المستقبل");
   return inTx(async (tx) => {
+    await advisoryXactLock(tx, `sales:invoice:${id}`);
     const inv = await tx.salesInvoice.findUnique({ where: { id }, include: { customer: true } });
     if (!inv) throw new ApiError(404, "الفاتورة مش موجودة");
     if (inv.status !== "draft") throw new ApiError(409, inv.status === "issued" ? "الفاتورة صدرت بالفعل" : "الفاتورة ملغية");
     if (v.expected_version !== undefined && v.expected_version !== inv.version) throw new ApiError(409, "الفاتورة اتغيرت، حدّث الشاشة");
+
+    // Price-freshness guard: if the order's current prices differ from the draft's
+    // frozen lines, refuse to issue. This catches the recovered-draft scenario:
+    // draft → void → price change → recover (draft prices stale) → issue blocked.
+    // The accountant must explicitly reprice the draft before issuing.
+    const lineRows = (await tx.salesInvoiceLine.findMany({
+      where: { invoiceId: id },
+      select: { orderItemId: true, description: true, unitPrice: true, discountPct: true, taxRate: true },
+    })) as unknown as { orderItemId: string | null; description: string; unitPrice: { toString(): string }; discountPct: { toString(): string }; taxRate: { toString(): string } }[];
+    const itemIds = lineRows.map((l) => l.orderItemId).filter((oid): oid is string => !!oid);
+    const priceRows = (itemIds.length > 0
+      ? await tx.orderItemPrice.findMany({ where: { orderItemId: { in: itemIds } }, select: { orderItemId: true, unitPrice: true, discountPct: true, taxRate: true } })
+      : []) as unknown as { orderItemId: string; unitPrice: { toString(): string }; discountPct: { toString(): string }; taxRate: { toString(): string } }[];
+    const priceByItem = new Map(priceRows.map((p) => [p.orderItemId, p]));
+    const stale: string[] = [];
+    for (const l of lineRows) {
+      if (!l.orderItemId) continue;
+      const cur = priceByItem.get(l.orderItemId);
+      if (!cur) continue;
+      if (l.unitPrice.toString() !== cur.unitPrice.toString() || l.discountPct.toString() !== cur.discountPct.toString() || l.taxRate.toString() !== cur.taxRate.toString()) {
+        stale.push(l.description);
+      }
+    }
+    if (stale.length) {
+      throw new ApiError(409, `أسعار سطور \"${stale.join('، ')}\" اتغيرت — حدث الأسعار (إعادة تسعير) قبل الإصدار`);
+    }
+
     const c = inv.customer;
     const address = [c.address, c.area, c.city].filter(Boolean).join("، ") || null;
     const updated = await tx.salesInvoice.update({
@@ -180,6 +256,62 @@ export async function issueInvoice(id: string, input: unknown, actor: ServiceAct
     await auditInv(tx, actor, "sales_invoice", id, "invoice_issued", `${updated.number} · ${updated.total.toFixed(2)} · استحقاق ${updated.dueDate}`, inv.orderId);
     await postSalesInvoice(tx, id, actor);
     return updated;
+  });
+}
+
+/**
+ * Explicitly refresh a DRAFT invoice's lines from the order's CURRENT prices.
+ * This is the authorized re-pricing step the issue guard requires: a recovered
+ * draft (void → price change → recover) carries stale frozen prices, and issuing
+ * it silently would bill the customer at old prices. The accountant calls this
+ * endpoint deliberately; the refresh is audited with the old → new total.
+ *
+ * Never touches issued invoices — once issued, prices belong to the legal
+ * document and corrections go through credit notes.
+ */
+export async function repriceDraftInvoice(id: string, input: unknown, actor: ServiceActor) {
+  assertPermission(actor, "sales.invoices.manage");
+  const v = parse(z.object({ expected_version: version }), input);
+  return inTx(async (tx) => {
+    const inv = await tx.salesInvoice.findUnique({ where: { id } });
+    if (!inv) throw new ApiError(404, "الفاتورة مش موجودة");
+    if (inv.status !== "draft") throw new ApiError(409, inv.status === "issued" ? "الفاتورة صدرت — أسعار الفاتورة الصادرة مش بتتعدل، التصحيح بإشعار دائن" : "الفاتورة ملغية");
+    if (v.expected_version !== undefined && v.expected_version !== inv.version) throw new ApiError(409, "الفاتورة اتغيرت، حدّث الشاشة");
+
+    const lineRows = (await tx.salesInvoiceLine.findMany({ where: { invoiceId: id }, orderBy: { lineNo: "asc" } })) as unknown as {
+      id: string; orderItemId: string | null; description: string; quantity: Prisma.Decimal;
+      unitPrice: Prisma.Decimal; discountPct: Prisma.Decimal; taxCode: string; taxRate: Prisma.Decimal;
+    }[];
+    const itemIds = lineRows.map((l) => l.orderItemId).filter((oid): oid is string => !!oid);
+    const priceRows = (itemIds.length > 0
+      ? await tx.orderItemPrice.findMany({ where: { orderItemId: { in: itemIds } }, select: { orderItemId: true, unitPrice: true, discountPct: true, taxCode: true, taxRate: true } })
+      : []) as unknown as { orderItemId: string; unitPrice: Prisma.Decimal; discountPct: Prisma.Decimal; taxCode: string; taxRate: Prisma.Decimal }[];
+    const priceByItem = new Map(priceRows.map((p) => [p.orderItemId, p]));
+
+    const amounts: LineAmounts[] = [];
+    let changed = false;
+    for (const l of lineRows) {
+      const cur = l.orderItemId ? priceByItem.get(l.orderItemId) : undefined;
+      if (!cur) throw new ApiError(409, `سطر \"${l.description}\" من غير سعر حالي على الأوردر — حدّث سعر الأوردر الأول`);
+      const a = lineAmounts({ quantity: l.quantity, unitPrice: cur.unitPrice, discountPct: cur.discountPct, taxRate: cur.taxRate });
+      amounts.push(a);
+      if (l.unitPrice.toString() !== cur.unitPrice.toString() || l.discountPct.toString() !== cur.discountPct.toString() || l.taxRate.toString() !== cur.taxRate.toString() || l.taxCode !== cur.taxCode) {
+        changed = true;
+        await tx.salesInvoiceLine.update({
+          where: { id: l.id },
+          data: { unitPrice: cur.unitPrice, discountPct: cur.discountPct, taxCode: cur.taxCode, taxRate: cur.taxRate, ...amountsData(a) },
+        });
+      }
+    }
+    if (!changed) return { invoice: inv, changed: false };
+
+    const total = sumAmounts(amounts);
+    const updated = await tx.salesInvoice.update({
+      where: { id, version: inv.version, status: "draft" },
+      data: { ...totalsData(total), version: { increment: 1 } },
+    });
+    await auditInv(tx, actor, "sales_invoice", id, "invoice_draft_repriced", `${inv.total.toFixed(2)} → ${total.total.toFixed(2)}`, inv.orderId, "إعادة تسعير صريحة من أسعار الأوردر الحالية");
+    return { invoice: updated, changed: true };
   });
 }
 
@@ -240,9 +372,25 @@ export async function createCreditNote(invoiceId: string, input: unknown, actor:
     const inv = await tx.salesInvoice.findUnique({ where: { id: invoiceId }, include: { lines: { orderBy: { lineNo: "asc" } } } });
     if (!inv) throw new ApiError(404, "الفاتورة مش موجودة");
     if (inv.status !== "issued") throw new ApiError(409, "الإشعار الدائن بيتعمل على فاتورة صادرة بس");
+    let returnedByProduct: Map<string, Prisma.Decimal> | null = null;
     if (v.return_document_id) {
+      // A physical return authorizes exactly one credit note. Serialise on the
+      // return document (not the invoice, so cross-invoice attempts also queue)
+      // and refuse a second credit note that reuses the same return document —
+      // otherwise the same returned goods could be credited twice.
+      await advisoryXactLock(tx, `sales:return-doc:${v.return_document_id}`);
       const doc = await tx.inventoryDocument.findUnique({ where: { id: v.return_document_id } });
       if (!doc || doc.type !== "customer_return") throw new ApiError(400, "مستند المرتجع مش موجود");
+      const used = await tx.creditNote.findFirst({ where: { returnDocumentId: v.return_document_id }, select: { number: true } });
+      if (used) throw new ApiError(409, `مستند المرتجع ده اتستخدم في الإشعار ${used.number} بالفعل`);
+      // The credit cannot exceed what the return document physically moved back in —
+      // a credit note is a financial reversal of goods that actually came back.
+      const returned = await tx.stockMovement.groupBy({
+        by: ["productId"],
+        where: { documentId: v.return_document_id, kind: "customer_return" },
+        _sum: { quantity: true },
+      });
+      returnedByProduct = new Map(returned.map((r) => [r.productId, D(r._sum.quantity ?? 0)]));
     }
     const credited = await tx.creditNoteLine.groupBy({ by: ["invoiceLineId"], where: { invoiceLineId: { in: inv.lines.map((l) => l.id) } }, _sum: { quantity: true } });
     const already = new Map(credited.map((c) => [c.invoiceLineId, D(c._sum.quantity ?? 0)]));
@@ -260,6 +408,30 @@ export async function createCreditNote(invoiceId: string, input: unknown, actor:
       const line = inv.lines.find((l) => l.id === lineId)!;
       const left = D(line.quantity).minus(already.get(lineId) ?? 0);
       if (qty.greaterThan(left)) throw new ApiError(400, `"${line.description}": المتبقي من الفاتورة ${left.toFixed()} ${line.uomCode} بس`);
+    }
+    // When a return document is linked, the credit per product cannot exceed the
+    // quantity that return document physically moved back in — so the financial
+    // credit is always backed by goods that actually returned. Invoice lines
+    // without a product (services) keep the pure financial path. Both sides are
+    // compared in the product's BASE unit (credit uomCode → base; return movements
+    // are already base), so a crate/pack sold by count is capped correctly.
+    if (returnedByProduct) {
+      const byProduct = new Map<string, Prisma.Decimal>();
+      const productsById = new Map(
+        (await tx.stockProduct.findMany({ where: { id: { in: [...new Set(inv.lines.map((l) => l.productId).filter((x): x is string => !!x))] } }, select: { id: true, name: true, unit: true } })).map((p) => [p.id, p])
+      );
+      for (const [lineId, qty] of perLine) {
+        const line = inv.lines.find((l) => l.id === lineId);
+        if (!line?.productId) continue;
+        const p = productsById.get(line.productId);
+        const baseQty = p && line.uomCode && line.uomCode !== p.unit ? await toBaseQuantity(tx, p, qty, line.uomCode) : qty;
+        byProduct.set(line.productId, (byProduct.get(line.productId) ?? D(0)).plus(baseQty));
+      }
+      for (const [pid, qty] of byProduct) {
+        const returned = returnedByProduct.get(pid) ?? D(0);
+        if (qty.greaterThan(returned))
+          throw new ApiError(409, `الكمية المتخصمة ${qty.toFixed(3)} أكتر من اللي رجع فعلاً (${returned.toFixed(3)}) في مستند المرتجع`);
+      }
     }
     // A full credit of what remains is exact to the piastre: the remaining amount of
     // each line, not a re-rounded recomputation.

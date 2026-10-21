@@ -6,6 +6,7 @@
    and the stock ledger, the subledgers, the GL and the reports must agree at the end.
    Findings that are not test failures (limitations) are printed as OBSERVATIONS. */
 import { call, login, makeChecker, page } from "./_harness";
+import { local } from "./_days";
 
 const { check, section, finish } = makeChecker();
 const T = `ZZUAT${Date.now() % 1_000_000_000}`;
@@ -13,7 +14,6 @@ const observations: { severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"; area: st
 const observe = (severity: (typeof observations)[number]["severity"], area: string, text: string) => observations.push({ severity, area, text });
 let r: any;
 
-const local = (offsetDays = 0) => new Date(Date.now() - new Date().getTimezoneOffset() * 60_000 + offsetDays * 86_400_000).toISOString().slice(0, 10);
 const today = local();
 const n = (v: unknown) => Math.round(Number(v ?? 0) * 100) / 100;
 const reg9 = (k: number) => String(100_000_000 + ((Date.now() + k * 7919) % 899_999_999)).slice(0, 9);
@@ -351,6 +351,10 @@ async function main() {
   check("…returned goods land where the warehouse is configured to take them (quarantine if one exists, else the receiving bay)", qLoc ? n(Number(pc.onHand) - Number(pc.available) - Number(pc.reserved)) >= 10 : pc.buckets.some((b: any) => b.locationType === "receiving" && Number(b.quantity) >= 10), pc.buckets.map((b: any) => [b.locationCode, b.quantity]));
   if (!qLoc) observe("MEDIUM", "Returns (business decision)", "No quarantine location is configured, so customer returns and failed-delivery returns go to the receiving bay and are immediately available to pick again, uninspected. The system fully supports a quarantine step (returns land there, quarantined stock is excluded from available and from picking, and is released by transfer or scrapped). Enabling it is one location created in master data — but it changes the warehouse's daily routine, so it is UNITED's decision, not changed during UAT.");
   check("…a return beyond what was invoiced -> 400", (await call("karim", "POST", `/api/sales/invoices/${inv2.id}/credit-notes`, { reason: "x", lines: [{ invoice_line_id: lc.id, quantity: 200 }] })).status === 400);
+  const reuseConflict = cn?.returnDocumentId
+    ? (await call("karim", "POST", `/api/sales/invoices/${inv2.id}/credit-notes`, { reason: "تكرار لنفس المرتجع", return_document_id: cn.returnDocumentId, lines: [{ invoice_line_id: lc.id, quantity: 5 }] })).status
+    : null;
+  check("the same physical return cannot authorize a second credit note -> 409", reuseConflict === null || reuseConflict === 409, reuseConflict);
   check("…chain statement: 1,495.20 + 420 − 137.52 = 1,777.68", (await owes(chain.id)) === 1777.68, await owes(chain.id));
 
   // =========================================================================
@@ -477,6 +481,7 @@ async function main() {
   const inv5 = r[0].body.invoice;
   r = await triple(() => call("karim", "POST", `/api/sales/invoices/${inv5.id}/issue`, {}));
   check("issued 3× at once → one number, one journal entry", r.filter((x: any) => x.status === 200).length === 1 && (await entry("sales_invoice", (await call("karim", "GET", `/api/sales/invoices/${inv5.id}`)).body.invoice.number)).count === 1, r.map((x: any) => x.status));
+  check("issued 3× at once → losing requests get a clean 409 (already issued)", r.filter((x: any) => x.status !== 200).every((x: any) => x.status === 409 && x.body?.error?.includes("صدرت بالفعل")), r.map((x: any) => [x.status, x.body?.error]));
   r = await triple(() => call("karim", "POST", `/api/eta/invoices/${inv5.id}/submit`, {}));
   check("ETA submission 3× at once → refused alike (not ready / not configured), nothing recorded", r.every((x: any) => [422, 503].includes(x.status)) && (await call("karim", "GET", `/api/eta/invoices/${inv5.id}`)).body.eta === null, r.map((x: any) => x.status));
   // Receiving: the screen sends one key per filled form, so a retry or a duplicate

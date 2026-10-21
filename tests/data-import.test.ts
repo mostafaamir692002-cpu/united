@@ -3,6 +3,7 @@
    CSV and XLSX uploads. */
 import { deflateRawSync } from "node:zlib";
 import { call, login, makeChecker, BASE, cookieFor } from "./_harness";
+import { todayBiz } from "./_days";
 
 const { check, section, finish } = makeChecker();
 const TAG = `ZZIMP${Date.now()}`;
@@ -128,7 +129,7 @@ async function main() {
   check("settings and packaging persisted on the product card", productDetail.product?.shelfLifeDays === 7 && productDetail.product?.packagings?.some((p: any) => p.uomCode === "CRATE" && p.qtyInBaseUnit === "18"), productDetail);
 
   section("6. OPENING STOCK AND PARTY BALANCES");
-  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+  const today = todayBiz();
   const stockCsv = csv(`sku,quantity,unit,unit_cost,expiry_date,location_code\n${SKU},20,KG,12,2099-12-31,COLD-1\n`);
   const stockPreview = await upload("admin", "opening_stock", "opening.csv", stockCsv, "preview", today);
   check("opening stock previews against SKU, location and business date", stockPreview.status === 200 && stockPreview.body.errorCount === 0, stockPreview.body);

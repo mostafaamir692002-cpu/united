@@ -23,9 +23,19 @@ const DECISION_FILTERS: { key: DecisionFilter; label: string; actions?: string[]
 export function AuditLogView() {
   const [search, setSearch] = useState("");
   const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>("all");
+  const [entityFilter, setEntityFilter] = useState("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  // Build query string for server-side filtering
+  const qs = new URLSearchParams();
+  if (search.trim()) qs.set("q", search.trim());
+  if (entityFilter !== "all") qs.set("entity", entityFilter);
+  if (from) qs.set("from", from);
+  if (to) qs.set("to", to);
+  const queryStr = qs.toString() ? "?" + qs.toString() : "";
   const { data, isLoading, isError, error, refetch, dataUpdatedAt } = useQuery({
-    queryKey: ["audit", "all"],
-    queryFn: () => apiFetch<{ logs: AuditLogDTO[] }>("/api/audit"),
+    queryKey: ["audit", queryStr || "all"],
+    queryFn: () => apiFetch<{ logs: AuditLogDTO[] }>("/api/audit" + queryStr),
     refetchInterval: 5000,
   });
 
@@ -74,6 +84,49 @@ export function AuditLogView() {
             {f.label}
           </button>
         ))}
+      </div>
+
+      <div className="flex gap-2 flex-wrap items-end mb-3">
+        <select
+          value={entityFilter}
+          onChange={(e) => setEntityFilter(e.target.value)}
+          className="field text-sm"
+        >
+          <option value="all">كل أنواع الحركات</option>
+          <option value="sales_invoice">الفاتورة</option>
+          <option value="credit_note">الإشعار الدائن</option>
+          <option value="supplier_bill">فاتورة مورد</option>
+          <option value="debit_note">إشعار مدين</option>
+          <option value="journal_entry">قيد اليومية</option>
+          <option value="customer_receipt">قبض</option>
+          <option value="supplier_payment">صرف</option>
+          <option value="order">أوردر</option>
+          <option value="purchase_order">أمر شراء</option>
+          <option value="stock_intake">استلام مخزون</option>
+          <option value="inventory_document">مستند مخزون</option>
+          <option value="approval_request">موافقة</option>
+          <option value="employee">موظف</option>
+          <option value="expense">مصروف</option>
+          <option value="user">مستخدم</option>
+          <option value="settings">إعدادات</option>
+        </select>
+
+        <input
+          type="date"
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          placeholder="من تاريخ"
+          className="field text-sm"
+          style={{ maxWidth: 140 }}
+        />
+        <input
+          type="date"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          placeholder="إلى تاريخ"
+          className="field text-sm"
+          style={{ maxWidth: 140 }}
+        />
       </div>
 
       {isLoading && (

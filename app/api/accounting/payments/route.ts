@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   try {
     await requirePermission(req, "accounting.view");
     const sp = new URL(req.url).searchParams;
-    return NextResponse.json({ payments: await listPayments({ supplierId: sp.get("supplier_id") ?? undefined }) });
+    return NextResponse.json(await listPayments({ supplierId: sp.get("supplier_id") ?? undefined, limit: Number(sp.get("limit")) || undefined, offset: Number(sp.get("offset")) || undefined }));
   } catch (err) {
     return handleApiError(err);
   }

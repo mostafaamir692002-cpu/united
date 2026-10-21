@@ -42,6 +42,8 @@ export const MOVEMENT_LABEL: Record<MovementKind, string> = {
   customer_return: "مرتجع من عميل",
   supplier_return: "مرتجع لمورد",
   scrap: "تالف / إعدام",
+  sorting_out: "فرز (خروج)",
+  sorting_in: "فرز (دخول)",
 };
 
 export const MOVEMENT_ICON: Record<MovementKind, string> = {
@@ -55,6 +57,8 @@ export const MOVEMENT_ICON: Record<MovementKind, string> = {
   customer_return: "🔙",
   supplier_return: "📤",
   scrap: "🗑️",
+  sorting_out: "🔀",
+  sorting_in: "🔀",
 };
 
 export const STOCK_AUDIT_LABEL: Record<string, string> = {

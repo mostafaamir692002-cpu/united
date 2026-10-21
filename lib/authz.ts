@@ -1,6 +1,5 @@
 import { cache } from "react";
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { ApiError } from "@/lib/rbac";
 import { forbiddenMessage } from "@/lib/authz-core";
@@ -44,14 +43,15 @@ export type AuthContext = {
   username: string;
   role: Role;
   permissions: Set<Permission>;
-  /** The account may do nothing but choose its own password (see /api/auth/password). */
+  /** Passwords are administrator-managed (users.edit); this flag is informational only. */
+  active: boolean;
   mustChangePassword: boolean;
   deviceId?: string;
   can: (permission: Permission) => boolean;
 };
 
 function buildContext(
-  user: { id: string; name: string; username: string; role: string; mustChangePassword?: boolean },
+  user: { id: string; name: string; username: string; role: string; active: boolean; mustChangePassword?: boolean },
   permissions: Set<Permission>,
   deviceId?: string
 ): AuthContext {
@@ -61,6 +61,7 @@ function buildContext(
     username: user.username,
     role: user.role as Role,
     permissions,
+    active: user.active,
     mustChangePassword: user.mustChangePassword ?? false,
     deviceId,
     can: (permission) => permissions.has(permission),
@@ -100,9 +101,10 @@ const loadAuthState = cache(async () => {
     if (loaded.user.sessionEpoch !== session.sessionEpoch) return null;
     return {
       user: loaded.user,
-      // A password set by an administrator is a key someone else knows: until the user
-      // replaces it, the session carries no permissions at all.
-      permissions: loaded.user.mustChangePassword ? new Set<Permission>() : applyOverrides(loaded.user.role as Role, loaded.overrides),
+      // Passwords are administrator-managed end to end (users.edit) — there is no
+      // self-service change, so mustChangePassword is informational only (shown as a
+      // notice on the read-only profile) and never strips the user's permissions.
+      permissions: applyOverrides(loaded.user.role as Role, loaded.overrides),
     };
   } catch (err) {
     // Next signals "this route must render dynamically" and "redirect" by throwing.

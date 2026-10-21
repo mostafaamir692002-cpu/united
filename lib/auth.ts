@@ -31,22 +31,22 @@ export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
 }
 
-export async function createSessionToken(user: SessionUser) {
+export async function createSessionToken(user: SessionUser, ttlHours: number) {
   return new SignJWT({ id: user.id, name: user.name, username: user.username, role: user.role, sep: user.sessionEpoch })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("12h")
+    .setExpirationTime(`${Math.max(1, Math.floor(ttlHours))}h`)
     .sign(secret);
 }
 
-export async function setSessionCookie(user: SessionUser) {
-  const token = await createSessionToken(user);
+export async function setSessionCookie(user: SessionUser, ttlHours: number) {
+  const token = await createSessionToken(user, ttlHours);
   cookies().set(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 12,
+    maxAge: Math.max(3600, Math.floor(ttlHours) * 3600),
   });
 }
 
@@ -54,9 +54,10 @@ export function clearSessionCookie() {
   cookies().delete(COOKIE_NAME);
 }
 
-export async function getSessionUser(): Promise<SessionUser | null> {
-  const token = cookies().get(COOKIE_NAME)?.value;
-  if (!token) return null;
+/** Verify a raw JWT string and return the embedded SessionUser, or null on any
+ * failure (expired, tampered, wrong key). Shared by the cookie path and the Bearer
+ * path below. */
+async function verifyToken(token: string): Promise<SessionUser | null> {
   try {
     const { payload } = await jwtVerify(token, secret);
     return {
@@ -69,4 +70,48 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Resolve the session from two sources, in order of precedence:
+ *
+ *  1. `Authorization: Bearer <JWT>` — set by the client from
+ *     sessionStorage (tab-scoped). If this header is present but its token is
+ *     invalid or expired, the request is refused as unauthenticated (returns
+ *     null). There is NO silent fallback to the shared cookie when a Bearer
+ *     token is present but bad — that would let a compromised tab read
+ *     the cookie of another user.
+ *
+ *  2. `united_session` httpOnly cookie — the traditional shared storage,
+ *     used when no Authorization header is supplied (backward-compatible
+ *     path for users who do not need multi-tab isolation).
+ *
+ * A well-formed Bearer token that is valid for a *different* user than the
+ * cookie happens to also hold is not possible (the JWT carries the identity;
+ * the server re-reads permissions from the DB for every request), so there
+ * is no cross-user confusion risk.
+ */
+export async function getSessionUser(): Promise<SessionUser | null> {
+  // 1. Authorization: Bearer — tab-scoped sessionStorage
+  try {
+    const { headers } = await import("next/headers");
+    const authHeader = headers().get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const user = await verifyToken(authHeader.slice(7));
+      // SECURITY: if a Bearer token is present but invalid or expired, DO NOT
+      // fall back to the cookie. A Bearer-bearing request explicitly opted into
+      // per-tab auth; silently using the cookie would defeat the isolation.
+      return user;
+    }
+    // If an Authorization header is present but NOT a Bearer token, refuse.
+    if (authHeader) return null;
+  } catch {
+    // headers() may not be available outside a request context (e.g. build
+    // phase). Silently fall through to cookie.
+  }
+
+  // 2. Cookie — shared traditional path
+  const token = cookies().get(COOKIE_NAME)?.value;
+  if (!token) return null;
+  return verifyToken(token);
 }

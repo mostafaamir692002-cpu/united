@@ -77,7 +77,7 @@ async function main() {
   }
 
   section("4. EVERY PAGE × EVERY ROLE × HOSTILE QUERY / UNKNOWN ID");
-  const pages = ["/account/password", "/accounting", "/admin", "/approvals", "/eta", "/hr", "/load", "/management", "/management/operations", "/operations", "/prep", "/production", "/purchasing", "/sales", "/stock", "/stock/entries", "/stock/inventory", "/stock/ledger", "/stock/setup", "/supervisor", "/supervisor/audit", "/supervisor/exceptions", "/supervisor/report", "/supervisor/report/print", "/orders/does-not-exist", "/orders/does-not-exist/print/delivery", "/orders/does-not-exist/print/dispatch", "/orders/does-not-exist/print/picking", "/sales/invoices/does-not-exist/print"];
+  const pages = ["/profile", "/accounting", "/admin", "/approvals", "/eta", "/hr", "/load", "/management", "/management/operations", "/operations", "/prep", "/production", "/purchasing", "/sales", "/stock", "/stock/entries", "/stock/inventory", "/stock/ledger", "/stock/setup", "/supervisor", "/supervisor/audit", "/supervisor/exceptions", "/supervisor/report", "/supervisor/report/print", "/orders/does-not-exist", "/orders/does-not-exist/print/delivery", "/orders/does-not-exist/print/dispatch", "/orders/does-not-exist/print/picking", "/sales/invoices/does-not-exist/print"];
   for (const u of USERS) for (const p of pages) for (const q of ["", "?date=garbage&from=x&to=y&tab=%00&status=%00&q=%00&lang=xx"]) {
     const res = await page(u, p + q);
     check(`${u} page ${p}${q ? " (hostile query)" : ""} → ${res.status}`, res.status < 500, res.status);

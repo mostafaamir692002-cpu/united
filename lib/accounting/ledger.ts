@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { randomUUID } from "crypto";
 import { idempotencyKeyField, lockKey, replayRequest, requestFingerprint } from "@/lib/core/idempotency";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -209,9 +210,10 @@ const VALUATION_COUNTER: Record<string, SystemKey> = {
 const KIND_LABEL: Record<string, string> = { grni: "استلامات ومرتجعات موردين", cogs: "صرف ومرتجعات عملاء", inventory_adjustment: "تسويات وهالك وتحويلات", opening_equity: "رصيد مخزون افتتاحي" };
 
 /** A date to post on: the business date, unless its period is already closed — then today. */
-async function postingDate(tx: Tx, date: string) {
+async function postingDate(tx: Tx, date: string): Promise<{ date: string; redated: boolean }> {
   const p = await tx.accountingPeriod.findUnique({ where: { code: date.slice(0, 7) }, select: { status: true } });
-  return p?.status === "closed" ? todayLocalISO() : date;
+  if (p?.status === "closed") return { date: todayLocalISO(), redated: true };
+  return { date, redated: false };
 }
 
 /** Lines Inventory ↔ counter account, one pair per counter, from movements' values. */
@@ -233,7 +235,7 @@ async function valuationLines(tx: Tx, moves: { kind: string; documentId: string 
   return lines;
 }
 
-const MOVE_LABEL: Record<string, string> = { intake: "استلام", intake_correction: "تصحيح استلام", intake_void: "إلغاء استلام", adjustment: "تسوية", transfer_out: "تحويل", transfer_in: "تحويل", issue: "صرف لعميل", customer_return: "مرتجع عميل", supplier_return: "مرتجع لمورد", scrap: "هالك" };
+const MOVE_LABEL: Record<string, string> = { intake: "استلام", intake_correction: "تصحيح استلام", intake_void: "إلغاء استلام", adjustment: "تسوية", transfer_out: "تحويل", transfer_in: "تحويل", issue: "صرف لعميل", customer_return: "مرتجع عميل", supplier_return: "مرتجع مورد", sorting_out: "فرز — خارج", sorting_in: "فرز — داخل", release_out: "إفراج محجوز — خارج", release_in: "إفراج محجوز — داخل" };
 
 /** "قيمة مخزون — استلام RC-…" — the kind in words and the document it came from. */
 async function valuationDescription(tx: Tx, moves: { kind: string; documentId: string | null; intakeId?: string | null }[]) {
@@ -256,10 +258,31 @@ async function valuationDescription(tx: Tx, moves: { kind: string; documentId: s
 export async function postMovementValuation(tx: Tx, moves: { movementId: string; kind: string; documentId: string | null; intakeId?: string | null; value: Prisma.Decimal.Value }[], ctx: { id: string | null; name: string; effectiveDate: string }) {
   if (moves.length === 0) return null;
   const lines = await valuationLines(tx, moves);
+  const pd = await postingDate(tx, ctx.effectiveDate);
   const entry = lines.length
-    ? await postJournal(tx, { date: await postingDate(tx, ctx.effectiveDate), description: await valuationDescription(tx, moves), sourceType: "stock_valuation", sourceId: `mv:${moves[0].movementId}`, lines }, { id: ctx.id, name: ctx.name, role: "SYSTEM" })
+    ? await postJournal(tx, { date: pd.date, description: await valuationDescription(tx, moves), sourceType: "stock_valuation", sourceId: `mv:${moves[0].movementId}`, lines }, { id: ctx.id, name: ctx.name, role: "SYSTEM" })
     : null;
   await tx.stockValuationPosting.createMany({ data: moves.map((m) => ({ movementId: m.movementId, entryId: entry?.id ?? null })) });
+  // A posting pushed into an already-closed period moves to today's date silently —
+  // make that shift auditable so a closing can be explained later.
+  if (pd.redated && entry) {
+    await writeAudit(
+      {
+        userId: ctx.id,
+        userName: ctx.name,
+        role: "SYSTEM",
+        action: "stock_valuation_redated",
+        entityType: "journal_entry",
+        entityId: entry.id,
+        fieldChanged: "date",
+        oldValue: ctx.effectiveDate,
+        newValue: pd.date,
+        reason: "الفترة المحاسبية مقفولة — اترحّل القيد بتاريخ النهاردة",
+        source: "system",
+      },
+      tx
+    );
+  }
   return entry;
 }
 
@@ -359,7 +382,7 @@ export async function createManualJournal(input: unknown, actor: ServiceActor) {
     // A keyed manual journal is identified by its key (its source id), so a retried
     // submit finds the entry the first attempt posted instead of posting it again.
     await lockKey(tx, v.idempotency_key);
-    const sourceId = v.idempotency_key ? `manual-${v.idempotency_key}` : `manual-${Date.now()}`;
+    const sourceId = v.idempotency_key ? `manual-${v.idempotency_key}` : `manual-${Date.now()}-${randomUUID().slice(0, 8)}`;
     const requestHash = requestFingerprint({
       date: v.date,
       description: v.description,
@@ -545,12 +568,17 @@ export async function trialBalance(from: string, to: string) {
   return { from, to, lines, totals: { debit: sum("debit"), credit: sum("credit") }, balanced: closingSum.isZero() };
 }
 
-export async function accountLedger(accountId: string, from: string, to: string) {
+export async function accountLedger(accountId: string, from: string, to: string, opts?: { limit?: number; offset?: number }) {
   if (!isValidISODate(from) || !isValidISODate(to) || from > to) throw new ApiError(400, "الفترة غير صالحة");
   const account = await prisma.account.findUnique({ where: { id: accountId } });
   if (!account) throw new ApiError(404, "الحساب مش موجود");
+  const take = Math.min(Math.max(opts?.limit ?? 100, 1), 500);
+  const skip = Math.max(opts?.offset ?? 0, 0);
   const before = await prisma.journalLine.aggregate({ where: { accountId, entry: { date: { lt: from } } }, _sum: { debit: true, credit: true } });
-  const lines = await prisma.journalLine.findMany({ where: { accountId, entry: { date: { gte: from, lte: to } } }, include: { entry: { select: { number: true, date: true, description: true, sourceType: true, createdAt: true } } }, orderBy: [{ entry: { date: "asc" } }, { entry: { createdAt: "asc" } }], take: 2000 });
+  const [total, lines] = await Promise.all([
+    prisma.journalLine.count({ where: { accountId, entry: { date: { gte: from, lte: to } } } }),
+    prisma.journalLine.findMany({ where: { accountId, entry: { date: { gte: from, lte: to } } }, include: { entry: { select: { number: true, date: true, description: true, sourceType: true, createdAt: true } } }, orderBy: [{ entry: { date: "asc" } }, { entry: { createdAt: "asc" } }], skip, take }),
+  ]);
   let bal = D(before._sum.debit ?? 0).minus(before._sum.credit ?? 0);
   const opening = bal.toFixed(2);
   return {
@@ -561,6 +589,7 @@ export async function accountLedger(accountId: string, from: string, to: string)
       return { id: l.id, date: l.entry.date, number: l.entry.number, description: l.description ?? l.entry.description, sourceType: l.entry.sourceType, debit: l.debit.toFixed(2), credit: l.credit.toFixed(2), balance: bal.toFixed(2), reconciled: !!l.reconciliationId };
     }),
     closing: bal.toFixed(2),
+    pagination: { total, limit: take, offset: skip },
   };
 }
 
@@ -576,13 +605,20 @@ export async function getJournal(id: string) {
   return { ...e, total: e.total.toFixed(2), lines: e.lines.map((l) => ({ ...l, debit: l.debit.toFixed(2), credit: l.credit.toFixed(2) })) };
 }
 
-export async function listJournals(filters: { from?: string; to?: string; sourceType?: string }) {
-  const rows = await prisma.journalEntry.findMany({
-    where: { ...(filters.sourceType ? { sourceType: filters.sourceType } : {}), date: { ...(filters.from ? { gte: filters.from } : {}), ...(filters.to ? { lte: filters.to } : {}) } },
-    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-    take: 300,
-  });
-  return rows.map((e) => ({ id: e.id, number: e.number, date: e.date, description: e.description, sourceType: e.sourceType, total: e.total.toFixed(2), createdBy: e.createdBy }));
+const MAX_LIST_PAGE = 200;
+
+export async function listJournals(filters: { from?: string; to?: string; sourceType?: string; limit?: number; offset?: number }) {
+  const take = Math.min(Math.max(filters.limit ?? 50, 1), MAX_LIST_PAGE);
+  const skip = Math.max(filters.offset ?? 0, 0);
+  const where = { ...(filters.sourceType ? { sourceType: filters.sourceType } : {}), date: { ...(filters.from ? { gte: filters.from } : {}), ...(filters.to ? { lte: filters.to } : {}) } };
+  const [total, rows] = await Promise.all([
+    prisma.journalEntry.count({ where }),
+    prisma.journalEntry.findMany({ where, orderBy: [{ date: "desc" }, { createdAt: "desc" }], skip, take }),
+  ]);
+  return {
+    journals: rows.map((e) => ({ id: e.id, number: e.number, date: e.date, description: e.description, sourceType: e.sourceType, total: e.total.toFixed(2), createdBy: e.createdBy })),
+    pagination: { total, limit: take, offset: skip },
+  };
 }
 
 /** A new postable sub-account under a header (e.g. a second bank, an expense line). */

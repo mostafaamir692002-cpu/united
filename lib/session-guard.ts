@@ -26,7 +26,6 @@ export async function requirePagePermission(
 ): Promise<PageGate> {
   const user = await getAuthContext();
   if (!user) redirect("/login");
-  if (user.mustChangePassword) redirect("/account/password");
   const needed = Array.isArray(permission) ? permission : [permission];
   const missing = needed.filter((p) => !user.can(p));
   if (missing.length > 0) return { ok: false, user, missing };
@@ -37,6 +36,5 @@ export async function requirePagePermission(
 export async function resolveHomePath() {
   const user = await getAuthContext();
   if (!user) redirect("/login");
-  if (user.mustChangePassword) return "/account/password";
   return homePathFor(user.permissions, user.role);
 }

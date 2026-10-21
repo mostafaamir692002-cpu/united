@@ -4,6 +4,7 @@
    integrity check must come out clean at the end. This is the "can Odoo be removed"
    suite: one source of truth, no module stopping short of the next. */
 import { call, login, makeChecker } from "./_harness";
+import { todayBiz, bizDay } from "./_days";
 
 const { check, section, finish } = makeChecker();
 const TAG = `ZZFLOW${Date.now() % 1_000_000_000}`;
@@ -11,7 +12,7 @@ let r: any;
 
 async function main() {
   for (const u of ["admin", "sara", "hossam", "ahmed", "mostafa", "mona", "karim", "omar"]) await login(u);
-  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+  const today = todayBiz();
   const accounts = (await call("karim", "GET", "/api/accounting/accounts")).body.accounts;
   const acc = (code: string) => accounts.find((a: any) => a.code === code).id;
   const gl = async (code: string) => Number((await call("karim", "GET", `/api/accounting/accounts/${acc(code)}/ledger?from=2000-01-01&to=2099-12-31`)).body.ledger.closing);

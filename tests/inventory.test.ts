@@ -138,6 +138,13 @@ async function main() {
   check("reverse the supplier return", r.status === 201 && r.body.document.reversalOfId === supRet.id, r.body);
   check("reverse it again -> 409", (await call("hossam", "POST", `/api/inventory/documents/${supRet.id}/reverse`, { reason: "x" })).status === 409);
   check("the 4 kg are back: 216", (await detail()).onHand === "216");
+  // Customer returns land in quarantine by design (inspected before re-sale): the
+  // 5 kg returned earlier sit in QUAR and are NOT sellable until released.
+  d = await detail();
+  check("returned goods wait in quarantine, not sellable: on-hand 216, available 211", d.onHand === "216" && d.quarantined === "5" && d.available === "211", { onHand: d.onHand, quarantined: d.quarantined, available: d.available });
+  r = await call("hossam", "POST", "/api/inventory/release", { warehouse_id: "wh_main", product_id: mango.id, location_id: "loc_quarantine", destination_id: "loc_cold_1", quantity: 5, reason: "فحص المرتجع وسلامته" });
+  check("inspected: the 5 kg are released from quarantine via release endpoint -> 201", r.status === 201, r.body);
+  check("…and sellable again: available 216", (await detail()).available === "216");
 
   section("9. LOT EXPIRY AND THE EXPIRING REPORT");
   const exp = await call("hossam", "GET", "/api/inventory/reports/expiring?days=1");

@@ -76,7 +76,7 @@ export async function productAvailability(db: Db, productId: string, warehouseId
     onHand = onHand.plus(b.quantity);
     if (b.locationType === "quarantine") quarantined = quarantined.plus(b.quantity);
     if (b.expiryDate && b.expiryDate < asOf) expired = expired.plus(b.quantity);
-    else if (b.locationType !== "quarantine") sellableOnHand = sellableOnHand.plus(b.quantity);
+    else if (b.locationType !== "quarantine" && b.locationType !== "waste") sellableOnHand = sellableOnHand.plus(b.quantity);
   }
   const available = sellableOnHand.minus(reserved);
   return { onHand, quarantined, expired, sellableOnHand, reserved, available, buckets };
@@ -110,7 +110,7 @@ export async function warehouseStock(warehouseId: string) {
     totals.onHand = totals.onHand.plus(qty);
     if (location?.type === "quarantine") totals.quarantined = totals.quarantined.plus(qty);
     if (expiry && expiry < todayLocalISO()) totals.expired = totals.expired.plus(qty);
-    else if (location?.type !== "quarantine") totals.sellableOnHand = totals.sellableOnHand.plus(qty);
+    else if (location?.type !== "quarantine" && location?.type !== "waste") totals.sellableOnHand = totals.sellableOnHand.plus(qty);
     stockByProduct.set(row.productId, totals);
   }
   return products

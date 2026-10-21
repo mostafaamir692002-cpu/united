@@ -3,6 +3,7 @@
    valuation reaches the GL from the stock ledger; manual journals, reversals, closed
    periods and bank reconciliation behave. */
 import { call, login, makeChecker } from "./_harness";
+import { todayBiz } from "./_days";
 
 const { check, section, finish } = makeChecker();
 const TAG = `ZZACC${Date.now() % 1_000_000_000}`;
@@ -10,7 +11,7 @@ let r: any;
 
 async function main() {
   for (const u of ["admin", "sara", "hossam", "ahmed", "mostafa", "mona", "karim", "omar"]) await login(u);
-  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+  const today = todayBiz();
   const journalOf = async (sourceType: string, needle: string) => {
     const list = (await call("karim", "GET", `/api/accounting/journals?source_type=${sourceType}`)).body.journals;
     const hit = list.find((j: any) => j.description.includes(needle));
@@ -87,6 +88,10 @@ async function main() {
   check("the buyer cannot pay suppliers -> 403", (await call("omar", "POST", "/api/accounting/payments", { party_id: supplier.id, cash_account_id: "cash_main", amount: 1, method: "cash" })).status === 403);
 
   section("5. LEDGER INTEGRITY, MANUAL JOURNALS, PERIODS");
+  // Brief pause under heavy load (the canonical chain runs 24 suites before reaching
+  // this point — the Prisma pool may be temporarily drained. The pause lets it recover
+  // so subsequent heavy queries don't get a transient 500).
+  await new Promise((r) => setTimeout(r, 2_000));
   const tb = (await call("karim", "GET", `/api/accounting/trial-balance?from=2026-01-01&to=${today}`)).body.trialBalance;
   check("trial balance balances", tb.balanced === true && tb.totals.debit === tb.totals.credit, tb.totals);
   const accounts = (await call("karim", "GET", "/api/accounting/accounts")).body.accounts;

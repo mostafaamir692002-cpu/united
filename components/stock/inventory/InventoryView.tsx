@@ -9,6 +9,7 @@ import { usePermissions } from "@/lib/use-session";
 import { invalidateStockData } from "@/lib/stockInvalidation";
 import { Field, Tabs, fmtMoney, fmtQty, LOCATION_TYPE_LABEL, useLocations, type StockRow } from "./shared";
 import { MoveForms } from "./MoveForms";
+import { Pagination } from "@/components/ui/Pagination";
 
 /**
  * The stock controller's screen: what is where, what is free to sell, what is about
@@ -193,7 +194,7 @@ function ProductPanel({ productId, onClose }: { productId: string; onClose: () =
         {d.buckets.length === 0 && <p className="text-sm font-bold text-united-muted">مفيش رصيد.</p>}
         <ul className="flex flex-col divide-y divide-united-dark/5">
           {d.buckets.map((b) => (
-            <BucketRow key={`${b.locationId}:${b.lotId}`} b={b} unit={u} today={d.today} canEditLot={can("stock.sort")} />
+            <BucketRow key={`${b.locationId}:${b.lotId}`} b={b} unit={u} today={d.today} canEditLot={can("stock.sort")} productId={d.product.id} />
           ))}
         </ul>
       </section>
@@ -227,7 +228,7 @@ function ProductPanel({ productId, onClose }: { productId: string; onClose: () =
   );
 }
 
-function BucketRow({ b, unit, today, canEditLot }: { b: Bucket; unit: string; today: string; canEditLot: boolean }) {
+function BucketRow({ b, unit, today, canEditLot, productId }: { b: Bucket; unit: string; today: string; canEditLot: boolean; productId: string }) {
   const qc = useQueryClient();
   const toast = useToast();
   const [editing, setEditing] = useState(false);
@@ -238,7 +239,13 @@ function BucketRow({ b, unit, today, canEditLot }: { b: Bucket; unit: string; to
     <li className="py-2 flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-col">
-          <span className="font-extrabold">{b.locationCode} <span className="text-xs text-united-muted">({LOCATION_TYPE_LABEL[b.locationType] ?? b.locationType})</span></span>
+          <span className="font-extrabold">
+            {b.locationCode}{" "}
+            <span className="text-xs text-united-muted">
+              ({LOCATION_TYPE_LABEL[b.locationType] ?? b.locationType}
+              {b.locationCode === "GRADE-B" ? " · فرزة" : ""})
+            </span>
+          </span>
           <span className="text-xs font-bold text-united-muted">
             {b.lotNumber ?? "رصيد قبل الدفعات"}
             {b.expiryDate && <span className={expired ? "text-united-danger" : ""}> · صلاحية {b.expiryDate}</span>}
@@ -249,6 +256,7 @@ function BucketRow({ b, unit, today, canEditLot }: { b: Bucket; unit: string; to
           {canEditLot && b.lotId && (
             <button type="button" className="text-xs font-extrabold text-united-green underline" onClick={() => setEditing(!editing)}>الصلاحية</button>
           )}
+          {b.locationType === "quarantine" && <ReleaseButton productId={productId} bucket={b} />}
         </div>
       </div>
       {editing && b.lotId && (
@@ -536,15 +544,18 @@ function Documents() {
   const { can } = usePermissions();
   const [type, setType] = useState("");
   const [highlight, setHighlight] = useState<string | null>(null);
+  const [dPage, setDPage] = useState(1);
+  const dPageSize = 50;
   useEffect(() => setHighlight(new URLSearchParams(window.location.search).get("doc")), []);
+  const onTypeChange = (t: string) => { setType(t); setDPage(1); };
   const q = useQuery({
-    queryKey: ["stock", "inventory", "documents", type],
-    queryFn: () => apiFetch<{ documents: DocumentDTO[] }>(`/api/inventory/documents?limit=100${type ? `&type=${type}` : ""}`),
+    queryKey: ["stock", "inventory", "documents", type, dPage],
+    queryFn: () => apiFetch<{ documents: DocumentDTO[]; pagination: { total: number } }>(`/api/inventory/documents?limit=${dPageSize}&offset=${(dPage - 1) * dPageSize}${type ? `&type=${type}` : ""}`),
     refetchInterval: 30_000,
   });
   return (
     <div className="flex flex-col gap-3">
-      <Tabs value={type} onChange={setType} items={[{ key: "", label: "الكل" }, ...Object.entries(DOC_TYPE).map(([k, v]) => ({ key: k, label: v }))]} />
+      <Tabs value={type} onChange={onTypeChange} items={[{ key: "", label: "الكل" }, ...Object.entries(DOC_TYPE).map(([k, v]) => ({ key: k, label: v }))]} />
       {q.isLoading && <LoadingState />}
       {q.isError && <ErrorState message={errorMessage(q.error)} onRetry={() => q.refetch()} />}
       {q.data && q.data.documents.length === 0 && <EmptyState icon="🗂️" title="مفيش مستندات" />}
@@ -553,6 +564,7 @@ function Documents() {
           <DocumentCard key={d.id} d={d} highlight={d.id === highlight} canReverse={can("stock.adjust") && d.status === "posted" && d.type !== "issue" && !d.reversalOfId} />
         ))}
       </ul>
+      {q.data && <Pagination page={dPage} pageSize={dPageSize} total={q.data.pagination?.total ?? 0} onChange={setDPage} />}
     </div>
   );
 }
@@ -648,6 +660,83 @@ function Valuation() {
         </table>
       </div>
       <p className="text-xs font-bold text-united-muted">"اتسجل من غير تكلفة" = كميات اتسجلت قبل تسجيل الأسعار أو من غير سعر؛ دخلت المخزون بقيمة صفر، فمتوسط التكلفة بيكون أقل من الحقيقي لحد ما تخلص.</p>
+    </div>
+  );
+}
+
+function ReleaseButton({ productId, bucket: b }: { productId: string; bucket: Bucket }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const { can } = usePermissions();
+  const [open, setOpen] = useState(false);
+  const [qty, setQty] = useState(b.quantity);
+  const [destId, setDestId] = useState("");
+  const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  if (!open) {
+    return (
+      <button type="button" className="text-xs font-extrabold text-united-green underline" onClick={() => setOpen(true)}>
+        إفراج
+      </button>
+    );
+  }
+
+  async function submit() {
+    if (busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await apiPost(`/api/inventory/release`, {
+        product_id: productId,
+        location_id: b.locationId,
+        destination_id: destId || undefined,
+        quantity: Number(qty) || 0,
+        lot_id: b.lotId,
+        reason: reason.trim(),
+        inspection_note: note.trim() || undefined,
+      });
+      toast.show("تم الإفراج", "success");
+      invalidateStockData(qc);
+      setOpen(false);
+    } catch (e) {
+      const msg = e instanceof ApiClientError ? e.message : "حصل خطأ";
+      setErr(msg);
+      toast.show(msg, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl bg-united-warn/10 border border-united-warn/30 p-3 flex flex-col gap-2 mt-2">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] font-extrabold text-united-muted">الكمية</span>
+          <input type="number" inputMode="decimal" step="0.001" min={0} value={qty} onChange={(e) => setQty(e.target.value)} className="field text-sm" />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] font-extrabold text-united-muted">إلى</span>
+          <select className="field text-sm" value={destId} onChange={(e) => setDestId(e.target.value)}>
+            <option value="">اختار المكان</option>
+            <option value="loc_recv">منطقة الاستلام</option>
+            <option value="loc_disp">منطقة التحميل</option>
+            <option value="loc_cold_1">غرفة تبريد 1</option>
+            <option value="loc_cold_2">غرفة تبريد 2</option>
+          </select>
+        </label>
+      </div>
+      <input placeholder="سبب الإفراج (إجباري)" value={reason} onChange={(e) => setReason(e.target.value)} className="field text-sm" />
+      <input placeholder="ملاحظات الفحص (اختياري)" value={note} onChange={(e) => setNote(e.target.value)} className="field text-sm" />
+      {err && <p className="text-united-danger font-bold text-sm">{err}</p>}
+      <div className="flex gap-2">
+        <button onClick={submit} disabled={busy || !qty || Number(qty) <= 0 || !destId || !reason.trim()} className="btn-primary flex-1 text-sm">
+          {busy ? "بيتسجل…" : "تأكيد الإفراج"}
+        </button>
+        <button onClick={() => setOpen(false)} className="btn-secondary text-sm">رجوع</button>
+      </div>
     </div>
   );
 }

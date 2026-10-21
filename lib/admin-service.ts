@@ -390,33 +390,6 @@ export async function revokeUserSessions(id: string, actor: AuthContext) {
   });
 }
 
-/**
- * A user changes their own password: the current one is required (a session left
- * open on a shared tablet is not enough), every other session ends, and a password
- * an administrator set is no longer pending.
- */
-export async function changeOwnPassword(userId: string, current: unknown, next: unknown) {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || !user.active) throw new ApiError(401, "لازم تسجل دخول الأول");
-  if (typeof current !== "string" || !(await bcrypt.compare(current, user.passwordHash))) {
-    throw new ApiError(400, "كلمة السر الحالية غلط");
-  }
-  assertPassword(next);
-  if (await bcrypt.compare(next, user.passwordHash)) throw new ApiError(400, "اختار كلمة سر جديدة غير الحالية");
-  const passwordHash = await bcrypt.hash(next, 10);
-  return inTx(async (tx) => {
-    const updated = await tx.user.update({
-      where: { id: userId },
-      data: { passwordHash, sessionEpoch: { increment: 1 }, mustChangePassword: false, passwordChangedAt: new Date(), version: { increment: 1 } },
-    });
-    await writeAudit(
-      { userId, userName: user.name, role: user.role, action: "user_password_changed_by_self", entityType: "user", entityId: userId, fieldChanged: "password", newValue: "(اتغيّرت)", source: "user" },
-      tx
-    );
-    return updated;
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Per-user permission overrides
 // ---------------------------------------------------------------------------
@@ -425,6 +398,7 @@ export type EffectivePermissionRow = {
   key: Permission;
   group: string;
   label: string;
+  description: string;
   fromRole: boolean;
   override: "grant" | "revoke" | null;
   effective: boolean;
@@ -453,6 +427,7 @@ export async function getUserPermissionDetail(id: string) {
     key: def.key,
     group: def.group,
     label: def.label,
+    description: def.description,
     fromRole: absolute || base.has(def.key),
     override: absolute ? null : overrideByKey.get(def.key) ?? null,
     effective: effective.has(def.key),

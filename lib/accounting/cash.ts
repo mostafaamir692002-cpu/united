@@ -318,14 +318,26 @@ const present = (r: { id: string; number: string; date: string; amount: Prisma.D
   };
 };
 
-export async function listReceipts(filters: { customerId?: string }) {
-  const rows = await prisma.customerReceipt.findMany({ where: filters.customerId ? { customerId: filters.customerId } : {}, orderBy: [{ date: "desc" }, { createdAt: "desc" }], include: { allocations: true, reversal: true, customer: { select: { id: true, code: true, name: true } }, cashAccount: { select: { name: true } } }, take: 300 });
-  return rows.map((r) => ({ ...present(r), customer: r.customer, cashAccount: r.cashAccount.name }));
+export async function listReceipts(filters: { customerId?: string; limit?: number; offset?: number }) {
+  const take = Math.min(Math.max(filters.limit ?? 50, 1), 200);
+  const skip = Math.max(filters.offset ?? 0, 0);
+  const where = filters.customerId ? { customerId: filters.customerId } : {};
+  const [total, rows] = await Promise.all([
+    prisma.customerReceipt.count({ where }),
+    prisma.customerReceipt.findMany({ where, orderBy: [{ date: "desc" }, { createdAt: "desc" }], include: { allocations: true, reversal: true, customer: { select: { id: true, code: true, name: true } }, cashAccount: { select: { name: true } } }, skip, take }),
+  ]);
+  return { receipts: rows.map((r) => ({ ...present(r), customer: r.customer, cashAccount: r.cashAccount.name })), pagination: { total, limit: take, offset: skip } };
 }
 
-export async function listPayments(filters: { supplierId?: string }) {
-  const rows = await prisma.supplierPayment.findMany({ where: filters.supplierId ? { supplierId: filters.supplierId } : {}, orderBy: [{ date: "desc" }, { createdAt: "desc" }], include: { allocations: true, reversal: true, supplier: { select: { id: true, code: true, name: true } }, cashAccount: { select: { name: true } } }, take: 300 });
-  return rows.map((r) => ({ ...present(r), supplier: r.supplier, cashAccount: r.cashAccount.name }));
+export async function listPayments(filters: { supplierId?: string; limit?: number; offset?: number }) {
+  const take = Math.min(Math.max(filters.limit ?? 50, 1), 200);
+  const skip = Math.max(filters.offset ?? 0, 0);
+  const where = filters.supplierId ? { supplierId: filters.supplierId } : {};
+  const [total, rows] = await Promise.all([
+    prisma.supplierPayment.count({ where }),
+    prisma.supplierPayment.findMany({ where, orderBy: [{ date: "desc" }, { createdAt: "desc" }], include: { allocations: true, reversal: true, supplier: { select: { id: true, code: true, name: true } }, cashAccount: { select: { name: true } } }, skip, take }),
+  ]);
+  return { payments: rows.map((r) => ({ ...present(r), supplier: r.supplier, cashAccount: r.cashAccount.name })), pagination: { total, limit: take, offset: skip } };
 }
 
 // ---------------------------------------------------------------------------

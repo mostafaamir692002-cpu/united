@@ -16,7 +16,7 @@ import { ItemRow } from "@/components/order/ItemRow";
 import { DispatchButton } from "@/components/order/DispatchButton";
 import { ReasonAction } from "@/components/ReasonAction";
 import { CloneOrderAction } from "@/components/order/CloneOrderAction";
-import { LoadingState, ErrorState } from "@/components/States";
+import { ErrorState } from "@/components/States";
 import { LiveIndicator } from "@/components/ui/LiveIndicator";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { useToast } from "@/components/ui/Toast";
@@ -558,7 +558,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                   <option key={c.id} value={c.id}>{c.code} · {c.nameAr ?? c.name}{!c.active ? " (موقوف)" : ""}</option>
                 ))}
               </select>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <input
                   type="date"
                   value={editForm.delivery_date}

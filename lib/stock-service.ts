@@ -14,6 +14,8 @@ import { postMovements, type MoveInput } from "@/lib/inventory/ledger";
 import { resolveLocation, resolveWarehouse } from "@/lib/inventory/context";
 import { toBaseQuantity } from "@/lib/inventory/packaging";
 import { createAdjustment as createAdjustmentDocument } from "@/lib/inventory/documents";
+import { computeGradingCosts, type GradingCostPolicy, type WasteLossPolicy } from "@/lib/inventory/grading";
+import { gradingPrices } from "@/lib/sales/pricing";
 import { getSetting } from "@/lib/core/settings-service";
 import { afterPoReceipt, guardPoReceipt, loadPoLine, poLineUnitCost, lockPoForReceipt } from "@/lib/purchasing/receiving";
 import { assertReceiptNotBilled } from "@/lib/purchasing/bills";
@@ -249,6 +251,7 @@ async function nextReceiptNumber(tx: Prisma.TransactionClient, prefix: string) {
 const INTAKE_INCLUDE = {
   supplier: { select: { id: true, name: true } },
   product: { select: { id: true, name: true, unit: true } },
+  gradeBProduct: { select: { id: true, name: true, unit: true } },
   location: { select: { id: true, code: true, name: true, nameAr: true } },
   lot: { select: { id: true, lotNumber: true, expiryDate: true } },
   purchaseOrderLine: { select: { id: true, lineNo: true, po: { select: { id: true, number: true } } } },
@@ -262,6 +265,8 @@ export function serializeIntake(row: IntakeRow) {
     receivedKg: num(row.receivedQty),
     rejectedKg: num(row.rejectedQty),
     goodKg: num(row.goodQty),
+    gradeBQty: num(row.gradeBQty),
+    wasteQty: num(row.wasteQty),
   };
 }
 
@@ -297,6 +302,8 @@ export type IntakeInput = {
   grade_b_qty?: unknown;
   /** Quantity identified as unsaleable waste / هالك at intake. */
   waste_qty?: unknown;
+  /** Optional separate product for Grade B / فرزة output (own SKU, own pricing). */
+  grade_b_product_id?: unknown;
   /** Counted in another unit (e.g. 40 CRATE) — converted through the product's packaging. */
   entered_qty?: unknown;
   entered_uom?: unknown;
@@ -392,6 +399,13 @@ export async function recordIntake(input: IntakeInput, actor: StockActor) {
   if (!product) throw new ApiError(404, "الصنف مش موجود");
   if (!supplier.active) throw new ApiError(400, `المورد "${supplier.name}" موقوف`);
   if (!product.active) throw new ApiError(400, `الصنف "${product.name}" موقوف`);
+  // Validate grade B product when specified.
+  let gradeBProduct: typeof product | null = null;
+  if (typeof input.grade_b_product_id === "string" && input.grade_b_product_id) {
+    gradeBProduct = await prisma.stockProduct.findUnique({ where: { id: input.grade_b_product_id } });
+    if (!gradeBProduct) throw new ApiError(400, "المنتج المحدد للفرزة مش موجود");
+    if (!gradeBProduct.stockTracked) throw new ApiError(400, "المنتج المحدد للفرزة مش متتبع مخزنيًا");
+  }
   // A product the business has said it does not hold stock for must not acquire a
   // balance by the side door. The flag is the statement; this is it being enforced.
   if (!product.stockTracked) {
@@ -408,6 +422,33 @@ export async function recordIntake(input: IntakeInput, actor: StockActor) {
     entered = { qty, uom: input.entered_uom };
   }
   const { received, rejected, gradeB, waste, good } = receivedNumbers(receivedRaw, input.rejected_qty ?? input.rejected_kg, input.grade_b_qty, input.waste_qty);
+
+  // --- grading cost allocation (policy-gated; proportional by default) ---
+  const gradingPolicy: GradingCostPolicy = await getSetting("inventory.grading_cost_policy");
+  const wasteLossPolicy: WasteLossPolicy = await getSetting("inventory.grading_waste_loss");
+  const priceProds: { id: string; unit: string; name: string }[] = [];
+  if (received.gt(0) && gradingPolicy === "nrv") {
+    if (good.gt(0)) priceProds.push({ id: product.id, unit: product.unit, name: product.name });
+    if (gradeBProduct) priceProds.push({ id: gradeBProduct.id, unit: gradeBProduct.unit, name: gradeBProduct.name });
+  }
+  const prices: (Prisma.Decimal | null)[] = priceProds.length ? await gradingPrices(prisma, priceProds, receivedDate) : [];
+  // Unknown cost (received without a price): grading allocation is moot — the
+  // movements stay null-cost and the unknown-cost reporting path keeps working.
+  const gc =
+    unitCost == null
+      ? { goodUnitCost: null as Dec | null, gradeBUnitCost: null as Dec | null, wasteUnitCost: null as Dec | null, wasteLoss: D(0), costBasis: "proportional" as const, fallbackReason: null, allocatedInput: D(0) }
+      : computeGradingCosts({
+          inputQty: received, inputUnitCost: unitCost,
+          goodQty: good, gradeBQty: gradeB, wasteQty: waste,
+          goodPrice: prices.length > 0 ? prices[0] : null,
+          gradeBPrice: prices.length > 1 ? prices[1] : null,
+          policy: gradingPolicy, wastePolicy: wasteLossPolicy,
+        });
+  if (gc.costBasis === "nrv_fallback_proportional" && gradingPolicy === "nrv" && (await getSetting("inventory.grading_price_missing")) === "refuse") {
+    throw new ApiError(400, "سعر المخرجات غير متاح — حدد أسعار المنتجات في قائمة الأسعار الأول");
+  }
+  const fallbackReason = gc.costBasis === "nrv_fallback_proportional" ? gc.fallbackReason : null;
+  // --- end grading cost allocation ---
   const expiryDate =
     input.expiry_date || (product.shelfLifeDays ? addDays(receivedDate, product.shelfLifeDays) : null);
   if (expiryDate && expiryDate < receivedDate) throw new ApiError(400, "تاريخ الصلاحية قبل تاريخ الاستلام");
@@ -434,7 +475,10 @@ export async function recordIntake(input: IntakeInput, actor: StockActor) {
 
     // Only what survived sorting enters stock — and only stock gets a lot. The
     // rejected quantity stays on the receipt as the record of what was thrown away.
-    const lot = good.gt(0)
+    // A lot exists whenever any main-product stock enters (good, waste, or legacy
+    // Grade B): a waste-only / Grade-B-only receipt must still carry a lot, or the
+    // movements below dereference null.
+    const lot = good.gt(0) || waste.gt(0) || (gradeB.gt(0) && !gradeBProduct)
       ? await tx.stockLot.create({
           data: {
             productId: product.id,
@@ -442,7 +486,7 @@ export async function recordIntake(input: IntakeInput, actor: StockActor) {
             receivedDate,
             expiryDate,
             supplierId: supplier.id,
-            unitCost,
+            unitCost: good.gt(0) ? gc.goodUnitCost : gc.wasteUnitCost,
           },
         })
       : null;
@@ -459,6 +503,7 @@ export async function recordIntake(input: IntakeInput, actor: StockActor) {
         wasteQty: waste,
         rejectedQty: rejected,
         goodQty: good,
+        gradeBProductId: gradeBProduct?.id ?? null,
         enteredQty: entered?.qty ?? null,
         enteredUom: entered?.uom ?? null,
         unitCost,
@@ -485,29 +530,37 @@ export async function recordIntake(input: IntakeInput, actor: StockActor) {
         quantity: good,
         kind: "intake",
         intakeId: created.id,
-        unitCost,
+        unitCost: gc.goodUnitCost,
         costSource: "purchase",
       });
     }
     if (gradeB.gt(0)) {
-      // Grade B enters stock at the same unit cost as good. Both grades
-      // share the input cost proportionally by quantity; waste absorbs
-      // none (zero value, written off immediately). Total allocated cost
-      // = good×cost + gradeB×cost + waste×0 = (good+gradeB)×cost, which
-      // together = receivedQty×cost − wasteQty×cost. The waste portion is
-      // recognised as a period loss through the scrap posting — it is not
-      // silently omitted from GRNI. The accountant can tune the per-product
-      // costing method at any time (AVCO, FIFO, standard) — the intake
-      // writes the purchase cost; valuation layers preserve the history.
+      // Grade B enters stock at the allocated unit cost (proportionally by weight
+      // under the default policy; by relative NRV when that policy is activated).
+      // When gradeBProductId is set, Grade B becomes a separate product with its
+      // own inventory identity, pricing, and margin tracking — it needs its own lot.
+      let gradeBLot: typeof lot | null = null;
+      if (gradeBProduct) {
+        gradeBLot = await tx.stockLot.create({
+          data: {
+            productId: gradeBProduct.id,
+            lotNumber: await nextDocumentNumber(tx, "inventory.lot", receivedDate),
+            receivedDate,
+            expiryDate,
+            supplierId: supplier.id,
+            unitCost: gc.gradeBUnitCost,
+          },
+        });
+      }
       movements.push({
-        productId: product.id,
+        productId: gradeBProduct?.id ?? product.id,
         warehouseId: warehouse.id,
-        locationId: "loc_grade_b",
-        lotId: lot!.id,
+        locationId: gradeBProduct ? location.id : "loc_grade_b",
+        lotId: gradeBProduct ? gradeBLot!.id : lot!.id,
         quantity: gradeB,
         kind: "intake",
         intakeId: created.id,
-        unitCost,
+        unitCost: gc.gradeBUnitCost,
         costSource: "purchase",
       });
     }
@@ -527,7 +580,7 @@ export async function recordIntake(input: IntakeInput, actor: StockActor) {
         quantity: waste,
         kind: "intake",
         intakeId: created.id,
-        unitCost,
+        unitCost: gc.wasteUnitCost,
         costSource: "purchase",
       });
     }

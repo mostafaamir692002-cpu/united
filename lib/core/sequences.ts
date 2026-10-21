@@ -34,6 +34,8 @@ export const SEQUENCE_DEFS = {
   "inventory.adjustment": { prefix: "ADJ", padding: 5, reset: "yearly", label: "تسوية مخزون" },
   "inventory.return": { prefix: "RET", padding: 5, reset: "yearly", label: "مرتجع" },
   "inventory.issue": { prefix: "ISS", padding: 5, reset: "yearly", label: "إذن صرف" },
+  "inventory.sorting": { prefix: "SRT", padding: 5, reset: "yearly", label: "فرز مخزون" },
+  "inventory.release": { prefix: "REL", padding: 5, reset: "yearly", label: "إفراج محجوز" },
   "inventory.lot": { prefix: "LOT", padding: 4, reset: "daily", label: "دفعة (لوت)" },
   "core.approval": { prefix: "APR", padding: 5, reset: "yearly", label: "طلب موافقة" },
   "sales.customer": { prefix: "CUS", padding: 5, reset: "never", label: "كود عميل" },

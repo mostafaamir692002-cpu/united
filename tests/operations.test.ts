@@ -83,6 +83,14 @@ async function main() {
   await call("mostafa", "POST", `/api/orders/${A.id}/items/${cucA.id}/load`, { quantity: 50, mark_done: true });
   const bItem = (await call("mostafa", "GET", `/api/orders/${B.id}`)).body.order.items[0];
   await call("mostafa", "POST", `/api/orders/${B.id}/items/${bItem.id}/load`, { quantity: 80, mark_done: true });
+  // CRIT-2 (user spec): ANY shortage — even the 0.5 kg loading discrepancy below
+  // the tolerance band — is a live gate on advancing to "loaded". The supervisor
+  // approves it here, then the trip confirmation succeeds and the discrepancy is
+  // still raised as an audited loading exception.
+  const aBeforeLoaded = (await call("sara", "GET", `/api/orders/${A.id}`)).body.order;
+  check("within-tolerance loading shortage blocks trip-loaded without approval", (await call("mostafa", "POST", `/api/operations/trips/${trip.id}/loaded`, {})).status === 409);
+  const apprA = await call("sara", "POST", `/api/orders/${A.id}/approve`, { reason: "اعتماد فرق التحميل 0.5 كجم — هالك طبيعي", expected_version: aBeforeLoaded.version });
+  check("supervisor approves the loading discrepancy", apprA.status === 200, apprA.status);
   r = await call("mostafa", "POST", `/api/operations/trips/${trip.id}/loaded`, {});
   check("trip loaded", r.status === 200 && r.body.trip.status === "loaded" && r.body.trip.stops.every((s: any) => s.order.status === "loaded"), r.body);
   let ex = (await call("sara", "GET", `/api/operations/exceptions?trip_id=${trip.id}`)).body.exceptions;
@@ -150,7 +158,7 @@ async function main() {
   check("resolving twice -> 409", (await call("sara", "POST", `/api/operations/exceptions/${rej.id}/resolve`, { resolution: "x" })).status === 409);
   check("the preparer reports damage by hand", (await call("ahmed", "POST", "/api/operations/exceptions", { type: "damage", order_id: Dd.id, quantity: 4, description: "خيار مضروب في التجهيز" })).status === 201);
   check("sales cannot report floor exceptions -> 403", (await call("mona", "POST", "/api/operations/exceptions", { type: "damage", order_id: Dd.id, description: "x" })).status === 403);
-  const audit = (await call("admin", "GET", "/api/audit")).body.logs.filter((l: any) => l.entityId === trip.id).map((l: any) => l.action);
+  const audit = (await call("admin", "GET", `/api/audit?q=${trip.id}&limit=200`)).body.logs.filter((l: any) => l.entityId === trip.id).map((l: any) => l.action);
   check("the trip's life is audited", ["trip_planned", "trip_loading_started", "trip_loaded", "trip_dispatched", "trip_departed", "delivery_recorded", "trip_completed"].every((a) => audit.includes(a)), audit);
   finish("OPERATIONS");
 }

@@ -91,6 +91,10 @@ export type IntakeDTO = {
   receivedQty?: string;
   rejectedQty?: string;
   goodQty?: string;
+  /** Grade B / فرزة and waste / هالك splits decoded at intake (additive F-08). */
+  gradeBQty?: string;
+  wasteQty?: string;
+  gradeBProduct?: { id: string; name: string; unit: string } | null;
   enteredQty?: string | null;
   enteredUom?: string | null;
   lot?: { id: string; lotNumber: string; expiryDate: string | null } | null;

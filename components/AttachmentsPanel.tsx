@@ -50,7 +50,14 @@ export function AttachmentsPanel({ entityType, entityId, canManage }: { entityTy
       form.set("file", file);
       // Not apiFetch: that forces a JSON content type, and a multipart body needs the
       // browser to set its own boundary.
-      const res = await fetch("/api/attachments", { method: "POST", body: form, credentials: "include" });
+      const res = await fetch("/api/attachments", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+        headers: typeof window !== "undefined" && window.sessionStorage.getItem("united_token")
+          ? { Authorization: `Bearer ${window.sessionStorage.getItem("united_token")}` }
+          : undefined,
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new ApiClientError(data.error ?? `خطأ (${res.status})`);
       toast.show(data.duplicate ? "الملف ده مرفوع بالفعل" : "اترفع الملف", "success");

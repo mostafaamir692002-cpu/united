@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/rbac";
 import { isValidISODate } from "@/lib/dates";
 import { todayLocalISO } from "@/lib/localDate";
+import { profitLoss } from "@/lib/accounting/ledger";
 import { valuationReport } from "@/lib/inventory/reports";
 import { agingReport } from "@/lib/sales/invoicing";
 import { apAgingReport } from "@/lib/purchasing/bills";
@@ -63,7 +64,17 @@ export async function financeReport(opts: { from?: string; to?: string }) {
   for (const r of revenue) { const x = row(r.productId, r.description); x.revenue = x.revenue.plus(r.net); x.qty = x.qty.plus(r.qty); }
   for (const c of credits) { const x = row(c.productId, "—"); x.revenue = x.revenue.minus(c.net); }
   for (const c of cogs) { const x = row(c.productId, products.get(c.productId) ?? "—"); x.cost = x.cost.plus(c.cost); }
-  const lines = [...byProduct.values()].map((r) => ({ product: r.name, quantity: r.qty.toString(), revenue: f2(r.revenue), cost: f2(r.cost), margin: f2(r.revenue.minus(r.cost)), marginPct: r.revenue.gt(0) ? r.revenue.minus(r.cost).dividedBy(r.revenue).times(100).toFixed(1) : null })).sort((a, b) => Number(b.revenue) - Number(a.revenue));
+  // Quantity issued at an UNKNOWN cost (received without a price, sold before the
+  // supplier cost was recorded). Its COGS is zero, so the margin above is provisional
+  // for exactly this quantity — surface it instead of letting a zero-cost sale pass
+  // as confirmed actual cost.
+  const unknownCost = await prisma.$queryRaw<{ productId: string; qty: Prisma.Decimal }[]>`
+    SELECT v."productId", sum(CASE m."kind" WHEN 'customer_return' THEN v."quantity" ELSE -v."quantity" END) AS qty
+    FROM "StockValuationLayer" v JOIN "StockMovement" m ON m."id" = v."movementId"
+    WHERE m."kind" IN ('issue', 'customer_return') AND v."costSource" = 'unknown' AND m."effectiveDate" BETWEEN ${from} AND ${to}
+    GROUP BY v."productId"`;
+  const unknownQty = new Map(unknownCost.map((u) => [u.productId, D(u.qty)]));
+  const lines = [...byProduct.entries()].map(([k, r]) => ({ product: r.name, quantity: r.qty.toString(), revenue: f2(r.revenue), cost: f2(r.cost), margin: f2(r.revenue.minus(r.cost)), marginPct: r.revenue.gt(0) ? r.revenue.minus(r.cost).dividedBy(r.revenue).times(100).toFixed(1) : null, costUnknownQty: f2(k.startsWith("—") ? D(0) : unknownQty.get(k) ?? D(0)) })).sort((a, b) => Number(b.revenue) - Number(a.revenue));
   const totalRevenue = [...byProduct.values()].reduce((s, r) => s.plus(r.revenue), D(0));
   const totalCost = [...byProduct.values()].reduce((s, r) => s.plus(r.cost), D(0));
 
@@ -104,6 +115,195 @@ export async function financeReport(opts: { from?: string; to?: string }) {
     inventory: { value: valuation.totalValue.toFixed(2), top: valuation.rows.slice(0, 15).map((r) => ({ product: r.productNameAr ?? r.productName, unit: r.unit, quantity: r.quantity.toString(), value: r.value.toFixed(2) })) },
     stockMovement: movement.map((m) => ({ kind: m.kind, quantity: D(m.qty).toString(), value: f2(D(m.value)) })),
     cash,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Cash Flow Statement (indirect method) — reports.finance
+// ---------------------------------------------------------------------------
+
+/** Classification of accounts into cash flow categories, by systemKey.
+ *  Accounts not in this map are classified by their type:
+ *    asset(not cash/bank) → investing (working capital changes get explicit labels)
+ *    liability → financing (working capital → operating)
+ *    equity → financing (net income → operating)
+ */
+const CF_CLASSIFY: Record<string, "operating" | "investing" | "financing"> = {
+  // Cash & bank — what we're measuring the change in; not classified.
+  cash: "operating", bank: "operating",
+  // Working capital (operating)
+  ar: "operating", inventory: "operating", vat_input: "operating", vat_output: "operating",
+  ap: "operating", employee_advances: "operating", employee_payable: "operating",
+  grni: "operating", ppv: "operating",
+  cogs: "operating", sales: "operating", sales_returns: "operating",
+  inventory_adjustment: "operating",
+  general_expenses: "operating", transport_expenses: "operating", salaries: "operating",
+  // Financing
+  capital: "financing", retained_earnings: "financing", opening_equity: "financing",
+};
+
+/** System keys for cash & bank accounts (whose balance change is the target). */
+const CASH_ACCOUNT_KEYS = new Set(["cash", "bank"]);
+
+export async function cashFlowReport(opts: { from: string; to: string }) {
+  const { from, to } = range(opts.from, opts.to);
+  if (!isValidISODate(from) || !isValidISODate(to) || from > to) throw new ApiError(400, "الفترة غير صالحة");
+
+  // 1. Net income (indirect method starting point).
+  const pl = await profitLoss(from, to);
+  const netIncome = D(pl.netIncome);
+
+  // 2. Opening and closing per-account balances.
+  // We need two balance snapshots: beginning-of-period (day before 'from') and as-of 'to'.
+  const fromDay = new Date(new Date(from).getTime() - 86400000).toISOString().slice(0, 10);
+  const [openRows, closeRows] = await Promise.all([
+    prisma.$queryRaw<{ accountId: string; balance: Prisma.Decimal }[]>`
+      SELECT l."accountId", coalesce(sum(l."debit" - l."credit"), 0) AS balance
+      FROM "JournalLine" l JOIN "JournalEntry" e ON e."id" = l."entryId"
+      WHERE e."date" <= ${fromDay}
+      GROUP BY l."accountId"`,
+    prisma.$queryRaw<{ accountId: string; balance: Prisma.Decimal }[]>`
+      SELECT l."accountId", coalesce(sum(l."debit" - l."credit"), 0) AS balance
+      FROM "JournalLine" l JOIN "JournalEntry" e ON e."id" = l."entryId"
+      WHERE e."date" <= ${to}
+      GROUP BY l."accountId"`,
+  ]);
+  // Period change per account: closing − opening = debit-style change.
+  // We store the signed balance (debit minus credit) at each point.
+  const open = new Map(openRows.map((r) => [r.accountId, D(r.balance)]));
+  const close = new Map(closeRows.map((r) => [r.accountId, D(r.balance)]));
+  const allIds = [...new Set([...open.keys(), ...close.keys()])];
+
+  // 3. Fetch account details.
+  const accounts = new Map((await prisma.account.findMany({ where: { id: { in: allIds } } })).map((a) => [a.id, a]));
+  const byKey = new Map<string, { id: string; type: string; systemKey: string }>();
+  for (const a of accounts.values()) {
+    if (a.systemKey) byKey.set(a.systemKey, { id: a.id, type: a.type, systemKey: a.systemKey });
+  }
+
+  // Net change in each account (debit-style: positive = more debit / less credit).
+  const changes = new Map<string, Prisma.Decimal>();
+  let totalCashChange = D(0);
+  for (const id of allIds) {
+    const delta = (close.get(id) ?? D(0)).minus(open.get(id) ?? D(0));
+    if (!delta.isZero()) changes.set(id, delta);
+    const a = accounts.get(id);
+    if (a && a.systemKey && CASH_ACCOUNT_KEYS.has(a.systemKey)) totalCashChange = totalCashChange.plus(delta);
+  }
+
+  // 4. Classify each account's change into operating / investing / financing.
+  // For a cash-flow classification, we consider the SIGN of the account's normal balance:
+  //   asset (debit-normal):    +change = increase in asset = cash outflow (use of cash)
+  //   liability (credit-normal): +change = increase in liability = cash inflow (source of cash)
+  //   equity (credit-normal):   +change = increase in equity = cash inflow
+  // We then negate to get the cash effect.
+  // But the indirect method works differently: we adjust net income for changes in
+  // working capital accounts. A simpler approach using the balance sheet changes
+  // directly:
+  //   Operating CF = net income + decrease in operating assets + increase in operating liabilities
+  //   Investing CF = decrease in investing assets + increase in investing liabilities (negated)
+  //   Financing CF = decrease in financing assets + increase in financing liabilities
+
+  const sections: Record<string, { lines: { label: string; amount: string; accountCode?: string }[]; total: string }> = {
+    operating: { lines: [], total: "0.00" },
+    investing: { lines: [], total: "0.00" },
+    financing: { lines: [], total: "0.00" },
+  };
+
+  let netCashClasses: Prisma.Decimal[] = [];
+
+  for (const [accountId, delta] of changes) {
+    const a = accounts.get(accountId);
+    if (!a) continue;
+    // Skip cash accounts themselves — we track these separately.
+    if (a.systemKey && CASH_ACCOUNT_KEYS.has(a.systemKey)) continue;
+
+    const sk = a.systemKey;
+    const acctLabel = `${a.code} ${a.nameAr}`;
+
+    // Determine classification.
+    let cf: "operating" | "investing" | "financing";
+    if (sk && CF_CLASSIFY[sk]) {
+      cf = CF_CLASSIFY[sk];
+    } else {
+      // Default by account type.
+      if (a.type === "asset") cf = "investing";
+      else if (a.type === "liability") cf = "financing";
+      else if (a.type === "equity") cf = "financing";
+      else if (a.type === "expense") cf = "operating";
+      else if (a.type === "revenue") cf = "operating";
+      else cf = "operating";
+    }
+
+    // Convert balance-sheet change to cash-flow effect.
+    // Asset increase (positive delta) = cash outflow = negative cash effect.
+    // Liability/equity increase (positive delta) = cash inflow = positive cash effect.
+    // For revenue/expense accounts (P&L), their balance directly reflects
+    // net income which is the starting point; we double-count if we include them.
+    // So we skip P&L accounts here — net income is the starting point and
+    // working capital adjustments handle the rest.
+    if (a.type === "revenue" || a.type === "expense") continue;
+
+    let cashEffect: Prisma.Decimal;
+    if (a.type === "asset") {
+      cashEffect = delta.negated(); // Asset increase → cash decrease
+    } else {
+      // Liability or equity: increase → cash increase
+      cashEffect = delta;
+    }
+
+    if (cashEffect.isZero()) continue;
+
+    sections[cf].lines.push({
+      label: `تغير في ${acctLabel}`,
+      amount: cashEffect.toFixed(2),
+      accountCode: a.code,
+    });
+  }
+
+  // Add net income as the first operating line.
+  sections.operating.lines.unshift({
+    label: "صافي الدخل",
+    amount: netIncome.toFixed(2),
+  });
+
+  // Compute section totals.
+  for (const key of ["operating", "investing", "financing"] as const) {
+    const sum = sections[key].lines.reduce((s, l) => s.plus(D(l.amount)), D(0));
+    sections[key].total = sum.toFixed(2);
+  }
+
+  // Net cash flow = sum of all three sections (negated to match cash‑change sign).
+  const netCashFlow = ["operating", "investing", "financing"].reduce((s, key) => s.plus(D(sections[key].total)), D(0)).negated();
+
+  // Cash balances: compute opening and closing balances of cash/bank accounts.
+  const cashAccountEntries = allIds
+    .map((id) => {
+      const a = accounts.get(id);
+      if (!a || !a.systemKey || !CASH_ACCOUNT_KEYS.has(a.systemKey)) return null;
+      return {
+        accountId: id,
+        code: a.code,
+        name: a.nameAr,
+        opening: (open.get(id) ?? D(0)).toFixed(2),
+        closing: (close.get(id) ?? D(0)).toFixed(2),
+        change: (close.get(id) ?? D(0)).minus(open.get(id) ?? D(0)).toFixed(2),
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => !!x);
+
+  const totalOpening = cashAccountEntries.reduce((s, e) => s.plus(D(e.opening)), D(0)).toFixed(2);
+  const totalClosing = cashAccountEntries.reduce((s, e) => s.plus(D(e.closing)), D(0)).toFixed(2);
+  const totalChange = D(totalClosing).minus(D(totalOpening)).toFixed(2);
+
+  return {
+    from, to,
+    netIncome: netIncome.toFixed(2),
+    sections,
+    netCashFlow: netCashFlow.toFixed(2),
+    cashAccounts: cashAccountEntries,
+    cashTotal: { opening: totalOpening, closing: totalClosing, change: totalChange },
+    _balanced: netCashFlow.toFixed(2) === totalChange,
   };
 }
 

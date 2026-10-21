@@ -74,6 +74,7 @@ export const STORAGE_LOCATION_TYPES = [
   "dispatch",
   "quarantine",
   "other",
+  "waste",
 ] as const;
 export type StorageLocationType = (typeof STORAGE_LOCATION_TYPES)[number];
 
@@ -87,6 +88,7 @@ export const STORAGE_LOCATION_TYPE_LABEL: Record<StorageLocationType, string> = 
   dispatch: "تحميل",
   quarantine: "حجز/فحص",
   other: "أخرى",
+  waste: "هالك",
 };
 
 export const DEFAULT_ORG = {
@@ -112,7 +114,7 @@ export const DEFAULT_ORG = {
     { id: "loc_recv", warehouseId: "wh_main", code: "RECV", name: "Receiving bay", nameAr: "منطقة الاستلام", type: "receiving", capacityKg: null },
     { id: "loc_disp", warehouseId: "wh_main", code: "DISP", name: "Dispatch dock", nameAr: "منطقة التحميل", type: "dispatch", capacityKg: null },
     { id: "loc_grade_b", warehouseId: "wh_main", code: "GRADE-B", name: "Second grade / فرزة", nameAr: "فرزة", type: "cold_room", capacityKg: null },
-    { id: "loc_waste", warehouseId: "wh_main", code: "WASTE", name: "Spoilage / waste", nameAr: "هالك وتوالف", type: "other", capacityKg: null },
+    { id: "loc_waste", warehouseId: "wh_main", code: "WASTE", name: "Spoilage / waste", nameAr: "هالك وتوالف", type: "waste", capacityKg: null },
     { id: "loc_quarantine", warehouseId: "wh_main", code: "QUAR", name: "Quarantine (returns)", nameAr: "حجر صحي (مرتجعات)", type: "quarantine", capacityKg: null },
   ],
 } as const;

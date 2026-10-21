@@ -110,21 +110,22 @@
 ## What Remains
 
 ### P2 — Reporting Enhancements
-- P&L and balance sheet report APIs (basic data exists in GL, need dedicated query)
-- Stock valuation report API (exists, needs reconciliation assertions)
+- ✅ P&L and balance sheet report APIs (implemented: `profitLossReport` in `lib/accounting/ledger.ts`, `app/api/accounting/balance-sheet/route.ts`, management `profitAndLoss`; cover checks in `tests/accounting.test.ts` and `uat.test.ts`)
+- ✅ Stock valuation report API + reconciliation assertions (`lib/inventory/reports.ts`, `tests/accounting.test.ts` §valuation, `tests/inventory.test.ts` §valuation)
+- ✅ Report/statement exports: customer & supplier statements, finance report, inventory valuation as Excel-safe CSV (`app/api/**/export/route.ts`, `tests/exports.test.ts`)
 - VAT return summary (basic logic exists in vat-summary.ts, needs endpoint)
 - Cancelled/reversed transaction report
 
 ### P3 — Improvements (Not Blocking Go-Live)
 - Customer discount codes
-- Batch/lot expiry alerting and automated quarantine
+- Batch/lot expiry alerting and automated quarantine ✅ (quarantine-on-return + release workflow implemented and covered in `tests/inventory.test.ts` §8)
 - Multi-currency support (not needed for UNITED — EGP-only is correct)
 - Purchase requisition workflow (can use RFQ as proxy)
 - Audit log search/filter UI
 
 ## Test Coverage
 
-- **91 unit tests** — pure business rules (no database)
-- **~5,500 E2E assertions** across 20+ test suites — real HTTP + real PostgreSQL
+- **92 unit tests** — pure business rules (no database), incl. deterministic business-day regression (`tests/unit/days.test.ts`)
+- **~6,000 E2E assertions** across 23 test suites — real HTTP + real PostgreSQL
 - **44 integration tests** — direct DB access for concurrency/idempotency scenarios
 - **0 production database exposure** — test guard refuses non-local databases

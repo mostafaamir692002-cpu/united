@@ -17,6 +17,14 @@ const WINDOW_MS = 5 * 60_000;
 const LOCKOUT_MS = 5 * 60_000;
 const key = (u: string) => u.trim().toLowerCase();
 
+// IP-wide lockout: same window/lockout shape, different threshold. It stops
+// credential stuffing that spreads guesses over many usernames — no single
+// username trips MAX_ATTEMPTS, but the address still fires. Threshold 0 = off.
+const IP_LOCKOUT_THRESHOLD = 20;
+const IP_LOCKOUT_WINDOW_MS = 15 * 60_000;
+const IP_LOCKOUT_MS = 15 * 60_000;
+const ipKey = (ip: string | null | undefined) => (ip ? ip.trim() : "");
+
 export async function isLoginLocked(username: string): Promise<{ locked: true; retryAfterSec: number } | { locked: false }> {
   const u = key(username);
   const now = Date.now();
@@ -45,6 +53,36 @@ export async function recordLoginFailure(username: string, ip?: string | null) {
 
 export async function recordLoginSuccess(username: string, ip?: string | null) {
   await prisma.loginAttempt.create({ data: { username: key(username), success: true, ip: ip ?? null } });
+}
+
+/**
+ * IP-wide lockout — counts failed attempts from one address regardless of which
+ * username was tried, so credential stuffing across many accounts still trips it.
+ * Threshold 0 disables the check. A successful sign-in does not clear the IP
+ * counter (many people can legitimately come from one NAT/office address); the
+ * window simply expires.
+ */
+export async function isIpLoginLocked(
+  ip: string | null | undefined,
+  threshold: number
+): Promise<{ locked: true; retryAfterSec: number } | { locked: false }> {
+  if (!ip || threshold <= 0) return { locked: false };
+  const a = ipKey(ip);
+  if (!a) return { locked: false };
+  const now = Date.now();
+  const since = new Date(now - IP_LOCKOUT_WINDOW_MS - IP_LOCKOUT_MS);
+  const failures = await prisma.loginAttempt.findMany({
+    where: { ip: a, success: false, createdAt: { gt: since } },
+    orderBy: { createdAt: "desc" },
+    take: threshold,
+    select: { createdAt: true },
+  });
+  if (failures.length < threshold) return { locked: false };
+  const newest = failures[0].createdAt.getTime();
+  const oldest = failures[threshold - 1].createdAt.getTime();
+  if (newest - oldest > IP_LOCKOUT_WINDOW_MS) return { locked: false };
+  const until = newest + IP_LOCKOUT_MS;
+  return until > now ? { locked: true, retryAfterSec: Math.ceil((until - now) / 1000) } : { locked: false };
 }
 
 /** Recent failed sign-ins, for the administrator. */

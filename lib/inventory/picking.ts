@@ -97,11 +97,11 @@ export async function allocate(
   const claims = input.claims;
   const buckets = (await productBuckets(tx, input.productId, input.warehouseId, { locationId: input.locationId }))
     .map((b) => (claims ? { ...b, quantity: b.quantity.minus(claims.get(input.productId, b.locationId, b.lotId)) } : b))
-    // Quarantine never feeds automatic picking. When the operator names a location
-    // explicitly (scrap what came back, move inspected goods to a cold room), that
-    // location is what they mean — quarantine included.
+    // Quarantine and waste never feed automatic picking. When the operator names a location
+    // explicitly (scrap what came back, move inspected goods to a cold room, dispose waste),
+    // that location is what they mean — quarantine and waste included.
     .filter((b) => b.quantity.gt(0)
-      && (input.locationId !== undefined || b.locationType !== "quarantine")
+      && (input.locationId !== undefined || (b.locationType !== "quarantine" && b.locationType !== "waste"))
       && !(input.excludeExpiredOn && b.expiryDate && b.expiryDate < input.excludeExpiredOn));
   const ordered = orderBuckets(buckets, input.strategy, { expiredLastOn: input.expiredLastOn });
   const pickable = ordered.reduce((s, b) => s.plus(b.quantity), ZERO);

@@ -27,17 +27,22 @@ const H = ({ children }: { children: React.ReactNode }) => <h2 className="text-l
 const KIND: Record<string, string> = { intake: "استلام", intake_correction: "تصحيح استلام", intake_void: "إلغاء استلام", adjustment: "تسوية/جرد", transfer_out: "تحويل خارج", transfer_in: "تحويل داخل", issue: "صرف للعملاء", customer_return: "مرتجع عملاء", supplier_return: "مرتجع موردين", scrap: "هالك" };
 const EX: Record<string, string> = { shortage: "عجز", damage: "تالف", rejection: "رفض العميل", delivery_failure: "فشل التسليم", loading_discrepancy: "فرق تحميل" };
 
-export function ManagementView({ kind }: { kind: "finance" | "operations" }) {
+export function ManagementView({ kind }: { kind: "finance" | "operations" | "cash-flow" }) {
   const [from, setFrom] = useState(`${todayLocalISO().slice(0, 7)}-01`);
   const [to, setTo] = useState(todayLocalISO());
-  const q = useQuery({ queryKey: ["management", kind, from, to], queryFn: () => apiFetch<{ report: any }>(`/api/management/${kind}?from=${from}&to=${to}`) });
+  const apiKind = kind === "cash-flow" ? "cash-flow" : kind;
+  const q = useQuery({ queryKey: ["management", kind, from, to], queryFn: () => apiFetch<{ report: any }>(`/api/management/${apiKind}?from=${from}&to=${to}`) });
   return (
     <div className="p-4 max-w-5xl mx-auto pb-10 flex flex-col gap-3">
-      <h1 className="text-2xl font-extrabold text-united-dark">{kind === "finance" ? "تقارير الإدارة" : "أداء التشغيل"}</h1>
+      <h1 className="text-2xl font-extrabold text-united-dark">{kind === "finance" ? "تقارير الإدارة" : kind === "cash-flow" ? "التدفقات النقدية" : "أداء التشغيل"}</h1>
       <div className="flex gap-2"><input type="date" className="field" value={from} onChange={(e) => setFrom(e.target.value)} /><input type="date" className="field" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+      <div className="flex gap-2 mb-2 flex-wrap">
+        <a href="/management/finance" className={`btn-sm ${kind === "finance" ? "btn-primary" : "btn-ghost"}`}>تقارير الإدارة</a>
+        <a href="/management/cash-flow" className={`btn-sm ${kind === "cash-flow" ? "btn-primary" : "btn-ghost"}`}>التدفقات النقدية</a>
+      </div>
       {q.isLoading && <LoadingState />}
       {q.isError && <ErrorState message={errorMessage(q.error)} onRetry={() => q.refetch()} />}
-      {q.data && (kind === "finance" ? <Finance r={q.data.report} /> : <Operations r={q.data.report} />)}
+      {q.data && (kind === "cash-flow" ? <CashFlow r={q.data.report} /> : kind === "finance" ? <Finance r={q.data.report} /> : <Operations r={q.data.report} />)}
     </div>
   );
 }
@@ -56,7 +61,8 @@ function Finance({ r }: { r: any }) {
         <Tile label="صافي الربح (من القيود)" value={fmtMoney(r.profitAndLoss.net)} tone={Number(r.profitAndLoss.net) >= 0 ? "good" : "bad"} />
       </div>
       <H>الهامش حسب الصنف</H>
-      <Table head={["الصنف", "الكمية", "المبيعات", "التكلفة", "الهامش", "%"]} rows={r.sales.byProduct.map((p: any) => [p.product, fmtQty(p.quantity), p.revenue, p.cost, p.margin, p.marginPct])} />
+      <Table head={["الصنف", "الكمية", "المبيعات", "التكلفة", "الهامش", "%", "بسعر غير مؤكد*"]} rows={r.sales.byProduct.map((p: any) => [p.product, fmtQty(p.quantity), p.revenue, p.cost, p.margin, p.marginPct, Number(p.costUnknownQty ?? 0) > 0 ? fmtQty(p.costUnknownQty) : "—"])} />
+      <p className="text-xs font-bold text-united-muted">* ْالكمية المباعة من غير تكلفة معروفة (اتسجلت قبل تسجيل سعر المورد) — الهامش بتاعها مؤقت لحد ما التكلفة الفعلية تتسجل.</p>
       <H>أكبر العملاء</H>
       <Table head={["العميل", "فواتير", "صافي المبيعات"]} rows={r.sales.byCustomer.map((c: any) => [c.name, c.invoices, c.net])} />
       <H>أعمار الديون</H>
@@ -67,6 +73,38 @@ function Finance({ r }: { r: any }) {
       <Table head={["النوع", "الكمية", "القيمة"]} rows={r.stockMovement.map((m: any) => [KIND[m.kind] ?? m.kind, fmtQty(m.quantity), m.value])} />
       <H>أعلى أصناف المخزون قيمة</H>
       <Table head={["الصنف", "الكمية", "القيمة"]} rows={r.inventory.top.map((p: any) => [p.product, fmtQty(p.quantity, p.unit), p.value])} />
+    </>
+  );
+}
+
+function CashFlow({ r }: { r: any }) {
+  const sectionLabels: Record<string, string> = { operating: "أنشطة تشغيلية", investing: "أنشطة استثمارية", financing: "أنشطة تمويلية" };
+  return (
+    <>
+      <div className="grid grid-cols-3 gap-2">
+        <Tile label="التدفق النقدي من الأنشطة التشغيلية" value={fmtMoney(r.sections.operating.total)} tone={Number(r.sections.operating.total) >= 0 ? "good" : "bad"} />
+        <Tile label="الأنشطة الاستثمارية" value={fmtMoney(r.sections.investing.total)} tone={Number(r.sections.investing.total) >= 0 ? "good" : "bad"} />
+        <Tile label="الأنشطة التمويلية" value={fmtMoney(r.sections.financing.total)} tone={Number(r.sections.financing.total) >= 0 ? "good" : "bad"} />
+      </div>
+      {["operating", "investing", "financing"].map((key) => (
+        <div key={key}>
+          <H>{sectionLabels[key]}</H>
+          <Table head={["البيان", "المبلغ"]} rows={[
+            ...r.sections[key].lines.map((l: any) => [l.label, fmtMoney(l.amount)]),
+            ["الإجمالي", fmtMoney(r.sections[key].total)],
+          ]} />
+        </div>
+      ))}
+      <H>التغير في النقدية</H>
+      <Table head={["البيان", "المبلغ"]} rows={[
+        ["صافي التدفق النقدي", fmtMoney(r.netCashFlow)],
+        ...r.cashAccounts.map((a: any) => [`رصيد ${a.name} أول الفترة`, fmtMoney(a.opening)]),
+        ...r.cashAccounts.map((a: any) => [`رصيد ${a.name} آخر الفترة`, fmtMoney(a.closing)]),
+        ...r.cashAccounts.map((a: any) => [`التغير في ${a.name}`, fmtMoney(a.change)]),
+        ["إجمالي رصيد أول الفترة", fmtMoney(r.cashTotal.opening)],
+        ["إجمالي رصيد آخر الفترة", fmtMoney(r.cashTotal.closing)],
+        ["صافي التغير", fmtMoney(r.cashTotal.change)],
+      ]} />
     </>
   );
 }

@@ -21,14 +21,20 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const { user } = await apiPost<{ user: { role: Role; mustChangePassword?: boolean } }>("/api/auth/login", {
+      const { user, token } = await apiPost<{ user: { role: Role; mustChangePassword?: boolean }; token?: string }>("/api/auth/login", {
         username,
         password,
       });
+      // Store the Bearer token in sessionStorage (tab-scoped) for independent
+      // multi-tab sessions. The server also sets the httpOnly cookie for backward
+      // compatibility; subsequent requests send the Bearer header automatically
+      // via apiFetch().
+      if (token && typeof window !== "undefined") {
+        window.sessionStorage.setItem("united_token", token);
+      }
       await qc.invalidateQueries({ queryKey: ["session"] });
-      // "/" resolves the landing page from the user's actual permissions on the server;
-      // a password set by an administrator goes straight to choosing their own.
-      router.push(user.mustChangePassword ? "/account/password" : "/");
+      // "/" resolves the landing page from the user's actual permissions on the server.
+      router.push("/");
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : "حصل خطأ");
     } finally {
@@ -76,7 +82,7 @@ export default function LoginPage() {
           disabled={loading}
           className="btn-primary text-xl"
         >
-          {loading ? "..." : "دخول"}
+          {loading ? "جاري تسجيل الدخول... ⏳" : "دخول"}
         </button>
       </form>
     </main>

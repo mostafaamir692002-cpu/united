@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   try {
     await requirePermission(req, "accounting.view");
     const sp = new URL(req.url).searchParams;
-    return NextResponse.json({ journals: await listJournals({ from: sp.get("from") ?? undefined, to: sp.get("to") ?? undefined, sourceType: sp.get("source_type") ?? undefined }) });
+    return NextResponse.json(await listJournals({ from: sp.get("from") ?? undefined, to: sp.get("to") ?? undefined, sourceType: sp.get("source_type") ?? undefined, limit: Number(sp.get("limit")) || undefined, offset: Number(sp.get("offset")) || undefined }));
   } catch (err) {
     return handleApiError(err);
   }

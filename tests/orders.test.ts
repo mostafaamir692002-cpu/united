@@ -148,7 +148,10 @@ async function main() {
   check("approve without reason -> 400", (await call("sara","POST",`/api/orders/${oid}/approve`,{})).status === 400);
   r = await call("sara","POST",`/api/orders/${oid}/approve`,{reason:"الفرق مقبول — نقص من المورد",expected_version:ord.version});
   check("supervisor approves shortage", r.status===200 && r.body.order.needsReview===false, r.body);
-  check("shortage stays true after approval", r.body.order.shortage===true);
+  // CRIT-2 (user spec): approval clears the live shortage gate so the order can
+  // advance; the flag is re-derived from actual quantities on the next write —
+  // the load-stage assertions below re-raise it when the order is still short.
+  check("shortage gate cleared after approval", r.body.order.shortage===false && r.body.order.needsReview===false, { s: r.body.order.shortage, r: r.body.order.needsReview });
   ord = r.body.order;
   check("re-approving -> 400", (await call("sara","POST",`/api/orders/${oid}/approve`,{reason:"again"})).status === 400);
   r = await call("ahmed","POST",`/api/orders/${oid}/status`,{to:"ready_for_loading",expected_version:ord.version});

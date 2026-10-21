@@ -34,4 +34,7 @@ export const prisma =
     process.env.PRISMA_LOG_QUERIES ? { log: [{ emit: "event", level: "query" }] } : undefined
   );
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+// Global singleton — same PrismaClient for the whole life of the server.
+// Without this, every route creates a new connection pool and the Supavisor
+// session pooler (connection_limit=1) would exhaust connections under load.
+globalForPrisma.prisma = prisma;

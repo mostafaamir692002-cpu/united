@@ -16,6 +16,7 @@ export type EffectivePermissionRow = {
   key: Permission;
   group: PermissionGroup;
   label: string;
+  description: string;
   fromRole: boolean;
   override: "grant" | "revoke" | null;
   effective: boolean;

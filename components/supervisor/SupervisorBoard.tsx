@@ -13,7 +13,6 @@ import { NeedsAttentionQueue } from "./NeedsAttentionQueue";
 import { LoadingState, EmptyState, ErrorState } from "@/components/States";
 import { LiveIndicator } from "@/components/ui/LiveIndicator";
 import {
-  orderUrgency,
   needsSupervisorAction,
   isWaitingTooLong,
   isStalledInProgress,

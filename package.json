@@ -19,7 +19,7 @@
     "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:reset": "tsx --env-file-if-exists=.env tests/reset-db.ts",
     "test:unit": "node --env-file-if-exists=.env --import tsx --test tests/unit/*.test.ts",
-    "test:e2e": "npm run test:rbac && npm run test:orders && npm run test:stock && npm run test:product-master && npm run test:data-import && npm run test:core && npm run test:workflow && npm run test:documents && npm run test:inventory && npm run test:sales && npm run test:purchasing && npm run test:operations && npm run test:accounting && npm run test:hr && npm run test:integrations && npm run test:flows && npm run test:eta && npm run test:reset && npm run test:uat && npm run test:security && npm run test:scenarios && npm run test:robustness",
+    "test:e2e": "npm run test:rbac && npm run test:orders && npm run test:stock && npm run test:product-master && npm run test:data-import && npm run test:core && npm run test:workflow && npm run test:documents && npm run test:inventory && npm run test:waste && npm run test:grading-cost && npm run test:grading-ui && npm run test:quarantine && npm run test:shortage && npm run test:reset && npm run test:cash-flow && npm run test:sales && npm run test:purchasing && npm run test:operations && npm run test:accounting && npm run test:hr && npm run test:integrations && npm run test:flows && npm run test:eta && npm run test:reset && npm run test:uat && npm run test:security && npm run test:scenarios && npm run test:lot-adjustment && npm run test:self-reservation && npm run test:pagination && npm run test:robustness",
     "typecheck": "tsc --noEmit",
     "test:core": "tsx --env-file-if-exists=.env tests/core.test.ts",
     "test:integration": "node --env-file-if-exists=.env --import tsx --test --test-concurrency=1 tests/integration/*.test.ts",
@@ -37,7 +37,16 @@
     "test:eta": "tsx --env-file-if-exists=.env tests/eta.test.ts",
     "test:flows": "tsx --env-file-if-exists=.env tests/flows.test.ts",
     "test:operations": "tsx --env-file-if-exists=.env tests/operations.test.ts",
-    "test:purchasing": "tsx --env-file-if-exists=.env tests/purchasing.test.ts"
+    "test:purchasing": "tsx --env-file-if-exists=.env tests/purchasing.test.ts",
+    "test:waste": "tsx --env-file-if-exists=.env tests/waste-not-sellable.test.ts",
+    "test:grading-cost": "tsx --env-file-if-exists=.env tests/grading-cost-policy.test.ts",
+    "test:grading-ui": "tsx --env-file-if-exists=.env tests/grading-ui.test.ts",
+    "test:quarantine": "tsx --env-file-if-exists=.env tests/quarantine-release.test.ts",
+    "test:shortage": "tsx --env-file-if-exists=.env tests/shortage-integrity.test.ts",
+    "test:cash-flow": "tsx --env-file-if-exists=.env tests/cash-flow.test.ts",
+    "test:pagination": "tsx --env-file-if-exists=.env tests/pagination.test.ts",
+    "test:lot-adjustment": "tsx --env-file-if-exists=.env tests/lot-adjustment.test.ts",
+    "test:self-reservation": "tsx --env-file-if-exists=.env tests/self-reservation.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",

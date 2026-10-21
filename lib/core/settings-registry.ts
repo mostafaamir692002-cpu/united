@@ -119,6 +119,42 @@ export const SETTING_DEFS = {
     schema: z.number().int().min(0).max(365),
     default: 2,
   }),
+  "inventory.grading_cost_policy": def({
+    group: "inventory",
+    label: "سياسة تكلفة الفرز",
+    description:
+      "proportional: كل مخرج بياخد نفس تكلفة الوحدة المدخلة (السلوك الحالي). nrv: توزيع التكلفة حسب القيمة السوقية النسبية للمخرجات القابلة للبيع.",
+    unit: "",
+    schema: z.enum(["proportional", "nrv"], { errorMap: () => ({ message: "القيمة لازم تكون proportional أو nrv" }) }),
+    default: "proportional" as "proportional" | "nrv",
+  }),
+  "inventory.grading_waste_loss": def({
+    group: "inventory",
+    label: "معالجة هالك الفرز",
+    description:
+      "expense_at_grading: خسارة الهالك بتتسجل في الفرز. zero_basis: تكلفة الهالك بتتوزع على المخرجات القابلة للبيع.",
+    unit: "",
+    schema: z.enum(["expense_at_grading", "zero_basis"], { errorMap: () => ({ message: "القيمة لازم تكون expense_at_grading أو zero_basis" }) }),
+    default: "expense_at_grading" as "expense_at_grading" | "zero_basis",
+  }),
+  "inventory.grading_price_missing": def({
+    group: "inventory",
+    label: "لو السعر مش موجود في الفرز",
+    description:
+      "fallback: يوزع بالتناسب (proportional) ويسجل السبب. refuse: يرفض الفرز.",
+    unit: "",
+    schema: z.enum(["fallback", "refuse"], { errorMap: () => ({ message: "القيمة لازم تكون fallback أو refuse" }) }),
+    default: "fallback" as "fallback" | "refuse",
+  }),
+  "inventory.grading_loss_approval_threshold": def({
+    group: "inventory",
+    label: "حد خسارة الفرز اللي محتاجة موافقة",
+    description:
+      "لو خسارة الفرز (الجنية) أكبر من القيمة دي، بتستنى موافقة قبل ما تتسجل. صفر = من غير موافقة.",
+    unit: "ج.م",
+    schema: z.number().min(0, "أقل قيمة 0").max(1_000_000_000),
+    default: 0,
+  }),
   "inventory.dispatch_issue_policy": def({
     group: "inventory",
     label: "صرف المخزون عند خروج الأوردر",
@@ -161,6 +197,22 @@ export const SETTING_DEFS = {
     unit: "يوم",
     schema: z.number().int().min(1).max(90),
     default: 3,
+  }),
+  "auth.session_ttl_hours": def({
+    group: "documents",
+    label: "صلاحية الجلسة (ساعة)",
+    description: "مدة سريان جلسة الدخول قبل ما المستخدم يضطر يعيد تسجيل الدخول. أي قيمة أقل من 1 ساعة بتتعامل كساعة واحدة.",
+    unit: "ساعة",
+    schema: z.number().min(1, "أقل قيمة 1").max(720, "أكبر قيمة 720 (شهر)"),
+    default: 12,
+  }),
+  "auth.login_ip_lockout_threshold": def({
+    group: "documents",
+    label: "حد محاولات الدخول الغلط من نفس العنوان",
+    description: "لو فشل تسجيل الدخول من نفس الـ IP بالعدد ده خلال 15 دقيقة، العنوان بيتقفل 15 دقيقة — حتى لو اليوزر مختلف. صفر = إيقاف القفل بالـ IP.",
+    unit: "محاولة",
+    schema: z.number().int().min(0).max(1000),
+    default: 20,
   }),
   "purchasing.po_approval_threshold": def({
     group: "purchasing",

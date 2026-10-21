@@ -34,6 +34,10 @@ export const MOVEMENT_KINDS = [
   "customer_return",
   "supplier_return",
   "scrap",
+  "sorting_out",
+  "sorting_in",
+  "release_out",
+  "release_in",
 ] as const;
 export type MovementKind = (typeof MOVEMENT_KINDS)[number];
 
@@ -71,7 +75,7 @@ export async function bucketBalance(tx: Tx, productId: string, locationId: strin
 }
 
 /** Current product valuation, over every layer: total quantity and total value. */
-async function productValuation(tx: Tx, productId: string) {
+export async function productValuation(tx: Tx, productId: string) {
   const agg = await tx.stockValuationLayer.aggregate({
     where: { productId },
     _sum: { quantity: true, value: true },

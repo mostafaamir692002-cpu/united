@@ -77,5 +77,5 @@ test("navigation and landing page follow effective permissions, not role names",
   assert.equal(homePathFor(["users.view", "orders.prepare"]), "/admin");
   assert.equal(homePathFor([]), "/no-access");
   const links = visibleNavLinks(["orders.load", "orders.view"]).map((l) => l.href);
-  assert.deepEqual(links, ["/load", "/production", "/operations"]);
+  assert.deepEqual(links, ["/load", "/production", "/production/sheet", "/operations"]);
 });

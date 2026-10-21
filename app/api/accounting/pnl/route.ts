@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleApiError } from "@/lib/rbac";
 import { requirePermission } from "@/lib/authz";
-import { profitLoss, balanceSheet } from "@/lib/accounting/ledger";
+import { profitLoss } from "@/lib/accounting/ledger";
 import { todayLocalISO } from "@/lib/localDate";
 
 export async function GET(req: NextRequest) {

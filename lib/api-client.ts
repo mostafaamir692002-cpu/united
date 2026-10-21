@@ -6,6 +6,13 @@ export async function apiFetch<T = any>(path: string, init?: RequestInit): Promi
     const headers = new Headers(init?.headers);
     const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
     if (!isFormData && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+    // Attach the tab-scoped Bearer token from sessionStorage, if the client
+    // has one. This enables independent sessions across browser tabs without
+    // relying on the shared httpOnly cookie.
+    if (typeof window !== "undefined") {
+      const token = window.sessionStorage.getItem("united_token");
+      if (token) headers.set("Authorization", `Bearer ${token}`);
+    }
     res = await fetch(path, {
       ...init,
       headers,

@@ -381,11 +381,12 @@ model StockProduct {
   supplierPrices  SupplierPrice[]
   purchaseLines   PurchaseOrderLine[]
   rfqLines        RfqLine[]
-  intakes         StockIntake[]
+  intakes         StockIntake[]      @relation("StockProductIntakes")
   movements       StockMovement[]
   lots            StockLot[]
   packagings      ProductPackaging[]
   reservations    StockReservation[]
+  gradeBIntakes   StockIntake[]      @relation("GradeB")
   valuationLayers StockValuationLayer[]
 
   supplierBillLines SupplierBillLine[]
@@ -452,6 +453,9 @@ model StockIntake {
   enteredUom          String?
   /// Purchase price per base unit (EGP), when known. Feeds the lot and valuation.
   unitCost            Decimal? @db.Decimal(18, 4)
+  /// Optional separate product for Grade B / فرزة output. When null, Grade B stays
+  /// on the same product at the `loc_grade_b` location (legacy behaviour).
+  gradeBProductId     String?
   warehouseId         String
   /// Where the accepted stock was put.
   locationId          String
@@ -469,7 +473,8 @@ model StockIntake {
   updatedAt           DateTime @updatedAt
 
   supplier          Supplier           @relation(fields: [supplierId], references: [id])
-  product           StockProduct       @relation(fields: [productId], references: [id])
+  product           StockProduct       @relation("StockProductIntakes", fields: [productId], references: [id])
+  gradeBProduct     StockProduct?      @relation("GradeB", fields: [gradeBProductId], references: [id])
   warehouse         Warehouse          @relation(fields: [warehouseId], references: [id])
   location          StorageLocation    @relation(fields: [locationId], references: [id])
   lot               StockLot?          @relation(fields: [lotId], references: [id], onDelete: Restrict)
@@ -918,7 +923,7 @@ model InventoryDocument {
   id             String    @id @default(cuid())
   /// TRF-/ADJ-/RET-YYYY-#####
   number         String    @unique
-  /// transfer | adjustment | scrap | customer_return | supplier_return | issue
+  /// transfer | adjustment | scrap | customer_return | supplier_return | issue | grading
   type           String
   /// pending_approval | posted | rejected | reversed
   status         String

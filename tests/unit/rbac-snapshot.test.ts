@@ -18,5 +18,5 @@ test("API gates, role bundles and page gates match docs/erp/rbac-snapshot.json",
 test("every route's gate is readable and no handler is open by accident", () => {
   const { routes } = buildSnapshot();
   const open = routes.filter((r: { gate: { kind: string } }) => r.gate.kind === "public").map((r: { path: string }) => r.path);
-  assert.deepEqual([...new Set(open)].sort(), ["/api/auth/login", "/api/auth/logout", "/api/auth/me", "/api/auth/password", "/api/health"]);
+  assert.deepEqual([...new Set(open)].sort(), ["/api/auth/login", "/api/auth/logout", "/api/auth/me", "/api/health"]);
 });

@@ -2,6 +2,7 @@
    PO approval, receiving against the PO (with sorting, lots and cost), supplier bills
    with three-way matching, debit notes and payables. */
 import { call, login, makeChecker } from "./_harness";
+import { todayBiz } from "./_days";
 
 const { check, section, finish } = makeChecker();
 const TAG = `ZZPUR${Date.now() % 1_000_000_000}`;
@@ -174,7 +175,7 @@ async function receivingAndBills() {
 async function bills() {
   const { farm, market, tomato, onion } = (globalThis as any).__pur;
   const { rc2 } = (globalThis as any).__pur2;
-  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+  const today = todayBiz();
 
   section("7. SUPPLIER BILLS — THREE-WAY MATCH");
   check("the receiver cannot see bills -> 403", (await call("hossam", "GET", "/api/purchasing/bills")).status === 403);

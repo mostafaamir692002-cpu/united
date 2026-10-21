@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/Toast";
 import { usePermissions } from "@/lib/use-session";
 import { todayLocalISO } from "@/lib/localDate";
 import { Field, Tabs, fmtMoney } from "@/components/stock/inventory/shared";
+import { Pagination } from "@/components/ui/Pagination";
 
 /**
  * Finance: cash position, customer receipts, supplier payments, journals, trial
@@ -80,15 +81,24 @@ function MoneyIn({ kind }: { kind: "receipts" | "payments" }) {
   const [party, setParty] = useState("");
   const [form, setForm] = useState({ amount: "", method: "cash", cash_account_id: "cash_main", reference: "", date: todayLocalISO() });
   const [alloc, setAlloc] = useState<Record<string, string>>({});
-  // One key per filled form: a double tap or a retry after a dropped connection returns the same document.
   const [key, setKey] = useState(newClientKey);
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
   const open = useQuery({
     queryKey: ["acc", "open", kind, party],
     queryFn: () => apiFetch<{ invoices?: { id: string; number: string; dueDate: string; open: string }[]; bills?: { id: string; number: string; dueDate: string; open: string }[] }>(isReceipt ? `/api/accounting/customers/${party}/open-invoices` : `/api/accounting/suppliers/${party}/open-bills`).then((r) => r.invoices ?? r.bills ?? []),
     enabled: !!party,
   });
-  const list = useQuery({ queryKey: ["acc", kind], queryFn: () => apiFetch<Record<string, { id: string; number: string; date: string; amount: string; method: string; reference: string | null; allocated: string; unallocated: string; reversal: { date: string; reason: string; by: string } | null; customer?: { name: string }; supplier?: { name: string }; cashAccount: string }[]>>(`/api/accounting/${kind}`).then((r) => r[kind]) });
+  const list = useQuery({
+    queryKey: ["acc", kind, page],
+    queryFn: async () => {
+      const r = await apiFetch<Record<string, any[]> & { pagination: { total: number; limit: number; offset: number } }>(`/api/accounting/${kind}?limit=${pageSize}&offset=${(page - 1) * pageSize}`);
+      const items: any[] = r[kind] ?? [];
+      const totalPages = Math.max(1, Math.ceil((r.pagination?.total ?? 0) / pageSize));
+      return { items, total: r.pagination?.total ?? 0, totalPages };
+    },
+  });
   const explicit = Object.entries(alloc).filter(([, v]) => Number(v) > 0).map(([document_id, amount]) => ({ document_id, amount }));
   return (
     <div className="flex flex-col gap-3">
@@ -133,9 +143,9 @@ function MoneyIn({ kind }: { kind: "receipts" | "payments" }) {
         </section>
       )}
       {list.isLoading && <LoadingState />}
-      {list.data?.length === 0 && <EmptyState icon="💵" title="مفيش حركات" />}
+      {list.data?.items.length === 0 && <EmptyState icon="💵" title="مفيش حركات" />}
       <ul className="flex flex-col gap-2">
-        {list.data?.map((r) => (
+        {list.data?.items.map((r: any) => (
           <li key={r.id} className={`card p-3 flex justify-between gap-2 text-sm font-bold ${r.reversal ? "opacity-70" : ""}`}>
             <div>
               <div className="font-extrabold"><span dir="ltr">{r.number}</span> · {r.customer?.name ?? r.supplier?.name}</div>
@@ -155,6 +165,7 @@ function MoneyIn({ kind }: { kind: "receipts" | "payments" }) {
           </li>
         ))}
       </ul>
+      {list.data && <Pagination page={page} pageSize={pageSize} total={list.data.total} onChange={setPage} />}
     </div>
   );
 }
@@ -231,7 +242,9 @@ function Journals() {
   const toast = useToast();
   const qc = useQueryClient();
   const [open, setOpen] = useState<string | null>(null);
-  const q = useQuery({ queryKey: ["acc", "journals"], queryFn: () => apiFetch<{ journals: Journal[] }>("/api/accounting/journals") });
+  const [jPage, setJPage] = useState(1);
+  const jPageSize = 50;
+  const q = useQuery({ queryKey: ["acc", "journals", jPage], queryFn: () => apiFetch<{ journals: Journal[]; pagination: { total: number } }>(`/api/accounting/journals?limit=${jPageSize}&offset=${(jPage - 1) * jPageSize}`) });
   const detail = useQuery({ queryKey: ["acc", "journal", open], queryFn: () => apiFetch<{ journal: Journal }>(`/api/accounting/journals/${open}`), enabled: !!open });
   const accounts = useQuery({ queryKey: ["acc", "accounts"], queryFn: () => apiFetch<{ accounts: { id: string; code: string; nameAr: string; postable: boolean }[] }>("/api/accounting/accounts"), enabled: can("accounting.manage") });
   const [m, setM] = useState({ date: todayLocalISO(), description: "", lines: [{ account_id: "", debit: "", credit: "" }, { account_id: "", debit: "", credit: "" }] });
@@ -294,6 +307,7 @@ function Journals() {
           </li>
         ))}
       </ul>
+      {q.data && <Pagination page={jPage} pageSize={jPageSize} total={q.data.pagination?.total ?? 0} onChange={setJPage} />}
     </div>
   );
 }
@@ -301,25 +315,61 @@ function Journals() {
 function Trial() {
   const [from, setFrom] = useState(yearStart());
   const [to, setTo] = useState(todayLocalISO());
-  const q = useQuery({ queryKey: ["acc", "tb", from, to], queryFn: () => apiFetch<{ trialBalance: { lines: { account: { code: string; name: string }; opening: string; debit: string; credit: string; closing: string }[]; totals: { debit: string; credit: string }; balanced: boolean } }>(`/api/accounting/trial-balance?from=${from}&to=${to}`) });
+  const [activeAccount, setActiveAccount] = useState<string | null>(null);
+  const q = useQuery({ queryKey: ["acc", "tb", from, to], queryFn: () => apiFetch<{ trialBalance: { lines: { account: { code: string; name: string; id: string }; opening: string; debit: string; credit: string; closing: string }[]; totals: { debit: string; credit: string }; balanced: boolean } }>(`/api/accounting/trial-balance?from=${from}&to=${to}`) });
+  const ledger = useQuery({
+    queryKey: ["acc", "ledger", activeAccount, from, to],
+    queryFn: () => apiFetch<{ ledger: { lines: { date: string; number: string; description: string; debit: string; credit: string }[]; account: { code: string; nameAr: string }; opening: string; closing: string; pagination?: { total: number; limit: number; offset: number } } }>(`/api/accounting/accounts/${activeAccount}/ledger?from=${from}&to=${to}`),
+    enabled: !!activeAccount,
+  });
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-2"><input type="date" className="field" value={from} onChange={(e) => setFrom(e.target.value)} /><input type="date" className="field" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+      <div className="flex flex-wrap gap-2"><input type="date" className="field" value={from} onChange={(e) => setFrom(e.target.value)} /><input type="date" className="field" value={to} onChange={(e) => setTo(e.target.value)} /></div>
       {q.isLoading && <LoadingState />}
       {q.data && (
         <section className="card p-3 overflow-x-auto">
+          {/* All shown amounts are formatted identically (2 decimals); a negative
+              opening/closing balance means the account stands at credit — shown
+              explicitly as "دائن" so the sign is never misread. */}
+          {(() => { const fmt = (v: string) => Number(v).toLocaleString("en-US", { minimumFractionDigits: 2 }); return (
           <table className="w-full text-sm font-bold">
             <thead><tr className="text-xs text-united-muted"><th className="p-1 text-start">الحساب</th><th className="p-1 text-end">أول المدة</th><th className="p-1 text-end">مدين</th><th className="p-1 text-end">دائن</th><th className="p-1 text-end">الرصيد</th></tr></thead>
             <tbody>
               {q.data.trialBalance.lines.map((l) => (
-                <tr key={l.account.code} className="border-t border-united-dark/5">
+                <tr key={l.account.code} className="border-t border-united-dark/5 cursor-pointer hover:bg-united-dark/5" onClick={() => setActiveAccount(activeAccount === l.account.id ? null : l.account.id)}>
                   <td className="p-1">{l.account.code} · {l.account.name}</td>
-                  {[l.opening, l.debit, l.credit, l.closing].map((v, i) => <td key={i} className="p-1 text-end" dir="ltr">{Number(v).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>)}
+                  {[l.opening, l.debit, l.credit, l.closing].map((v, i) => {
+                    const n = Number(v);
+                    const formatted = fmt(v);
+                    const isBalanceColumn = i === 0 || i === 3;
+                    const label = n < 0 && isBalanceColumn ? `دائن ${formatted.replace("-", "")}` : formatted;
+                    return <td key={i} className={`p-1 text-end ${n < 0 && isBalanceColumn ? "text-united-danger/70" : ""}`} dir="ltr">{label}</td>;
+                  })}
                 </tr>
               ))}
-              <tr className="border-t-2 border-united-dark/20 font-extrabold"><td className="p-1">الإجمالي {q.data.trialBalance.balanced ? "✓ متوازن" : "✗ غير متوازن"}</td><td /><td className="p-1 text-end" dir="ltr">{q.data.trialBalance.totals.debit}</td><td className="p-1 text-end" dir="ltr">{q.data.trialBalance.totals.credit}</td><td /></tr>
+              <tr className="border-t-2 border-united-dark/20 font-extrabold"><td className="p-1">الإجمالي {q.data.trialBalance.balanced ? "✓ متوازن" : "✗ غير متوازن"}</td><td /><td className="p-1 text-end" dir="ltr">{fmt(q.data.trialBalance.totals.debit)}</td><td className="p-1 text-end" dir="ltr">{fmt(q.data.trialBalance.totals.credit)}</td><td /></tr>
             </tbody>
           </table>
+          ); })()}
+        </section>
+      )}
+      {activeAccount && ledger.isLoading && <LoadingState />}
+      {activeAccount && ledger.data && (
+        <section className="card p-3 text-sm font-bold">
+          <div className="flex justify-between mb-2">
+            <span>دفتر أستاذ {ledger.data.ledger.account.nameAr} ({ledger.data.ledger.account.code}) — الحركات من {from} إلى {to}</span>
+            <span className="font-extrabold">رصيد آخر المدة <span dir="ltr">{fmtMoney(ledger.data.ledger.closing)}</span></span>
+          </div>
+          {ledger.data.ledger.lines.length === 0 && <p className="text-united-muted">مفيش حركات في الفترة دي.</p>}
+          <div className="flex flex-col gap-1">
+            {ledger.data.ledger.lines.map((l) => (
+              <div key={l.date + l.number + l.description} className="grid grid-cols-[1fr_6rem_6rem] gap-2">
+                <span>{l.date} · <span dir="ltr">{l.number}</span> · {l.description}</span>
+                <span dir="ltr" className="text-end">{Number(l.debit) ? fmtMoney(l.debit) : ""}</span>
+                <span dir="ltr" className="text-end">{Number(l.credit) ? fmtMoney(l.credit) : ""}</span>
+              </div>
+            ))}
+          </div>
         </section>
       )}
     </div>

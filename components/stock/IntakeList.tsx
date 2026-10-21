@@ -9,6 +9,8 @@ import { useToast } from "@/components/ui/Toast";
 import { todayLocalISO } from "@/lib/localDate";
 import { fmtKg, fmtYield, YIELD_TONE_CLASS, yieldTone } from "@/lib/stockPresentation";
 import { invalidateStockData } from "@/lib/stockInvalidation";
+import { usePermissions } from "@/lib/use-session";
+import { GradingForm } from "@/components/stock/GradingForm";
 import type { IntakeDTO } from "@/lib/stock-client-types";
 
 export function IntakeList() {
@@ -79,7 +81,8 @@ export function IntakeList() {
 function IntakeCard({ intake }: { intake: IntakeDTO }) {
   const qc = useQueryClient();
   const toast = useToast();
-  const [mode, setMode] = useState<"view" | "edit" | "void">("view");
+  const { can } = usePermissions();
+  const [mode, setMode] = useState<"view" | "edit" | "void" | "sort">("view");
   const [receivedKg, setReceivedKg] = useState(String(intake.receivedKg));
   const [rejectedKg, setRejectedKg] = useState(String(intake.rejectedKg));
   const [crates, setCrates] = useState(intake.crateCount == null ? "" : String(intake.crateCount));
@@ -157,6 +160,17 @@ function IntakeCard({ intake }: { intake: IntakeDTO }) {
         <Cell label="أقفاص" value={intake.crateCount == null ? "—" : String(intake.crateCount)} />
       </div>
 
+      {(Number(intake.gradeBQty) > 0 || Number(intake.wasteQty) > 0) && (
+        <div className="grid grid-cols-2 gap-2 mt-2 text-center">
+          {Number(intake.gradeBQty) > 0 && (
+            <Cell label="فرزة (ب)" value={fmtKg(Number(intake.gradeBQty))} tone="text-united-dark" />
+          )}
+          {Number(intake.wasteQty) > 0 && (
+            <Cell label="هالك" value={fmtKg(Number(intake.wasteQty))} tone="text-united-danger" />
+          )}
+        </div>
+      )}
+
       {intake.notes && <p className="text-xs font-bold text-united-dark/70 mt-2">{intake.notes}</p>}
       {error && <p className="text-united-danger font-bold text-sm mt-2">{error}</p>}
 
@@ -165,9 +179,32 @@ function IntakeCard({ intake }: { intake: IntakeDTO }) {
           <button onClick={() => setMode("edit")} className="btn-secondary flex-1 text-sm">
             تعديل
           </button>
+          {can("stock.adjust") && (
+            <button onClick={() => setMode("sort")} className="btn-primary flex-1 text-sm">
+              فرز
+            </button>
+          )}
           <button onClick={() => setMode("void")} className="btn-danger flex-1 text-sm">
             إلغاء الاستلام
           </button>
+        </div>
+      )}
+
+      {mode === "sort" && (
+        <div className="mt-3">
+          <GradingForm
+            intake={intake}
+            onClose={() => {
+              setMode("view");
+              setError(null);
+            }}
+            onPosted={() => {
+              // Keep the result card visible — the operator reads the document +
+              // movements + costing basis before closing it (the card's إغلاق
+              // button returns to view mode). Only refresh the derived views.
+              invalidateStockData(qc);
+            }}
+          />
         </div>
       )}
 

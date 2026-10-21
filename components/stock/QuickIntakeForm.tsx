@@ -51,6 +51,9 @@ export function QuickIntakeForm({ date }: { date: string }) {
   const [productId, setProductId] = useState("");
   const [receivedKg, setReceivedKg] = useState("");
   const [rejectedKg, setRejectedKg] = useState("");
+  const [gradeBKg, setGradeBKg] = useState("");
+  const [wasteKg, setWasteKg] = useState("");
+  const [gradeBProductId, setGradeBProductId] = useState(""); // separate SKU for the فرزة
   const [crates, setCrates] = useState("");
   const [notes, setNotes] = useState("");
   const [receivedDate, setReceivedDate] = useState(date);
@@ -106,11 +109,19 @@ export function QuickIntakeForm({ date }: { date: string }) {
   const preview = useMemo(() => {
     const r = Number(receivedKg) * factor;
     const x = Number(rejectedKg || 0);
+    const b = Number(gradeBKg || 0);
+    const w = Number(wasteKg || 0);
     if (!Number.isFinite(r) || r <= 0) return null;
     if (!Number.isFinite(x) || x < 0 || x > r) return null;
-    const good = Math.round((r - x) * 1000) / 1000;
-    return { good, pct: Math.round((good / r) * 1000) / 10 };
-  }, [receivedKg, rejectedKg, factor]);
+    if (!Number.isFinite(b) || b < 0 || !Number.isFinite(w) || w < 0) return null;
+    if (x + b + w > r) return null;
+    const good = Math.round((r - x - b - w) * 1000) / 1000;
+    return { good, pct: r > 0 ? Math.round((good / r) * 1000) / 10 : null };
+  }, [receivedKg, rejectedKg, gradeBKg, wasteKg, factor]);
+
+  const splitTooHigh =
+    (gradeBKg !== "" || wasteKg !== "") &&
+    Number(gradeBKg || 0) + Number(wasteKg || 0) + Number(rejectedKg || 0) > Number(receivedKg) * factor;
 
   const rejectedTooHigh =
     receivedKg !== "" && rejectedKg !== "" && Number(rejectedKg) > Number(receivedKg) * factor;
@@ -129,6 +140,10 @@ export function QuickIntakeForm({ date }: { date: string }) {
     const x = rejectedKg === "" ? 0 : Number(rejectedKg);
     if (!Number.isFinite(x) || x < 0) return setError("كمية الفرز لازم تكون رقم موجب");
     if (x > r * factor) return setError("المرفوض مينفعش يكون أكبر من المستلم");
+    const gb = gradeBKg === "" ? 0 : Number(gradeBKg);
+    const wst = wasteKg === "" ? 0 : Number(wasteKg);
+    if (!Number.isFinite(gb) || gb < 0 || !Number.isFinite(wst) || wst < 0) return setError("كميات الفرزة والهالك لازم تكون أرقام موجبة");
+    if (x + gb + wst > r * factor) return setError("مرفوض + فرزة + هالك أكبر من المستلم");
 
     setBusy(true);
     try {
@@ -140,6 +155,9 @@ export function QuickIntakeForm({ date }: { date: string }) {
         // (exactly, or refuses) — nothing derived is sent from here.
         ...(countUom ? { entered_qty: receivedKg, entered_uom: countUom } : { received_kg: r }),
         rejected_kg: x,
+        grade_b_qty: gradeBKg === "" ? 0 : Number(gradeBKg),
+        waste_qty: wasteKg === "" ? 0 : Number(wasteKg),
+        grade_b_product_id: gradeBProductId || undefined,
         crate_count: crates === "" ? null : Number(crates),
         notes: notes.trim() || undefined,
         location_id: locationId || undefined,
@@ -156,6 +174,9 @@ export function QuickIntakeForm({ date }: { date: string }) {
       // Keep supplier/product — the next delivery is usually from the same truck.
       setReceivedKg("");
       setRejectedKg("");
+      setGradeBKg("");
+      setWasteKg("");
+      setGradeBProductId("");
       setCrates("");
       setNotes("");
       setRejectionReason("");
@@ -259,6 +280,18 @@ export function QuickIntakeForm({ date }: { date: string }) {
           onChange={setRejectedKg}
           invalid={rejectedTooHigh}
         />
+        <NumberField
+          label="فرزة / ثاني درجة (كجم)"
+          value={gradeBKg}
+          onChange={setGradeBKg}
+          invalid={splitTooHigh}
+        />
+        <NumberField
+          label="هالك (كجم)"
+          value={wasteKg}
+          onChange={setWasteKg}
+          invalid={splitTooHigh}
+        />
         <div className="flex flex-col gap-1">
           <span className="text-xs font-extrabold text-united-muted">صافي صالح (كجم)</span>
           <div className="tap-target flex items-center justify-center rounded-xl bg-united-green/10 border-2 border-united-green/20">
@@ -268,6 +301,32 @@ export function QuickIntakeForm({ date }: { date: string }) {
           </div>
         </div>
       </div>
+
+      {splitTooHigh && (
+        <p className="text-[11px] font-bold text-united-danger">
+          مرفوض + فرزة + هالك أكبر من المستلم — صافي صالح مينفعش يبقى سالب.
+        </p>
+      )}
+
+      {Number(gradeBKg) > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-extrabold text-united-muted">صنف الفُرزة (اختياري — لو متركش بيتبقى على نفس الصنف)</span>
+          <select
+            className="field"
+            value={gradeBProductId}
+            onChange={(e) => setGradeBProductId(e.target.value)}
+          >
+            <option value="">— نفس الصنف (الوضع القديم) —</option>
+            {products
+              .filter((p) => p.stockTracked && p.unit === "KG" && p.id !== productId)
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nameAr ?? p.name}
+                </option>
+              ))}
+          </select>
+        </div>
+      )}
 
       {Number(rejectedKg) > 0 && (
         <input placeholder="سبب الفرز / الرفض (جودة، تلف، مقاس...)" value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} className="field" />

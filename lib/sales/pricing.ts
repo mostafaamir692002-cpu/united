@@ -266,6 +266,23 @@ export async function effectivePrice(
   return { item: base, unitPrice: base.unitPrice.times(factor).toDecimalPlaces(4) };
 }
 
+/** Prices for grade A and grade B products at a given date, from the active default
+ * price list. Returns null for unpriced products (caller handles via fallback). */
+export async function gradingPrices(
+  db: Tx,
+  products: { id: string; unit: string; name: string }[],
+  date: string
+): Promise<(Prisma.Decimal | null)[]> {
+  const def = await db.priceList.findFirst({ where: { isDefault: true, active: true }, select: { id: true } });
+  const results: (Prisma.Decimal | null)[] = [];
+  for (const p of products) {
+    if (!def) { results.push(null); continue; }
+    const ep = await effectivePrice(db, { priceListId: def.id, product: p, lineUom: p.unit, date });
+    results.push(ep ? ep.unitPrice : null);
+  }
+  return results;
+}
+
 /**
  * Prices an order's lines from its customer's list (or the default) for the delivery
  * date, in the caller's transaction. Manual and quotation prices are never touched;

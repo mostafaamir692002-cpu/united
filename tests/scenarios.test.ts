@@ -4,10 +4,10 @@
    states the expected business outcome. Written from the completeness audit
    (docs/erp/SCENARIO_COMPLETENESS_AUDIT.md); every defect it found has a check here. */
 import { call, login, makeChecker } from "./_harness";
+import { local } from "./_days";
 
 const { check, section, finish } = makeChecker();
 const T = `ZZSCN${Date.now() % 1_000_000_000}`;
-const local = (o = 0) => new Date(Date.now() - new Date().getTimezoneOffset() * 60_000 + o * 86_400_000).toISOString().slice(0, 10);
 const today = local();
 const n = (v: unknown) => Math.round(Number(v ?? 0) * 1000) / 1000;
 const reg9 = (k: number) => String(100_000_000 + ((Date.now() + k * 7919) % 899_999_999)).slice(0, 9);

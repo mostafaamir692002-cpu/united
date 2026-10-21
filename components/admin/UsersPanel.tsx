@@ -348,7 +348,7 @@ function EffectivePermissions({ userId, isSelf }: { userId: string; isSelf: bool
       <div className="rounded-xl bg-united-dark/[0.03] p-3 mb-3 text-sm font-bold flex flex-wrap gap-x-4 gap-y-1">
         <span>الدور الأساسي: <span className="text-united-green">{ROLE_LABEL[data.user.role]}</span></span>
         <span>الصلاحيات الفعلية: {effectiveCount} من {data.permissions.length}</span>
-        <span>{overrides.length ? `استثناءات: ${overrides.map((o) => `${o.override === "grant" ? "+" : "−"}${o.key}`).join("، ")}` : "من غير استثناءات"}</span>
+        <span>{overrides.length ? `استثناءات: ${overrides.map((o) => `${o.override === "grant" ? "+" : "−"}${o.label}`).join("، ")}` : "من غير استثناءات"}</span>
       </div>
       {data.absoluteRole && (
         <p className="text-xs font-bold text-united-muted mb-3">
@@ -363,7 +363,7 @@ function EffectivePermissions({ userId, isSelf }: { userId: string; isSelf: bool
               .filter((p) => p.group === group)
               .map((p) => (
                 <li key={p.key} className="flex items-center justify-between gap-2 py-1">
-                  <div className="min-w-0">
+                  <div className="min-w-0" title={p.key}>
                     <div className="text-sm font-bold text-united-dark">
                       {p.label}
                       {p.override && (
@@ -378,9 +378,7 @@ function EffectivePermissions({ userId, isSelf }: { userId: string; isSelf: bool
                         </span>
                       )}
                     </div>
-                    <code dir="ltr" className="text-[10px] text-united-muted">
-                      {p.key}
-                    </code>
+                    <div className="text-xs text-united-muted">{p.description}</div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span
