@@ -21,6 +21,8 @@ export function AdminDashboard() {
   const { can } = usePermissions();
   const importAllowed = {
     customers: can("sales.customers.manage"),
+    customer_groups: can("sales.customers.manage"),
+    customer_legal_entities: can("sales.customers.manage"),
     suppliers: can("purchasing.suppliers.manage"),
     products: can("stock.manage_products"),
     product_settings: can("stock.manage_products"),
