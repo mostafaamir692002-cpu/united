@@ -21,7 +21,7 @@ import { normalizeProductName } from "@/lib/productIdentity";
 import { xlsxToCsv } from "@/lib/data-import/xlsx";
 
 const templates = {
-  customers: { headers: "name,name_ar,type,tax_registration_no,commercial_reg_no,phone,email,city,area,address,delivery_notes,external_ref,notes,payment_terms_days,credit_limit,credit_hold,credit_hold_reason,credit_reason,price_list_code,price_list_reason,group_code,legal_entity_code", required: ["name"] },
+  customers: { headers: "name,name_ar,legal_name,legal_name_ar,type,tax_registration_no,commercial_reg_no,phone,email,city,area,address,delivery_notes,external_ref,notes,payment_terms_days,credit_limit,credit_hold,credit_hold_reason,credit_reason,price_list_code,price_list_reason,group_code,legal_entity_code", required: ["name"] },
   customer_groups: { headers: "code,name,name_ar", required: ["code", "name"] },
   customer_legal_entities: { headers: "code,name,name_ar,tax_registration_no,commercial_reg_no,phone,email,address,area,city,country,governate,region_city,street,building_number,postal_code,floor,room,landmark,additional_information,receiver_type,receiver_id,notes", required: ["code", "name"] },
   suppliers: { headers: "name,phone,notes,type,tax_registration_no,commercial_reg_no,email,city,address,payment_terms_days,lead_time_days,currency_code", required: ["name"] },
@@ -46,7 +46,7 @@ function kindOf(raw: unknown): ImportKind {
 
 function inputFor(kind: ImportKind, row: CsvRecord) {
   const v = row.values;
-  if (kind === "customers") return { name: v.name, name_ar: v.name_ar || null, type: v.type || undefined, tax_registration_no: v.tax_registration_no || null, commercial_reg_no: v.commercial_reg_no || null, phone: v.phone || null, email: v.email || null, city: v.city || null, area: v.area || null, address: v.address || null, delivery_notes: v.delivery_notes || null, external_ref: v.external_ref || null, notes: v.notes || null, payment_terms_days: v.payment_terms_days ? Number(v.payment_terms_days) : undefined, credit_limit: v.credit_limit || undefined, credit_hold: v.credit_hold ? ["true", "1", "نعم"].includes(v.credit_hold.toLowerCase()) : undefined, credit_hold_reason: v.credit_hold_reason || undefined, credit_reason: v.credit_reason || undefined, price_list_reason: v.price_list_reason || undefined };
+  if (kind === "customers") return { name: v.name, name_ar: v.name_ar || null, legal_name: v.legal_name || null, legal_name_ar: v.legal_name_ar || null, type: v.type || undefined, tax_registration_no: v.tax_registration_no || null, commercial_reg_no: v.commercial_reg_no || null, phone: v.phone || null, email: v.email || null, city: v.city || null, area: v.area || null, address: v.address || null, delivery_notes: v.delivery_notes || null, external_ref: v.external_ref || null, notes: v.notes || null, payment_terms_days: v.payment_terms_days ? Number(v.payment_terms_days) : undefined, credit_limit: v.credit_limit || undefined, credit_hold: v.credit_hold ? ["true", "1", "نعم"].includes(v.credit_hold.toLowerCase()) : undefined, credit_hold_reason: v.credit_hold_reason || undefined, credit_reason: v.credit_reason || undefined, price_list_reason: v.price_list_reason || undefined };
   if (kind === "customer_groups") return { code: v.code, name: v.name, name_ar: v.name_ar || null };
   if (kind === "customer_legal_entities") return { code: v.code, name: v.name, name_ar: v.name_ar || null, tax_registration_no: v.tax_registration_no || null, commercial_reg_no: v.commercial_reg_no || null, phone: v.phone || null, email: v.email || null, address: v.address || null, area: v.area || null, city: v.city || null, country: v.country || null, governate: v.governate || null, region_city: v.region_city || null, street: v.street || null, building_number: v.building_number || null, postal_code: v.postal_code || null, floor: v.floor || null, room: v.room || null, landmark: v.landmark || null, additional_information: v.additional_information || null, receiver_type: v.receiver_type || null, receiver_id: v.receiver_id || null, notes: v.notes || null };
   if (kind === "suppliers") return { name: v.name, phone: v.phone || null, notes: v.notes || null, type: v.type || undefined, tax_registration_no: v.tax_registration_no || null, commercial_reg_no: v.commercial_reg_no || null, email: v.email || null, city: v.city || null, address: v.address || null, payment_terms_days: v.payment_terms_days ? Number(v.payment_terms_days) : undefined, lead_time_days: v.lead_time_days ? Number(v.lead_time_days) : null, currency_code: v.currency_code || "EGP" };
@@ -80,7 +80,7 @@ async function previewRows(kind: ImportKind, rows: CsvRecord[], body: Record<str
         else aliasesInFile.set(key, r.rowNumber);
       }
     }
-    const identifier = kind === "customers" ? v.external_ref ? `customer|external|${v.external_ref.toLowerCase()}` : v.tax_registration_no ? `customer|tax|${v.tax_registration_no.replace(/[\s-]/g, "")}` : ""
+    const identifier = kind === "customers" ? (v.external_ref ? `customer|external|${v.external_ref.toLowerCase()}` : "")
       : kind === "suppliers" && v.tax_registration_no ? `supplier|tax|${v.tax_registration_no.replace(/[\s-]/g, "")}` : "";
     if (identifier) {
       const prior = identifiersInFile.get(identifier);
@@ -159,35 +159,50 @@ async function previewRows(kind: ImportKind, rows: CsvRecord[], body: Record<str
   if (kind === "customers") {
     const names = rows.flatMap((r) => [r.values.name, r.values.name_ar].filter(Boolean).map(normalizeProductName));
     const refs = rows.map((r) => r.values.external_ref).filter(Boolean);
-    const taxes = rows.map((r) => r.values.tax_registration_no?.replace(/[\s-]/g, "")).filter(Boolean);
     const groupCodes = [...new Set(rows.flatMap((r) => r.values.group_code?.split("|").map((x) => x.trim().toUpperCase()).filter(Boolean) ?? []))];
     const legalCodes = [...new Set(rows.map((r) => r.values.legal_entity_code?.trim().toUpperCase()).filter((x): x is string => !!x))];
-    const [aliases, existing, groups, legalEntities, allLegalTaxRows] = await Promise.all([
-      prisma.customerAlias.findMany({ where: { normalized: { in: names } }, select: { normalized: true, customer: { select: { name: true } } } }),
-      prisma.customer.findMany({ where: { OR: [{ externalRef: { in: refs } }, { taxRegistrationNo: { in: taxes } }] }, select: { externalRef: true, taxRegistrationNo: true } }),
+    const [aliases, existingByRef, groups, legalEntities] = await Promise.all([
+      prisma.customerAlias.findMany({ where: { normalized: { in: names } }, select: { normalized: true, customerId: true, customer: { select: { code: true, externalRef: true } } } }),
+      refs.length ? prisma.customer.findMany({ where: { externalRef: { in: refs } }, select: { id: true, code: true, externalRef: true, name: true } }) : [],
       groupCodes.length ? prisma.customerGroup.findMany({ where: { code: { in: groupCodes }, active: true }, select: { code: true } }) : [],
-      legalCodes.length ? prisma.customerLegalEntity.findMany({ where: { code: { in: legalCodes }, active: true }, select: { code: true, taxRegistrationNo: true } }) : [],
-      prisma.customerLegalEntity.findMany({ where: { taxRegistrationNo: { not: null } }, select: { taxRegistrationNo: true } }),
+      legalCodes.length ? prisma.customerLegalEntity.findMany({ where: { code: { in: legalCodes }, active: true }, select: { code: true } }) : [],
     ]);
-    const usedNames = new Set(aliases.map((a) => a.normalized));
-    const usedRefs = new Set(existing.map((x) => x.externalRef).filter(Boolean));
-    const usedTaxes = new Set(existing.map((x) => x.taxRegistrationNo).filter(Boolean));
+    // Build a map of normalized name → first owning customer (id/code/externalRef).
+    const nameOwner = new Map<string, { id: string; code: string; externalRef: string | null }>();
+    for (const a of aliases) {
+      if (!nameOwner.has(a.normalized)) nameOwner.set(a.normalized, { id: a.customerId, code: a.customer.code, externalRef: a.customer.externalRef });
+    }
     const knownGroups = new Set(groups.map((g) => g.code));
-    const knownLegal = new Map(legalEntities.map((l) => [l.code, l]));
-    // Every tax number already owned by a legal entity — a hotel row may never
-    // carry one of these as its own number (ownership lives on the entity).
-    const legalTaxes = new Set(allLegalTaxRows.map((l) => l.taxRegistrationNo).filter((x): x is string => !!x));
+    const knownLegal = new Set(legalEntities.map((l) => l.code));
+    // Map of external_ref → existing customer for reconciliation.
+    const refToCustomer = new Map(existingByRef.map((c) => [c.externalRef, c]));
     rows.forEach((r, i) => {
-      if ([r.values.name, r.values.name_ar].filter(Boolean).some((n) => usedNames.has(normalizeProductName(n)))) results[i].errors.push("اسم العميل موجود في دليل العملاء");
-      if (r.values.external_ref && usedRefs.has(r.values.external_ref)) results[i].errors.push("external_ref مستخدم لعميل آخر");
-      if (r.values.tax_registration_no && usedTaxes.has(r.values.tax_registration_no.replace(/[\s-]/g, ""))) results[i].errors.push("الرقم الضريبي مسجل لعميل آخر");
-      if (r.values.tax_registration_no && legalTaxes.has(r.values.tax_registration_no.replace(/[\s-]/g, ""))) results[i].errors.push("الرقم الضريبي مسجل لكيان قانوني — اترك الصف من غير رقم واستخدم legal_entity_code");
-      // Same tax number twice in the file on standalone rows (no legal entity) is a duplicate.
-      if (r.values.tax_registration_no && !r.values.legal_entity_code) {
-        const t = r.values.tax_registration_no.replace(/[\s-]/g, "");
-        const prior = rows.findIndex((x, j) => j < i && x.values.tax_registration_no && x.values.tax_registration_no.replace(/[\s-]/g, "") === t && !x.values.legal_entity_code);
-        if (prior >= 0) results[i].errors.push(`الرقم الضريبي مكرر داخل الملف (صف ${rows[prior].rowNumber})`);
+      // --- Name reconciliation ------------------------------------------------------
+      const rowNorm = [r.values.name, r.values.name_ar].filter(Boolean).map(normalizeProductName);
+      const existing = rowNorm.find((n) => nameOwner.has(n));
+      if (existing) {
+        const owner = nameOwner.get(existing)!;
+        const rowRef = r.values.external_ref?.trim() ?? null;
+        if (rowRef && owner.externalRef === rowRef) {
+          // Same external_ref + same name → it is the existing record being
+          // re-imported. Not an error — commit will skip this row.
+        } else {
+          const hint = owner.code ? ` (${owner.code})` : "";
+          results[i].errors.push(`اسم العميل موجود في دليل العملاء${hint} — أضف external_ref مطابق أو اربط يدوياً`);
+        }
       }
+      // --- external_ref already used by a DIFFERENT customer ------------------------
+      if (r.values.external_ref) {
+        const ref = r.values.external_ref.trim();
+        const refCustomer = refToCustomer.get(ref);
+        if (refCustomer) {
+          const refNorm = normalizeProductName(refCustomer.name);
+          if (!existing || nameOwner.get(existing)?.id !== refCustomer.id) {
+            results[i].errors.push(`external_ref "${ref}" مستخدم لعميل آخر (${refCustomer.code})`);
+          }
+        }
+      }
+      // --- Group / legal entity existence (unchanged) --------------------------------
       for (const code of (r.values.group_code ?? "").split("|").map((x) => x.trim().toUpperCase()).filter(Boolean)) {
         if (!knownGroups.has(code)) results[i].errors.push(`group_code "${code}" غير موجود — استورد المجموعات الأول`);
       }
@@ -439,13 +454,23 @@ export async function POST(req: NextRequest) {
             if (!list) throw new ApiError(404, "قائمة الأسعار غير موجودة");
             input.price_list_id = list.id;
           }
-          // Resolve stable reference codes to row ids. The tax number lives on the
-          // legal entity — a linked hotel's own tax number is intentionally null.
+          // Reconciliation: if external_ref already exists on a customer with the
+          // same normalized name, skip creation — it is the same record.
+          if (row.values.external_ref) {
+            const existing = await prisma.customer.findUnique({ where: { externalRef: row.values.external_ref.trim() }, select: { id: true, name: true, code: true } });
+            if (existing) {
+              if (normalizeProductName(row.values.name) === normalizeProductName(existing.name)) {
+                results.push({ rowNumber: row.rowNumber, status: "موجود — لم يتكرر", code: existing.code });
+                continue;
+              }
+              throw new ApiError(409, `external_ref "${row.values.external_ref}" مستخدم لعميل آخر (${existing.code})`);
+            }
+          }
+          // Resolve stable reference codes to row ids (groups, legal entity).
           if (row.values.legal_entity_code) {
             const le = await prisma.customerLegalEntity.findUnique({ where: { code: row.values.legal_entity_code.trim().toUpperCase() }, select: { id: true } });
             if (!le) throw new ApiError(404, "الكيان القانوني غير موجود بالكود");
             input.legal_entity_id = le.id;
-            input.tax_registration_no = null;
           }
           const groupCodes = (row.values.group_code ?? "").split("|").map((x) => x.trim().toUpperCase()).filter(Boolean);
           if (groupCodes.length) {

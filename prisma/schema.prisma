@@ -1060,12 +1060,16 @@ model Customer {
   code              String   @unique
   name              String
   nameAr            String?
+  /// The legal/billing name of THIS hotel when it differs from its display name.
+  /// Copied verbatim from the source; never invented. Used for the invoice buyer.
+  legalName         String?
+  legalNameAr       String?
   /// hotel | restaurant | cafe | retail | wholesale | institution | other
   type              String   @default("other")
-  /// Egyptian tax registration number (9 digits) — legacy/standalone path for a
-  /// customer that bills under its own identity. Customers linked to a legal
-  /// entity leave this NULL; the entity owns the number.
-  taxRegistrationNo String?  @unique
+  /// Egyptian tax registration number (9 digits) — may REPEAT across hotel cards
+  /// (several outlets can share one tax identity). Format still validated; uniqueness
+  /// is NOT enforced (dropped index) so cards are never merged because of it.
+  taxRegistrationNo String?
   commercialRegNo   String?
   phone             String?
   email             String?
@@ -1105,8 +1109,9 @@ model Customer {
   refunds            CustomerRefund[]
   etaReceiverProfile EtaReceiverProfile?
 
-  /// The legal billing entity this hotel bills under; NULL = bills under its own
-  /// identity (or has no known legal/tax data yet).
+  /// Optional legacy link to a shared billing entity; kept for compatibility. The
+  /// hotel's OWN legalName/legalNameAr and taxRegistrationNo are authoritative for
+  /// invoices and ETA, so a link never overrides them.
   legalEntityId String?
   legalEntity   CustomerLegalEntity? @relation(fields: [legalEntityId], references: [id], onDelete: Restrict)
   groupMembers  CustomerGroupMember[]

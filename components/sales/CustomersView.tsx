@@ -23,7 +23,7 @@ type GroupRef = { id: string; code: string; name: string; nameAr: string | null 
 type LegalEntityRef = { id: string; code: string; name: string; nameAr: string | null; taxRegistrationNo: string | null };
 
 type CustomerRow = {
-  id: string; code: string; name: string; nameAr: string | null; type: string; phone: string | null; city: string | null; area: string | null;
+  id: string; code: string; name: string; nameAr: string | null; legalName: string | null; legalNameAr: string | null; type: string; phone: string | null; city: string | null; area: string | null;
   paymentTermsDays: number; creditLimit: string | null; creditHold: boolean; active: boolean; _count: { orders: number };
   groups: GroupRef[]; legalEntity: LegalEntityRef | null;
 };
@@ -154,7 +154,8 @@ function CustomerList({ onOpen }: { onOpen: (id: string) => void }) {
 
 type FormState = Record<string, string>;
 const FIELDS: [string, string, string?][] = [
-  ["name", "الاسم"], ["name_ar", "الاسم بالعربي"], ["phone", "التليفون", "ltr"], ["email", "الإيميل", "ltr"],
+  ["name", "الاسم"], ["name_ar", "الاسم بالعربي"], ["legal_name", "الاسم القانوني للفوترة", "ltr"], ["legal_name_ar", "الاسم القانوني للفوترة بالعربي"],
+  ["phone", "التليفون", "ltr"], ["email", "الإيميل", "ltr"],
   ["city", "المدينة"], ["area", "المنطقة"], ["address", "العنوان"], ["tax_registration_no", "رقم التسجيل الضريبي (9 أرقام)", "ltr"],
   ["commercial_reg_no", "السجل التجاري", "ltr"], ["external_ref", "كود العميل في نظام الطلبات", "ltr"], ["delivery_notes", "ملاحظات التوصيل"],
 ];
@@ -238,7 +239,8 @@ function CustomerPanel({ id, onClose }: { id: string; onClose: () => void }) {
         {editing ? (
           <CustomerForm
             initial={{
-              name: c.name, name_ar: c.nameAr ?? "", phone: c.phone ?? "", email: c.email ?? "", city: c.city ?? "", area: c.area ?? "", address: c.address ?? "",
+              name: c.name, name_ar: c.nameAr ?? "", legal_name: c.legalName ?? "", legal_name_ar: c.legalNameAr ?? "",
+              phone: c.phone ?? "", email: c.email ?? "", city: c.city ?? "", area: c.area ?? "", address: c.address ?? "",
               tax_registration_no: c.taxRegistrationNo ?? "", commercial_reg_no: c.commercialRegNo ?? "", external_ref: c.externalRef ?? "", delivery_notes: c.deliveryNotes ?? "", type: c.type,
             }}
             submitLabel="حفظ"
@@ -253,7 +255,7 @@ function CustomerPanel({ id, onClose }: { id: string; onClose: () => void }) {
           />
         ) : (
           <dl className="grid grid-cols-2 gap-2 text-sm">
-            {[["النوع", CUSTOMER_TYPE_LABEL[c.type]], ["التليفون", c.phone], ["الإيميل", c.email], ["العنوان", [c.address, c.area, c.city].filter(Boolean).join("، ")], ["ملاحظات التوصيل", c.deliveryNotes], ["كود نظام الطلبات", c.externalRef]].map(([k, v]) => (
+                      {[[ "النوع", CUSTOMER_TYPE_LABEL[c.type]], ["الاسم القانوني", c.legalName], ["الاسم القانوني (عربي)", c.legalNameAr], ["التليفون", c.phone], ["الإيميل", c.email], ["العنوان", [c.address, c.area, c.city].filter(Boolean).join("، ")], ["ملاحظات التوصيل", c.deliveryNotes], ["كود نظام الطلبات", c.externalRef]].map(([k, v]) => (
               <div key={k as string}><dt className="text-xs font-extrabold text-united-muted">{k}</dt><dd className="font-bold">{v || "—"}</dd></div>
             ))}
           </dl>

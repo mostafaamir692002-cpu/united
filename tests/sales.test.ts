@@ -17,7 +17,7 @@ async function main() {
   r = await call("mona", "POST", "/api/sales/customers", { name: `${TAG} Grand Hotel`, name_ar: `${TAG} الفندق الكبير`, type: "hotel", tax_registration_no: taxId, phone: "01000000000", city: "القاهرة", external_ref: `${TAG}-EXT-1` });
   check("sales creates a customer -> 201", r.status === 201 && /^CUS-\d{5,}$/.test(r.body.customer?.code), r.body);
   const hotel = r.body.customer;
-  check("the same tax id twice -> 409", (await call("mona", "POST", "/api/sales/customers", { name: `${TAG} Other`, tax_registration_no: taxId })).status === 409);
+  check("the same tax id is now allowed to repeat across cards (uniqueness removed)", (await call("mona", "POST", "/api/sales/customers", { name: `${TAG} Other`, tax_registration_no: taxId })).status === 201);
   check("a tax id that is not 9 digits -> 400", (await call("mona", "POST", "/api/sales/customers", { name: `${TAG} Bad`, tax_registration_no: "12345" })).status === 400);
   check("unknown customer type -> 400", (await call("mona", "POST", "/api/sales/customers", { name: `${TAG} Bad2`, type: "spaceship" })).status === 400);
   check("blank name -> 400", (await call("mona", "POST", "/api/sales/customers", { name: "  " })).status === 400);

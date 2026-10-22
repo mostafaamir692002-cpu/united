@@ -18,13 +18,11 @@ export function validateImportRow(kind: string, row: ImportRow, required: readon
     if (holdEnabled && !v.credit_hold_reason) errors.push("credit_hold_reason مطلوب عند إيقاف التعامل الآجل");
     if (!holdEnabled && v.credit_hold_reason) errors.push("credit_hold_reason لا يستخدم إلا مع credit_hold=true");
     if (v.price_list_code && !v.price_list_reason) errors.push("price_list_reason مطلوب عند ربط قائمة الأسعار");
-    // A hotel links to a legal entity OR carries its own number — never both: the
-    // tax number lives on the legal entity (one number, many hotels) and inventing
-    // per-hotel numbers is what the uniqueness rule is designed to prevent.
-    if (v.legal_entity_code && v.tax_registration_no) errors.push("الرقم الضريبي بيتسجل على الكيان القانوني — امسحه من صف الفندق أو افصل الكيان");
+    // Tax number format is validated below for any kind that carries it. The number
+    // may repeat across cards — uniqueness is intentionally removed.
     if (v.tax_registration_no) {
       const normalized = v.tax_registration_no.replace(/[\s-]/g, "");
-      if (!/^\d{9}$/.test(normalized)) errors.push("رقم التسجيل الضريبي لازم 9 أرقام");
+      if (!/^\d{9}$/.test(normalized)) errors.push("رقم التسجيل الضريبي لازم 9 أرقام — إذا كان الرقم مش 9 أرقام اترك الحقل فاضي وبلّغ عن المصدر");
     }
     if (v.group_code) {
       for (const code of v.group_code.split("|").map((x) => x.trim()).filter(Boolean)) {

@@ -42,6 +42,8 @@ const taxId = z
 const customerFields = {
   name: text("اسم العميل"),
   name_ar: optText("الاسم بالعربي").optional(),
+  legal_name: optText("الاسم القانوني للفوترة", 300).optional(),
+  legal_name_ar: optText("الاسم القانوني للفوترة بالعربي", 300).optional(),
   type: z.enum(CUSTOMER_TYPES, { errorMap: () => ({ message: "نوع العميل غير معروف" }) }).optional(),
   tax_registration_no: taxId.optional(),
   commercial_reg_no: optText("السجل التجاري", 40).optional(),
@@ -53,7 +55,7 @@ const customerFields = {
   delivery_notes: optText("ملاحظات التوصيل", 1000).optional(),
   external_ref: optText("كود العميل في نظام الطلبات", 120).optional(),
   notes: optText("ملاحظات", 2000).optional(),
-  /// The legal billing entity this hotel bills under; NULL = bills under its own identity.
+  /// Optional legacy link; the card's own legal name and tax number are authoritative.
   legal_entity_id: z.string().trim().nullable().optional(),
   /// Commercial group ids this customer belongs to (M:N).
   group_ids: z.array(z.string().trim().min(1)).optional(),
@@ -101,7 +103,6 @@ function uniqueViolation(err: unknown, field: string): never | void {
   const e = err as { code?: string; meta?: { target?: string[] | string } };
   if (e?.code !== "P2002") return;
   const target = String(e.meta?.target ?? "");
-  if (target.includes("taxRegistrationNo")) throw new ApiError(409, "رقم التسجيل الضريبي ده متسجل لعميل تاني");
   if (target.includes("externalRef")) throw new ApiError(409, "كود العميل في نظام الطلبات مستخدم لعميل تاني");
   throw new ApiError(409, `${field} مستخدم بالفعل`);
 }
@@ -143,6 +144,9 @@ export async function listCustomers(opts: { q?: string; includeInactive?: boolea
             OR: [
               { name: { contains: q, mode: "insensitive" } },
               { nameAr: { contains: q } },
+              { legalName: { contains: q, mode: "insensitive" } },
+              { legalNameAr: { contains: q } },
+              { taxRegistrationNo: { contains: q } },
               { code: { contains: q.toUpperCase() } },
               { phone: { contains: q } },
               ...(normalized ? [{ aliases: { some: { normalized: { contains: normalized } } } }] : []),
@@ -223,9 +227,6 @@ export async function createCustomer(input: unknown, actor: ServiceActor) {
   }
   if ((v.credit_hold ?? false) && !v.credit_hold_reason) throw new ApiError(400, "اكتب سبب إيقاف التعامل الآجل");
   if (!(v.credit_hold ?? false) && v.credit_hold_reason) throw new ApiError(400, "سبب الإيقاف يستخدم فقط عند إيقاف التعامل الآجل");
-  // A hotel bills under EITHER its own tax identity OR a legal entity — never both:
-  // the tax number lives on the legal entity, not on every hotel row.
-  if (v.legal_entity_id && v.tax_registration_no) throw new ApiError(400, "الرقم الضريبي مسجل على الكيان القانوني — امسحه من صف الفندق أو أفصل الكيان");
   try {
     return await inTx(async (tx) => {
       await advisoryXactLock(tx, ALIAS_LOCK);
@@ -241,8 +242,10 @@ export async function createCustomer(input: unknown, actor: ServiceActor) {
           code,
           name: v.name,
           nameAr: v.name_ar ?? null,
+          legalName: v.legal_name ?? null,
+          legalNameAr: v.legal_name_ar ?? null,
           type: v.type ?? "other",
-          taxRegistrationNo: legalEntity ? null : (v.tax_registration_no ?? null),
+          taxRegistrationNo: v.tax_registration_no ?? null,
           commercialRegNo: v.commercial_reg_no ?? null,
           phone: v.phone ?? null,
           email: v.email ?? null,
@@ -291,6 +294,8 @@ export async function createCustomer(input: unknown, actor: ServiceActor) {
 const TRACKED: [keyof z.infer<typeof customerUpdate>, keyof Customer][] = [
   ["name", "name"],
   ["name_ar", "nameAr"],
+  ["legal_name", "legalName"],
+  ["legal_name_ar", "legalNameAr"],
   ["type", "type"],
   ["tax_registration_no", "taxRegistrationNo"],
   ["commercial_reg_no", "commercialRegNo"],
@@ -334,14 +339,8 @@ export async function updateCustomer(id: string, input: unknown, actor: ServiceA
         }
         data.legalEntityId = nextId;
         audits.push(audit(actor, { action: "customer_edited", entityType: "customer", entityId: id, fieldChanged: "legalEntityId", oldValue: cur.legalEntityId ?? null, newValue: nextId }));
-        // Moving to an entity: the hotel's own tax number is owned by the entity now.
-        if (nextId && cur.taxRegistrationNo) {
-          data.taxRegistrationNo = null;
-          audits.push(audit(actor, { action: "customer_edited", entityType: "customer", entityId: id, fieldChanged: "taxRegistrationNo", oldValue: cur.taxRegistrationNo, newValue: null }));
-        }
-      } else if (v.legal_entity_id && v.tax_registration_no) {
-        // Same call sets both a link and an own tax number — never both.
-        throw new ApiError(400, "الرقم الضريبي مسجل على الكيان القانوني — امسحه من صف الفندق أو أفصل الكيان");
+        // The card's own legal name and tax are always authoritative; linking or
+        // unlinking an entity never alters them. (Legacy compat only.)
       }
       if (audits.length === 0) return cur;
       let updated: Customer;

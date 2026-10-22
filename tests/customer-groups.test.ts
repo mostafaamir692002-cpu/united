@@ -86,7 +86,7 @@ async function main() {
   // Hotel row may not carry its own tax number AND a legal entity link.
   const both = csv(`name,external_ref,tax_registration_no,legal_entity_code\n"${TAG} Both",${TAG}-BOTH,${taxA},${TAG}-LEG1\n`);
   const bothP = await upload("admin", "customers", "both.csv", both, "preview");
-  check("tax number + legal entity on the same hotel row -> error", bothP.body.errorCount === 1 && /على الكيان القانوني/.test(bothP.body.rows[0].errors[0] ?? ""), bothP.body);
+  check("tax + legal entity on same row is now valid (card authoritative)", bothP.status === 200 && bothP.body.errorCount === 0, bothP.body);
   // Duplicate customer name in file.
   const dupNames = csv(`name,external_ref\n"${TAG} JAZ Zamalek",${TAG}-DUP\n`);
   check("normalized duplicate hotel name -> preview error", (await upload("admin", "customers", "dup.csv", dupNames, "preview")).body.errorCount === 1);
@@ -95,13 +95,14 @@ async function main() {
   const ghostP = await upload("admin", "customers", "ghost.csv", ghostRef, "preview");
   check("unknown group and legal entity codes -> two clear errors", ghostP.body.errorCount === 1 && ghostP.body.rows[0].errors.length === 2 && ghostP.body.rows[0].errors.every((e: string) => /غير موجود/.test(e)), ghostP.body);
   // Customer tax number colliding with an existing legal entity number.
+  // Customer tax number matching a legal entity's tax is now allowed (card owns
+  // its own tax; the legal entity link is legacy). The tax format must still be
+  // valid 9 digits.
   const taxCollide = csv(`name,external_ref,tax_registration_no\n"${TAG} Collide",${TAG}-CLD,${taxA}\n`);
-  const collideP = await upload("admin", "customers", "collide.csv", taxCollide, "preview");
-  check("hotel with a tax already owned by a legal entity -> error", collideP.body.errorCount === 1 && /مسجل لكيان قانوني/.test(collideP.body.rows[0].errors[0] ?? ""), collideP.body);
-  // Duplicate tax on two standalone (no legal entity) rows in the same file.
+  check("hotel with a tax matching a legal entity is now permitted", (await upload("admin", "customers", "collide.csv", taxCollide, "preview")).body.errorCount === 0);
+  // Duplicate tax on two standalone (no legal entity) rows — now ALLOWED (repeated).
   const dupTaxRows = csv(`name,external_ref,tax_registration_no\n"${TAG} DupA",${TAG}-DA,${taxC}\n"${TAG} DupB",${TAG}-DB,${taxC}\n`);
-  const dupTaxP = await upload("admin", "customers", "duptax.csv", dupTaxRows, "preview");
-  check("same tax twice on standalone rows -> duplicate error", dupTaxP.status === 200 && dupTaxP.body.rows[1].errors.some((e: string) => /مكرر داخل الملف/.test(e)), dupTaxP.body);
+  check("same tax repeated across standalone rows is now valid (no errors)", (await upload("admin", "customers", "duptax.csv", dupTaxRows, "preview")).body.errorCount === 0);
   // Non-9-digit tax number on a hotel row.
   const badHotel = csv(`name,external_ref,tax_registration_no\n"${TAG} BadTax",${TAG}-BT,12AB\n`);
   check("invalid hotel tax format -> preview error", (await upload("admin", "customers", "badtax.csv", badHotel, "preview")).body.errorCount === 1);
@@ -129,10 +130,18 @@ async function main() {
   const cleared = (await call("mona", "GET", `/api/sales/customers/${h1.id}`)).body.customer;
   check("groups emptied, legal entity detached", cleared.groups.length === 0 && cleared.legalEntity === null);
 
-  section("9. INVOICE BUYER SNAPSHOT USES THE LEGAL ENTITY");
-  // Re-link h2 to the legal entity, build an order → dispatch → draft → issue.
+  section("9. INVOICE BUYER SNAPSHOT USES THE CARD'S LEGAL NAME AND TAX");
+  // Re-link h2 and set its own legal name + tax (repeated OK). The invoice freezes
+  // the CARD's values, not any linked entity.
   const h2cur = (await call("mona", "GET", `/api/sales/customers/${h2.id}`)).body.customer;
-  await call("mona", "PATCH", `/api/sales/customers/${h2.id}`, { legal_entity_id: le2.id, expected_version: h2cur.version });
+  const cardTax = String(400_000_000 + (Date.now() % 199_999_999)).slice(0, 9);
+  await call("mona", "PATCH", `/api/sales/customers/${h2.id}`, {
+    legal_name: "API Legal",
+    legal_name_ar: null,
+    tax_registration_no: cardTax,
+    legal_entity_id: le2.id,
+    expected_version: h2cur.version,
+  });
   const product = (await call("hossam", "POST", "/api/stock/products", { name: `${TAG} Mango`, unit: "KG" })).body.product;
   // Price the product first — an order must be priced before it can be invoiced.
   const pl = (await call("mona", "POST", "/api/sales/price-lists", { code: `${TAG}-PL`, name: "الأسعار العامة", is_default: true })).body.priceList;
@@ -149,8 +158,8 @@ async function main() {
   const draft = await call("karim", "POST", "/api/sales/invoices", { order_id: oid });
   check("draft invoice created", draft.status === 201 && draft.body.invoice.status === "draft", draft.body);
   const issued = await call("karim", "POST", `/api/sales/invoices/${draft.body.invoice.id}/issue`, {});
-  check("issued invoice buyer is the LEGAL ENTITY, not the hotel", issued.body.invoice?.buyerName === "API Legal" && issued.body.invoice?.buyerTaxId === le2.taxRegistrationNo, issued.body.invoice);
-  check("…and the hotel name is nowhere on the buyer fields", issued.body.invoice?.buyerName !== h2.name, issued.body.invoice);
+  check("issued invoice buyer is the CARD's legal name, not the hotel name", issued.body.invoice?.buyerName === "API Legal" && issued.body.invoice?.buyerTaxId === cardTax, issued.body.invoice);
+  check("…and the hotel display name is not the buyer name", issued.body.invoice?.buyerName !== h2.name, issued.body.invoice);
 
   section("10. ETA PAYLOAD CARRIES THE LEGAL ENTITY RECEIVER");
   // The ETA state endpoint validates the mapped document; the receiver identity
