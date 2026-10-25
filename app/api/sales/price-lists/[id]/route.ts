@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const date = new URL(req.url).searchParams.get("date");
     return NextResponse.json(await priceListDetail(params.id, date && isValidISODate(date) ? date : undefined));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -21,6 +21,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const ctx = await requirePermission(req, "sales.pricing.manage");
     return NextResponse.json({ priceList: await updatePriceList(params.id, await readJson(req), serviceActorFromContext(ctx)) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

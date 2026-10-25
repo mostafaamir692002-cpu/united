@@ -69,7 +69,7 @@ const customerCreateWithCommercialTerms = z.object(customerFields).extend({
   price_list_id: z.string().nullable().optional(),
   price_list_reason: text("سبب ربط قائمة الأسعار", 500).optional(),
 });
-const customerUpdate = z.object(customerFields).partial().extend({ active: active.optional(), expected_version: version });
+const customerUpdate = z.object(customerFields).partial().extend({ active: active().optional(), expected_version: version });
 
 const creditUpdate = z.object({
   payment_terms_days: z.number({ invalid_type_error: "مدة السداد لازم تكون رقم" }).int("مدة السداد أيام صحيحة").min(0).max(365).optional(),
@@ -86,7 +86,7 @@ const contactInput = z.object({
   phone: optText("التليفون", 40).optional(),
   email: optText("الإيميل").optional(),
   is_primary: z.boolean().optional(),
-  active: active.optional(),
+  active: active().optional(),
   expected_version: version,
 });
 
@@ -611,7 +611,7 @@ const legalEntityCreate = z.object({
   notes: optText("ملاحظات", 2000).optional(),
 });
 
-const legalEntityUpdate = legalEntityCreate.partial().extend({ active: active.optional(), expected_version: version });
+const legalEntityUpdate = legalEntityCreate.partial().extend({ active: active().optional(), expected_version: version });
 
 /** Creates a commercial group/brand (JAZ, Four Seasons, ...). Purely commercial. */
 export async function createCustomerGroup(input: unknown, actor: ServiceActor) {

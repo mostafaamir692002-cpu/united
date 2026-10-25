@@ -18,6 +18,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { key: strin
     });
     return NextResponse.json(result);
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

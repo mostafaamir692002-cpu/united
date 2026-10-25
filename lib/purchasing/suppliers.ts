@@ -167,7 +167,7 @@ const contactInput = z.object({
   phone: optText("التليفون", 40).optional(),
   email: optText("الإيميل").optional(),
   is_primary: z.boolean().optional(),
-  active: active.optional(),
+  active: active().optional(),
   expected_version: version,
 });
 

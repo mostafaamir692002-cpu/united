@@ -16,6 +16,6 @@ export async function GET(req: NextRequest) {
     if (!isValidISODate(date)) throw new ApiError(400, "التاريخ لازم يكون YYYY-MM-DD");
     return jsonFor(viewer, await stockDashboard(date));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

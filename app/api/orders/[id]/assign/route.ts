@@ -12,6 +12,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const order = await assignOrder(params.id, typeof body.user_id === "string" ? body.user_id : null, actor);
     return NextResponse.json({ order });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

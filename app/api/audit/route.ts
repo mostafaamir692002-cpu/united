@@ -91,6 +91,6 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

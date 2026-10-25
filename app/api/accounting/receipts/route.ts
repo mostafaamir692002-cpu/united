@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const sp = new URL(req.url).searchParams;
     return NextResponse.json(await listReceipts({ customerId: sp.get("customer_id") ?? undefined, limit: Number(sp.get("limit")) || undefined, offset: Number(sp.get("offset")) || undefined }));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 export const POST = postHandler("accounting.receipts.manage", async (body, actor) => ({ receipt: await createReceipt(body, actor) }));

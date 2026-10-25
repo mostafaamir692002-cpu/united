@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost, ApiClientError } from "@/lib/api-client";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocale } from "@/lib/locale";
 import type { Role } from "@/lib/types";
 
 export default function LoginPage() {
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const qc = useQueryClient();
+  const { t } = useLocale();
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,7 +38,7 @@ export default function LoginPage() {
       // "/" resolves the landing page from the user's actual permissions on the server.
       router.push("/");
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : "حصل خطأ");
+      setError(err instanceof ApiClientError ? err.message : t("error.generic"));
     } finally {
       setLoading(false);
     }
@@ -48,11 +50,11 @@ export default function LoginPage() {
         <div className="flex flex-col items-center gap-2 mb-2">
           <Image src="/logo-united.png" alt="UNITED" width={80} height={80} className="rounded-xl" />
           <h1 className="text-2xl font-extrabold text-united-dark">UNITED</h1>
-          <p className="text-united-green font-bold">نظام التجهيز والتحميل</p>
+          <p className="text-united-green font-bold">{t("ui.login.subtitle")}</p>
         </div>
 
         <label className="flex flex-col gap-1">
-          <span className="font-bold">اسم المستخدم</span>
+          <span className="font-bold">{t("ui.login.username")}</span>
           <input
             className="field text-lg"
             value={username}
@@ -64,7 +66,7 @@ export default function LoginPage() {
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="font-bold">كلمة السر</span>
+          <span className="font-bold">{t("ui.login.password")}</span>
           <input
             type="password"
             className="field text-lg"
@@ -82,7 +84,7 @@ export default function LoginPage() {
           disabled={loading}
           className="btn-primary text-xl"
         >
-          {loading ? "جاري تسجيل الدخول... ⏳" : "دخول"}
+          {loading ? `${t("ui.login.logging-in")} ⏳` : t("ui.login.button")}
         </button>
       </form>
     </main>

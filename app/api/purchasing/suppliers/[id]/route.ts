@@ -10,7 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     await requirePermission(req, "purchasing.suppliers.view");
     return NextResponse.json({ supplier: await getSupplier(params.id) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -19,6 +19,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const ctx = await requirePermission(req, "purchasing.suppliers.manage");
     return NextResponse.json({ supplier: await updateSupplierTerms(params.id, await readJson(req), serviceActorFromContext(ctx)) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

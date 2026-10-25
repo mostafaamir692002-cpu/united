@@ -12,6 +12,6 @@ export async function GET(req: NextRequest) {
       await myNotifications(ctx.id, { unreadOnly: sp.get("unread") === "1", limit: Number(sp.get("limit")) || undefined })
     );
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

@@ -9,6 +9,6 @@ export async function GET(req: NextRequest) {
     const asOf = new URL(req.url).searchParams.get("as_of") ?? undefined;
     return NextResponse.json({ aging: await apAgingReport(asOf) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

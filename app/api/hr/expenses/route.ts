@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const actor = await requireServiceActor(req, "hr.expenses.submit");
     return NextResponse.json({ expenses: await listExpenses(actor, { status: new URL(req.url).searchParams.get("status") ?? undefined }) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 

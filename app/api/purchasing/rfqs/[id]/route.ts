@@ -9,6 +9,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     await requireAnyPermission(req, ["purchasing.rfq.manage", "purchasing.prices.view"]);
     return NextResponse.json({ rfq: await getRfq(params.id) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

@@ -19,6 +19,6 @@ export async function GET(req: NextRequest) {
     ]);
     return jsonFor(viewer, { movements, currentStock: stock });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

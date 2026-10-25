@@ -19,6 +19,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     );
     return NextResponse.json({ request });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

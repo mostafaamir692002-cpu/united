@@ -10,6 +10,6 @@ export async function GET(req: NextRequest) {
     const asOf = new URL(req.url).searchParams.get("as_of");
     return NextResponse.json(await agingReport(asOf && isValidISODate(asOf) ? asOf : undefined));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

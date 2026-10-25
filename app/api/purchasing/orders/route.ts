@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     if (sp.get("replenishment") === "1") return NextResponse.json({ replenishment: await replenishmentSuggestions() });
     return NextResponse.json({ orders: await listPurchaseOrders({ status: sp.get("status") ?? undefined, supplierId: sp.get("supplier_id") ?? undefined, open: sp.get("open") === "1" }, ctx) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 

@@ -31,6 +31,6 @@ export async function POST(req: NextRequest, { params }: { params: { entity: str
     const row = await create(await readJson(req), actor);
     return NextResponse.json({ row }, { status: 201 });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

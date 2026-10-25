@@ -9,6 +9,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const actor = await requireServiceActor(req, "accounting.eta.view");
     return NextResponse.json(await etaInvoiceState(params.id, actor));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

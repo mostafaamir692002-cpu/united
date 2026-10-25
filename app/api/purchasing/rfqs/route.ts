@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     await requireAnyPermission(req, ["purchasing.rfq.manage", "purchasing.prices.view"]);
     return NextResponse.json({ rfqs: await listRfqs({ status: new URL(req.url).searchParams.get("status") ?? undefined }) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 

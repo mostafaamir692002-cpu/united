@@ -1,4 +1,5 @@
 import type { MovementKind } from "@/lib/stock-service";
+import { DICTIONARY } from "@/lib/locale";
 
 /** Weights read as plain Latin digits with at most 3 decimals and no trailing zeros —
  * "12.5 كجم", not "12.500". Grouping stays off so a tablet's narrow columns don't wrap. */
@@ -31,6 +32,8 @@ export const YIELD_TONE_CLASS: Record<"good" | "warn" | "bad" | "none", string> 
   none: "text-united-muted",
 };
 
+// ── Movement labels (bilingual via DICTIONARY stock.movement.* keys) ──────────────
+
 export const MOVEMENT_LABEL: Record<MovementKind, string> = {
   intake: "استلام",
   intake_correction: "تصحيح استلام",
@@ -46,6 +49,23 @@ export const MOVEMENT_LABEL: Record<MovementKind, string> = {
   sorting_in: "فرز (دخول)",
   release_out: "إفراج محجوز (خروج)",
   release_in: "إفراج محجوز (دخول)",
+};
+
+export const MOVEMENT_LABEL_EN: Record<MovementKind, string> = {
+  intake: DICTIONARY["stock.movement.intake"].en,
+  intake_correction: DICTIONARY["stock.movement.intake_correction"].en,
+  intake_void: DICTIONARY["stock.movement.intake_void"].en,
+  adjustment: DICTIONARY["stock.movement.adjustment"].en,
+  transfer_out: DICTIONARY["stock.movement.transfer_out"].en,
+  transfer_in: DICTIONARY["stock.movement.transfer_in"].en,
+  issue: DICTIONARY["stock.movement.issue"].en,
+  customer_return: DICTIONARY["stock.movement.customer_return"].en,
+  supplier_return: DICTIONARY["stock.movement.supplier_return"].en,
+  scrap: DICTIONARY["stock.movement.scrap"].en,
+  sorting_out: DICTIONARY["stock.movement.sorting_out"].en,
+  sorting_in: DICTIONARY["stock.movement.sorting_in"].en,
+  release_out: DICTIONARY["stock.movement.release_out"].en,
+  release_in: DICTIONARY["stock.movement.release_in"].en,
 };
 
 export const MOVEMENT_ICON: Record<MovementKind, string> = {
@@ -64,6 +84,8 @@ export const MOVEMENT_ICON: Record<MovementKind, string> = {
   release_out: "🔓",
   release_in: "🔓",
 };
+
+// ── Stock audit labels (bilingual via DICTIONARY stock.audit.* keys) ──────────────
 
 export const STOCK_AUDIT_LABEL: Record<string, string> = {
   supplier_created: "إضافة مورد",
@@ -95,6 +117,48 @@ export const STOCK_AUDIT_LABEL: Record<string, string> = {
   product_packaging_saved: "تعبئة صنف",
   stock_lot_updated: "تعديل دفعة",
 };
+
+export const STOCK_AUDIT_LABEL_EN: Record<string, string> = {
+  supplier_created: DICTIONARY["stock.audit.supplier_created"].en,
+  supplier_updated: DICTIONARY["stock.audit.supplier_updated"].en,
+  product_created: DICTIONARY["stock.audit.product_created"].en,
+  product_updated: DICTIONARY["stock.audit.product_updated"].en,
+  product_activated: DICTIONARY["stock.audit.product_activated"].en,
+  product_deactivated: DICTIONARY["stock.audit.product_deactivated"].en,
+  product_alias_added: DICTIONARY["stock.audit.alias_added"].en,
+  product_alias_removed: DICTIONARY["stock.audit.alias_removed"].en,
+  order_product_mapped: DICTIONARY["stock.audit.order_product_mapped"].en,
+  order_product_unmapped: DICTIONARY["stock.audit.order_product_unmapped"].en,
+  stock_intake_created: DICTIONARY["stock.audit.intake_created"].en,
+  stock_intake_updated: DICTIONARY["stock.audit.intake_updated"].en,
+  stock_intake_voided: DICTIONARY["stock.audit.intake_voided"].en,
+  stock_adjustment_created: DICTIONARY["stock.audit.adjustment_created"].en,
+  inventory_adjustment_requested: DICTIONARY["stock.audit.adjustment_requested"].en,
+  inventory_adjustment_rejected: DICTIONARY["stock.audit.adjustment_rejected"].en,
+  inventory_transfer_posted: DICTIONARY["stock.audit.transfer_posted"].en,
+  inventory_scrap_posted: DICTIONARY["stock.audit.scrap_posted"].en,
+  inventory_customer_return_posted: DICTIONARY["stock.audit.customer_return_posted"].en,
+  inventory_supplier_return_posted: DICTIONARY["stock.audit.supplier_return_posted"].en,
+  inventory_issue_posted: DICTIONARY["stock.audit.issue_posted"].en,
+  inventory_document_reversed: DICTIONARY["stock.audit.document_reversed"].en,
+  stock_reserved: DICTIONARY["stock.audit.stock_reserved"].en,
+  stock_reservation_released: DICTIONARY["stock.audit.reservation_released"].en,
+  product_packaging_saved: DICTIONARY["stock.audit.packaging_saved"].en,
+  stock_lot_updated: DICTIONARY["stock.audit.lot_updated"].en,
+};
+
+export function movementLabelEn(kind: MovementKind) {
+  return MOVEMENT_LABEL_EN[kind];
+}
+
+export function movementLabelAr(kind: MovementKind) {
+  return MOVEMENT_LABEL[kind];
+}
+
+/** Look up a movement label by language, keeping Arabic RTL direction. */
+export function movementLabel(kind: MovementKind, locale: "ar" | "en"): string {
+  return locale === "ar" ? MOVEMENT_LABEL[kind] : MOVEMENT_LABEL_EN[kind];
+}
 
 export function shortDate(iso: string) {
   return iso.slice(5).replace("-", "/"); // YYYY-MM-DD -> MM/DD

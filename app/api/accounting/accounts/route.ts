@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     await requirePermission(req, "accounting.view");
     return NextResponse.json({ accounts: await chartOfAccounts() });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 export const POST = postHandler("accounting.manage", async (body, actor) => ({ account: await createAccount(body, actor) }));

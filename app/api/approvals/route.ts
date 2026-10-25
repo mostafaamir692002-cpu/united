@@ -14,6 +14,6 @@ export async function GET(req: NextRequest) {
     );
     return NextResponse.json({ approvals });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

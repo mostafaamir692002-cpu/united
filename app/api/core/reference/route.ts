@@ -14,6 +14,6 @@ export async function GET(req: NextRequest) {
     await requireAnyPermission(req, ["core.masterdata.view", "stock.view", "orders.view"]);
     return NextResponse.json(await getReferenceData());
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

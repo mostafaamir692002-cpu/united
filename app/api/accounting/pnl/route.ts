@@ -12,6 +12,6 @@ export async function GET(req: NextRequest) {
     const to = sp.get("to") ?? todayLocalISO();
     return NextResponse.json(await profitLoss(from, to));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

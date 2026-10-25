@@ -9,6 +9,6 @@ export async function GET(req: NextRequest) {
     const viewer = await requirePermission(req, "stock.valuation.view");
     return jsonFor(viewer, await valuationReport());
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

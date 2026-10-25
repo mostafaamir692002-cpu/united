@@ -8,6 +8,6 @@ export async function GET(req: NextRequest) {
     await requirePermission(req, "settings.manage");
     return NextResponse.json({ settings: await listSettings() });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

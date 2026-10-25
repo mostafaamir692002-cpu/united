@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ToastProvider } from "@/components/ui/Toast";
+import { LocaleProvider } from "@/lib/locale";
 import { unlockAudio } from "@/lib/sound";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -40,7 +41,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
   return (
     <QueryClientProvider client={client}>
-      <ToastProvider>{children}</ToastProvider>
+      <LocaleProvider>
+        <ToastProvider>{children}</ToastProvider>
+      </LocaleProvider>
     </QueryClientProvider>
   );
 }

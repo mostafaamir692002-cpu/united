@@ -38,6 +38,6 @@ export async function GET(req: NextRequest) {
     });
     return jsonFor(viewer, { logs });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

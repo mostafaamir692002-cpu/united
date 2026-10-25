@@ -11,17 +11,21 @@ import { ApiError } from "@/lib/rbac";
  */
 export async function readJson(req: NextRequest): Promise<Record<string, any>> {
   let body: unknown;
+  const loc = req.headers.get("accept-language") === "en" ? "en" : "ar";
   try {
     body = await req.json();
   } catch {
-    throw new ApiError(400, "جسم الطلب مش JSON صالح");
+    throw new ApiError(400, loc === "en" ? "Request body is not valid JSON" : "جسم الطلب مش JSON صالح");
   }
   return jsonObject(body);
 }
 
 /** Read an upload body with an actual streaming limit, even when Content-Length is
  * missing or false. */
-export async function readLimitedBody(req: NextRequest, maxBytes: number, label = "حجم الطلب أكبر من الحد المسموح"): Promise<Uint8Array> {
+export async function readLimitedBody(req: NextRequest, maxBytes: number, label?: string): Promise<Uint8Array> {
+  const loc = req.headers.get("accept-language") === "en" ? "en" : "ar";
+  const defaultLabel = loc === "en" ? "Request body exceeds the size limit" : "حجم الطلب أكبر من الحد المسموح";
+  const labelText = label ?? defaultLabel;
   const reader = req.body?.getReader();
   if (!reader) return new Uint8Array();
   const chunks: Uint8Array[] = [];
@@ -33,13 +37,13 @@ export async function readLimitedBody(req: NextRequest, maxBytes: number, label 
       total += value.byteLength;
       if (total > maxBytes) {
         await reader.cancel().catch(() => undefined);
-        throw new ApiError(413, label);
+        throw new ApiError(413, labelText);
       }
       chunks.push(value);
     }
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    throw new ApiError(400, "تعذر قراءة جسم الطلب");
+    throw new ApiError(400, loc === "en" ? "Failed to read request body" : "تعذر قراءة جسم الطلب");
   } finally {
     reader.releaseLock();
   }

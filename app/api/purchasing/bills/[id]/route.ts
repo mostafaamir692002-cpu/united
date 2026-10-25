@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     await requirePermission(req, "purchasing.bills.view");
     return NextResponse.json({ bill: await getBill(params.id) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 

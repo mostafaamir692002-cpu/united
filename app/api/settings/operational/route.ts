@@ -10,6 +10,6 @@ export async function GET(req: NextRequest) {
     await requireAuth(req);
     return NextResponse.json({ settings: await getOperationalSettings() });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

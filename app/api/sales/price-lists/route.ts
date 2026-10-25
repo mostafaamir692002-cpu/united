@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     await requirePermission(req, "sales.pricing.view");
     return NextResponse.json({ priceLists: await listPriceLists() });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 

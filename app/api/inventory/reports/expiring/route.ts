@@ -11,6 +11,6 @@ export async function GET(req: NextRequest) {
     const days = sp.get("days");
     return jsonFor(viewer, await expiringStock({ days: days ? Math.max(0, Math.min(365, Number(days) || 0)) : undefined, warehouseId: sp.get("warehouse_id") ?? undefined }));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

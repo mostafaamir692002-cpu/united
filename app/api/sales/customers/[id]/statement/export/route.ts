@@ -23,6 +23,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     ];
     return csvResponse(toCsv(rows), `customer-statement-${st.customer.code || st.customer.id}-${from}-${to}`);
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

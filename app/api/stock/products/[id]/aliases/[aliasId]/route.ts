@@ -9,6 +9,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { aliasId: 
     const actor = await requireStockActor(req, "stock.manage_products");
     return jsonFor(actor, await removeAlias(params.aliasId, actor));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

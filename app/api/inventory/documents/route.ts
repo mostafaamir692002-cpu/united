@@ -16,6 +16,6 @@ export async function GET(req: NextRequest) {
       pagination: result.pagination,
     });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

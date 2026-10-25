@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json({ attachments });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -41,6 +41,6 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json(result, { status: result.duplicate ? 200 : 201 });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

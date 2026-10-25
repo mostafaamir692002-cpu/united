@@ -11,6 +11,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       await productStockDetail(params.id, new URL(req.url).searchParams.get("warehouse_id") ?? undefined, { withValue: ctx.can("stock.valuation.view") })
     );
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

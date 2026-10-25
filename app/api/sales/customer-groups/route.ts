@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     await requirePermission(req, "sales.customers.view");
     return NextResponse.json({ groups: await listCustomerGroups() });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -19,6 +19,6 @@ export async function POST(req: NextRequest) {
     const ctx = await requirePermission(req, "sales.customers.manage");
     return NextResponse.json({ group: await createCustomerGroup(await readJson(req), serviceActorFromContext(ctx)) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

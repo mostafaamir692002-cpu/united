@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const sp = new URL(req.url).searchParams;
     return NextResponse.json({ suppliers: await listSuppliersFull({ q: sp.get("q") ?? undefined, includeInactive: sp.get("include_inactive") === "1" }) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 

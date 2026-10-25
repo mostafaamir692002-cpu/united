@@ -9,6 +9,6 @@ export async function GET(req: NextRequest) {
     const actor = await requireServiceActor(req, "accounting.eta.view");
     return NextResponse.json({ eta: await etaOverview(actor) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

@@ -8,6 +8,6 @@ export async function GET(req: NextRequest) {
     await requirePermission(req, "sales.invoices.view");
     return NextResponse.json({ orders: await ordersToInvoice() });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

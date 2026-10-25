@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     });
     return jsonFor(viewer, { intakes });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -57,6 +57,6 @@ export async function POST(req: NextRequest) {
     // A replay of an already recorded receipt answers 200 with the original.
     return jsonFor(actor, { intake }, { status: replayed ? 200 : 201 });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

@@ -22,6 +22,6 @@ export async function GET(req: NextRequest) {
     rows.push({ section: "التسوية مع الأستاذ", output: s.ledger.reconciled ? "مطابق" : "فيه فرق", input: "", diff: "" });
     return csvResponse(toCsv(rows), `vat-summary-${from}-${to}`);
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

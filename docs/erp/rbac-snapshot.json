@@ -1140,6 +1140,16 @@
       }
     },
     {
+      "method": "POST",
+      "path": "/api/inventory/release",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "stock.adjust"
+        ]
+      }
+    },
+    {
       "method": "GET",
       "path": "/api/inventory/reports/expiring",
       "gate": {
@@ -1236,6 +1246,16 @@
         "kind": "all",
         "permissions": [
           "stock.transfer"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/management/cash-flow",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "reports.finance"
         ]
       }
     },
@@ -2050,6 +2070,26 @@
       }
     },
     {
+      "method": "GET",
+      "path": "/api/sales/customer-groups",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/customer-groups",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.manage"
+        ]
+      }
+    },
+    {
       "method": "POST",
       "path": "/api/sales/customers/[id]/aliases",
       "gate": {
@@ -2296,6 +2336,36 @@
         "kind": "all",
         "permissions": [
           "sales.invoices.view"
+        ]
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/sales/legal-entities/[id]",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.manage"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/sales/legal-entities",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.view"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/sales/legal-entities",
+      "gate": {
+        "kind": "all",
+        "permissions": [
+          "sales.customers.manage"
         ]
       }
     },

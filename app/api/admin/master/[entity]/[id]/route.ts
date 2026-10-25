@@ -32,6 +32,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { entity: st
     const row = await update(params.id, await readJson(req), actor);
     return NextResponse.json({ row });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

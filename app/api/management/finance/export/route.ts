@@ -30,6 +30,6 @@ export async function GET(req: NextRequest) {
 
     return csvResponse(toCsv(rows), `finance-report-${r.from}-${r.to}`);
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

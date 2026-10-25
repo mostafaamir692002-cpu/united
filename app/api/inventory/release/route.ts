@@ -21,6 +21,6 @@ export async function POST(req: NextRequest) {
     const { document, replayed } = await releaseFromQuarantine(body, actor);
     return jsonFor(actor, { document }, { status: replayed ? 200 : 201 });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

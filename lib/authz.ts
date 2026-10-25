@@ -131,7 +131,7 @@ export async function requirePermission(
   permission: Permission | Permission[]
 ): Promise<AuthContext> {
   const ctx = await getAuthContext(deviceIdOf(req));
-  if (!ctx) throw new ApiError(401, "لازم تسجل دخول الأول");
+  if (!ctx) throw new ApiError(401, "لازم تسجل دخول الأول", "auth.required");
   const needed = Array.isArray(permission) ? permission : [permission];
   const missing = needed.filter((p) => !ctx.can(p));
   if (missing.length > 0) throw new ApiError(403, forbiddenMessage(missing));
@@ -144,7 +144,7 @@ export async function requireAnyPermission(
   permissions: Permission[]
 ): Promise<AuthContext> {
   const ctx = await getAuthContext(deviceIdOf(req));
-  if (!ctx) throw new ApiError(401, "لازم تسجل دخول الأول");
+  if (!ctx) throw new ApiError(401, "لازم تسجل دخول الأول", "auth.required");
   if (!permissions.some((p) => ctx.can(p))) throw new ApiError(403, forbiddenMessage(permissions));
   return ctx;
 }
@@ -152,7 +152,7 @@ export async function requireAnyPermission(
 /** Authenticated only — for endpoints whose finer checks happen in the service. */
 export async function requireAuth(req?: NextRequest): Promise<AuthContext> {
   const ctx = await getAuthContext(deviceIdOf(req));
-  if (!ctx) throw new ApiError(401, "لازم تسجل دخول الأول");
-  if (ctx.mustChangePassword) throw new ApiError(403, "لازم تغيّر كلمة السر الأول");
+  if (!ctx) throw new ApiError(401, "لازم تسجل دخول الأول", "auth.required");
+  if (ctx.mustChangePassword) throw new ApiError(403, "لازم تغيّر كلمة السر الأول", "auth.change-password");
   return ctx;
 }

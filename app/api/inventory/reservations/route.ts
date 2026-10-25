@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       reservations: await listReservations({ productId: sp.get("product_id") ?? undefined, sourceId: sp.get("source_id") ?? undefined, status: sp.get("status") ?? undefined }),
     });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 

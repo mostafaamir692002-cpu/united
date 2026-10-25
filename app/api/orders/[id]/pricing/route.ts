@@ -10,6 +10,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     await requirePermission(req, "sales.pricing.view");
     return NextResponse.json(await orderPricing(params.id));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

@@ -10,7 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const ctx = await requirePermission(req, "purchasing.orders.view");
     return NextResponse.json({ order: await getPurchaseOrder(params.id, ctx) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -21,6 +21,6 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     await updatePurchaseOrder(params.id, await readJson(req), actor);
     return NextResponse.json({ order: await getPurchaseOrder(params.id, ctx) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

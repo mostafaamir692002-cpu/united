@@ -8,6 +8,6 @@ export async function GET(req: NextRequest) {
     await requirePermission(req, "sales.customers.view");
     return NextResponse.json({ names: await unmappedOrderCustomers() });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

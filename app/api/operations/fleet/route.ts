@@ -8,6 +8,6 @@ export async function GET(req: NextRequest) {
     await requirePermission(req, "orders.view");
     return NextResponse.json(await listFleet());
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

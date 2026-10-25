@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     await requirePermission(req, "hr.expenses.submit");
     return NextResponse.json(await listEmployees());
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 

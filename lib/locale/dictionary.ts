@@ -1,0 +1,2255 @@
+/**
+ * Central translation dictionary for UNITED ERP.
+ *
+ * Arabic strings are the original app text — kept exactly as authored.
+ * English strings are professional translations.
+ *
+ * Keys follow the pattern: {domain}.{subdomain}.{element}
+ */
+
+export type LocaleDict = typeof DICTIONARY;
+
+// ─── Navigation ────────────────────────────────────────────────────────
+const nav = {
+  "nav.group.ops": { ar: "التشغيل", en: "Operations" },
+  "nav.group.control": { ar: "المتابعة", en: "Control" },
+  "nav.group.sales": { ar: "المبيعات", en: "Sales" },
+  "nav.group.purchasing": { ar: "المشتريات", en: "Purchasing" },
+  "nav.group.stock": { ar: "المخزون", en: "Stock" },
+  "nav.group.finance": { ar: "الحسابات", en: "Finance" },
+  "nav.group.admin": { ar: "الإدارة", en: "Administration" },
+
+  "nav.link.prep": { ar: "التجهيز", en: "Preparation" },
+  "nav.link.load": { ar: "التحميل", en: "Loading" },
+  "nav.link.production": { ar: "إنتاج النهارده", en: "Today's Production" },
+  "nav.link.sheet": { ar: "شيت التجهيز الموحد", en: "Master Picking Sheet" },
+  "nav.link.operations": { ar: "التوزيع", en: "Dispatch" },
+  "nav.link.supervisor": { ar: "مركز التحكم", en: "Command Center" },
+  "nav.link.exceptions": { ar: "نواقص التجهيز", en: "Shortage Exceptions" },
+  "nav.link.daily-report": { ar: "تقرير اليوم", en: "Daily Report" },
+  "nav.link.audit-log": { ar: "سجل المراجعة", en: "Audit Log" },
+  "nav.link.approvals": { ar: "الموافقات", en: "Approvals" },
+  "nav.link.sales": { ar: "العملاء", en: "Customers" },
+  "nav.link.purchasing": { ar: "المشتريات", en: "Purchasing" },
+  "nav.link.accounting": { ar: "الحسابات", en: "Accounting" },
+  "nav.link.eta": { ar: "الفاتورة الإلكترونية", en: "E-Invoice" },
+  "nav.link.hr": { ar: "الموظفين والمصروفات", en: "Employees & Expenses" },
+  "nav.link.management": { ar: "تقارير الإدارة", en: "Management Reports" },
+  "nav.link.ops-report": { ar: "أداء التشغيل", en: "Operations Performance" },
+  "nav.link.stock": { ar: "المخزون", en: "Stock" },
+  "nav.link.inventory": { ar: "إدارة المخزون", en: "Inventory Management" },
+  "nav.link.entries": { ar: "الاستلامات", en: "Receiving" },
+  "nav.link.ledger": { ar: "سجل الحركات", en: "Movement Ledger" },
+  "nav.link.setup": { ar: "دليل الأصناف", en: "Product Catalog" },
+  "nav.link.admin": { ar: "الإدارة", en: "Settings" },
+} as const;
+
+// ─── Roles ──────────────────────────────────────────────────────────────
+const roles = {
+  "role.SUPER_ADMIN": { ar: "مدير النظام", en: "System Admin" },
+  "role.SUPERVISOR": { ar: "مشرف", en: "Supervisor" },
+  "role.STOCK_CONTROLLER": { ar: "مراقب المخزون", en: "Stock Controller" },
+  "role.PREPARER": { ar: "تجهيز", en: "Preparer" },
+  "role.LOADER": { ar: "تحميل", en: "Loader" },
+  "role.SALES": { ar: "مبيعات", en: "Sales" },
+  "role.ACCOUNTANT": { ar: "حسابات", en: "Accountant" },
+  "role.PURCHASER": { ar: "مشتريات", en: "Purchaser" },
+
+  "role.desc.SUPER_ADMIN": { ar: "إدارة كاملة للنظام والمستخدمين والإعدادات", en: "Full system, user, and settings management" },
+  "role.desc.SUPERVISOR": { ar: "إشراف على تجهيز وتحميل الأوردرات واعتماد النقص", en: "Oversee order prep, loading, and shortage approval" },
+  "role.desc.STOCK_CONTROLLER": { ar: "إدارة المخزون والاستلام والجرد والتحويلات", en: "Manage stock, receiving, inventory, and transfers" },
+  "role.desc.PREPARER": { ar: "تجهيز الأوردرات من المخزون", en: "Prepare orders from stock" },
+  "role.desc.LOADER": { ar: "التحميل على العربيات والتوزيع", en: "Loading and dispatch" },
+  "role.desc.SALES": { ar: "المبيعات: الأوردرات والتسعير والعملاء والفوترة", en: "Sales: orders, pricing, customers, invoicing" },
+  "role.desc.ACCOUNTANT": { ar: "الحسابات: القيود والميزان والتحصيل والسداد", en: "Accounting: entries, balance, collection, payments" },
+  "role.desc.PURCHASER": { ar: "المشتريات: أوامر الشراء والاستلام وفواتير الموردين", en: "Purchasing: POs, receiving, supplier bills" },
+
+  "role.admin": { ar: "الإدارة", en: "Administration" },
+} as const;
+
+// ─── General UI ─────────────────────────────────────────────────────────
+const ui = {
+  // Layout / header
+  "ui.profile": { ar: "الملف الشخصي — بياناتك وصلاحياتك (للاطلاع فقط)", en: "Profile — your data and permissions (read-only)" },
+  "ui.logout": { ar: "تسجيل الخروج", en: "Logout" },
+  "ui.profile-link": { ar: "الملف الشخصي", en: "Profile" },
+  "ui.back-home": { ar: "الرئيسية", en: "Home" },
+  "ui.loading": { ar: "جاري التحميل…", en: "Loading…" },
+  "ui.saving": { ar: "جاري الحفظ…", en: "Saving…" },
+  "ui.save": { ar: "حفظ", en: "Save" },
+  "ui.cancel": { ar: "إلغاء", en: "Cancel" },
+  "ui.close": { ar: "إغلاق", en: "Close" },
+  "ui.delete": { ar: "حذف", en: "Delete" },
+  "ui.edit": { ar: "تعديل", en: "Edit" },
+  "ui.create": { ar: "إضافة", en: "Create" },
+  "ui.search": { ar: "بحث", en: "Search" },
+  "ui.filter": { ar: "تصفية", en: "Filter" },
+  "ui.confirm": { ar: "تأكيد", en: "Confirm" },
+  "ui.submit": { ar: "إرسال", en: "Submit" },
+  "ui.print": { ar: "طباعة", en: "Print" },
+  "ui.export": { ar: "تصدير", en: "Export" },
+  "ui.refresh": { ar: "تحديث", en: "Refresh" },
+  "ui.all": { ar: "الكل", en: "All" },
+  "ui.none": { ar: "لا يوجد", en: "None" },
+  "ui.yes": { ar: "نعم", en: "Yes" },
+  "ui.no": { ar: "لا", en: "No" },
+  "ui.back": { ar: "رجوع", en: "Back" },
+  "ui.next": { ar: "التالي", en: "Next" },
+  "ui.done": { ar: "تم", en: "Done" },
+  "ui.retry": { ar: "إعادة المحاولة", en: "Retry" },
+
+  // Language toggle
+  "ui.lang.ar": { ar: "العربية", en: "Arabic" },
+  "ui.lang.en": { ar: "English", en: "English" },
+  "ui.lang.switch": { ar: "English", en: "العربية" },
+
+  // Notifications
+  "ui.notifications": { ar: "الإشعارات", en: "Notifications" },
+  "ui.notifications.empty": { ar: "مفيش إشعارات", en: "No notifications" },
+  "ui.notifications.mark-read": { ar: "تعليم الكل كمقروء", en: "Mark all as read" },
+  "ui.notifications.new": { ar: "إشعار جديد", en: "New notification" },
+  "ui.notifications.count": { ar: "{n} إشعار جديد", en: "{n} new notifications" },
+
+  // Common status
+  "ui.active": { ar: "نشط", en: "Active" },
+  "ui.inactive": { ar: "غير نشط", en: "Inactive" },
+  "ui.enabled": { ar: "مفعل", en: "Enabled" },
+  "ui.disabled": { ar: "معطل", en: "Disabled" },
+  "ui.optional": { ar: "اختياري", en: "Optional" },
+  "ui.required": { ar: "إجباري", en: "Required" },
+
+  // Empty / Error states
+  "ui.empty": { ar: "لا توجد بيانات", en: "No data" },
+  "ui.error": { ar: "حصل خطأ", en: "An error occurred" },
+  "ui.error-try": { ar: "حصل خطأ. حاول تاني.", en: "Something went wrong. Try again." },
+  "ui.not-found": { ar: "هذه الصفحة مش موجودة", en: "This page was not found" },
+  "ui.not-found-desc": { ar: "يمكن الرابط غلط أو مش ليك الصلاحية. ارجع للصفحة الرئيسية وابدأ من هناك.", en: "The link may be wrong or you don't have permission. Go back to the home page." },
+
+  // Access denied
+  "ui.access-denied": { ar: "مالكش صلاحية للصفحة دي", en: "You don't have access to this page" },
+  "ui.access-denied.role": { ar: "حسابك ({role}) مش مسموح له يفتح الصفحة دي.", en: "Your account ({role}) is not allowed to open this page." },
+  "ui.access-denied.generic": { ar: "الصفحة دي محتاجة صلاحية مش موجودة في حسابك.", en: "This page requires a permission your account doesn't have." },
+  "ui.access-denied.permission": { ar: "الصلاحية المطلوبة", en: "Required permission" },
+  "ui.access-denied.contact": { ar: "كلّم مدير النظام لو محتاج الصلاحية دي.", en: "Contact the system admin if you need this permission." },
+
+  // Login
+  "ui.login.title": { ar: "UNITED", en: "UNITED" },
+  "ui.login.subtitle": { ar: "نظام التجهيز والتحميل", en: "Production & Dispatch System" },
+  "ui.login.username": { ar: "اسم المستخدم", en: "Username" },
+  "ui.login.password": { ar: "كلمة السر", en: "Password" },
+  "ui.login.button": { ar: "تسجيل الدخول", en: "Sign In" },
+  "ui.login.logging-in": { ar: "جاري تسجيل الدخول…", en: "Signing in…" },
+  "ui.login.changepw": { ar: "يجب تغيير كلمة السر", en: "You must change your password" },
+
+  // Profile
+  "ui.profile.title": { ar: "الملف الشخصي", en: "Profile" },
+  "ui.profile.role": { ar: "الصلاحية", en: "Role" },
+  "ui.profile.username": { ar: "اسم المستخدم", en: "Username" },
+  "ui.profile.name": { ar: "الاسم", en: "Name" },
+  "ui.profile.permissions": { ar: "الصلاحيات ({n})", en: "Permissions ({n})" },
+  "ui.profile.readonly": { ar: "للاطلاع فقط — لا يمكن التعديل من هنا", en: "Read only — cannot be edited here" },
+  "ui.profile.back-home": { ar: "الرجوع للتطبيق", en: "Back to App" },
+  "ui.profile.account-data": { ar: "بيانات الحساب", en: "Account Details" },
+  "ui.profile.status": { ar: "حالة الحساب", en: "Account Status" },
+  "ui.profile.role-desc": { ar: "وصف الدور", en: "Role Description" },
+  "ui.profile.active": { ar: "نشط ✓", en: "Active ✓" },
+  "ui.profile.inactive": { ar: "موقوف", en: "Disabled" },
+  "ui.profile.readonly-notice-title": {
+    ar: "الملف الشخصي للاطلاع فقط — مش بتتعدل منك ولا من أي مكان تاني.",
+    en: "Profile is read-only — cannot be modified by you or anywhere else.",
+  },
+  "ui.profile.readonly-notice-body": {
+    ar: "تعديل بياناتك (الاسم، الدور، الصلاحيات، الحالة) أو تغيير كلمة السر بيتم عن طريق إدارة النظام بس — كلم مدير النظام لو محتاج أي تغيير.",
+    en: "Changes to your data (name, role, permissions, status) or password reset are handled via system administration — contact your admin if you need anything changed.",
+  },
+  "ui.profile.must-change-pw": {
+    ar: "كلمة سرك محددة من الإدارة — لو محتاج تغييرها كلم مدير النظام.",
+    en: "Your password was set by administration — contact your admin if you need to change it.",
+  },
+  "ui.profile.no-perms": { ar: "مفيش صلاحيات معينة.", en: "No specific permissions granted." },
+
+  // Dates
+  "ui.today": { ar: "اليوم", en: "Today" },
+  "ui.yesterday": { ar: "أمس", en: "Yesterday" },
+  "ui.this-week": { ar: "هذا الأسبوع", en: "This Week" },
+  "ui.this-month": { ar: "هذا الشهر", en: "This Month" },
+  "ui.custom-range": { ar: "نطاق مخصص", en: "Custom Range" },
+
+  // Sort / pagination
+  "ui.sort.asc": { ar: "تصاعدي", en: "Ascending" },
+  "ui.sort.desc": { ar: "تنازلي", en: "Descending" },
+  "ui.page.of": { ar: "صفحة {page} من {total}", en: "Page {page} of {total}" },
+  "ui.previous": { ar: "السابق", en: "Previous" },
+  "ui.next-page": { ar: "التالي", en: "Next" },
+  "ui.items-per-page": { ar: "عرض", en: "Show" },
+
+  // Live indicator
+  "ui.live": { ar: "مباشر", en: "Live" },
+  "ui.updated-ago": { ar: "منذ {n} ثانية", en: "{n}s ago" },
+} as const;
+
+// ─── Customers / Sales ─────────────────────────────────────────────────
+const sales = {
+  "sales.title": { ar: "العملاء", en: "Customers" },
+  "sales.tab.all": { ar: "كل العملاء", en: "All Customers" },
+  "sales.tab.unmapped": { ar: "أسماء مش مربوطة", en: "Unmapped Names" },
+  "sales.tab.new": { ar: "عميل جديد", en: "New Customer" },
+  "sales.tab.order": { ar: "أوردر جديد", en: "New Order" },
+  "sales.tab.prices": { ar: "قوائم الأسعار", en: "Price Lists" },
+  "sales.tab.quotations": { ar: "عروض السعر", en: "Quotations" },
+  "sales.tab.invoices": { ar: "الفواتير", en: "Invoices" },
+
+  "sales.customer.name": { ar: "الاسم", en: "Name" },
+  "sales.customer.nameAr": { ar: "الاسم بالعربي", en: "Arabic Name" },
+  "sales.customer.phone": { ar: "التليفون", en: "Phone" },
+  "sales.customer.email": { ar: "الإيميل", en: "Email" },
+  "sales.customer.type": { ar: "النوع", en: "Type" },
+  "sales.customer.city": { ar: "المدينة", en: "City" },
+  "sales.customer.area": { ar: "المنطقة", en: "Area" },
+  "sales.customer.address": { ar: "العنوان", en: "Address" },
+  "sales.customer.tax": { ar: "الرقم الضريبي", en: "Tax Reg. No." },
+  "sales.customer.ext-ref": { ar: "كود نظام الطلبات", en: "Order System Code" },
+  "sales.customer.active": { ar: "التفعيل", en: "Active" },
+  "sales.customer.credit-terms": { ar: "مدة السداد", en: "Payment Terms" },
+  "sales.customer.credit-limit": { ar: "حد الائتمان", en: "Credit Limit" },
+  "sales.customer.credit-hold": { ar: "إيقاف الآجل", en: "Credit Hold" },
+  "sales.customer.code": { ar: "الكود", en: "Code" },
+  "sales.customer.group": { ar: "المجموعة", en: "Group" },
+  "sales.customer.legal-entity": { ar: "الكيان القانوني", en: "Legal Entity" },
+  "sales.customer.legal-name": { ar: "الاسم القانوني", en: "Legal Name" },
+  "sales.customer.delivery-notes": { ar: "ملاحظات التوصيل", en: "Delivery Notes" },
+  "sales.customer.notes": { ar: "ملاحظات", en: "Notes" },
+  "sales.customer.commercial-reg": { ar: "السجل التجاري", en: "Commercial Reg." },
+  "sales.customer.credit-hold-reason": { ar: "سبب الإيقاف", en: "Hold Reason" },
+  "sales.customer.created-by": { ar: "المُنشئ", en: "Created By" },
+
+  "sales.type.hotel": { ar: "فندق", en: "Hotel" },
+  "sales.type.restaurant": { ar: "مطعم", en: "Restaurant" },
+  "sales.type.cafe": { ar: "كافيه", en: "Café" },
+  "sales.type.retail": { ar: "تجزئة", en: "Retail" },
+  "sales.type.wholesale": { ar: "جملة", en: "Wholesale" },
+  "sales.type.institution": { ar: "مؤسسة", en: "Institution" },
+  "sales.type.other": { ar: "أخرى", en: "Other" },
+
+  "sales.action.created": { ar: "إضافة العميل", en: "Customer Created" },
+  "sales.action.edited": { ar: "تعديل", en: "Edited" },
+  "sales.action.credit-changed": { ar: "تغيير شروط الدفع", en: "Payment Terms Changed" },
+  "sales.action.alias-added": { ar: "اسم بديل جديد", en: "New Alias" },
+  "sales.action.alias-removed": { ar: "شيل اسم بديل", en: "Removed Alias" },
+  "sales.action.contact-added": { ar: "جهة اتصال جديدة", en: "New Contact" },
+  "sales.action.contact-edited": { ar: "تعديل جهة اتصال", en: "Contact Edited" },
+  "sales.action.order-mapped": { ar: "ربط أوردرات", en: "Orders Mapped" },
+
+  "sales.contacts": { ar: "جهات الاتصال", en: "Contacts" },
+  "sales.aliases": { ar: "الأسماء البديلة", en: "Aliases" },
+  "sales.recent-orders": { ar: "آخر الأوردرات", en: "Recent Orders" },
+  "sales.statement": { ar: "كشف حساب", en: "Statement" },
+  "sales.exposure": { ar: "كشف التعامل", en: "Exposure" },
+  "sales.price-list": { ar: "قائمة الأسعار", en: "Price List" },
+
+  "sales.invoice.title": { ar: "الفواتير", en: "Invoices" },
+  "sales.invoice.issue": { ar: "إصدار فاتورة", en: "Issue Invoice" },
+  "sales.invoice.void": { ar: "إلغاء", en: "Void" },
+  "sales.invoice.credit-note": { ar: "أشعار دائن", en: "Credit Note" },
+  // Invoice view (InvoicesView.tsx) - management headings
+  "sales.invoice.credit_note_heading": { ar: "إشعار دائن", en: "Credit Note" },
+  // Invoice view (InvoicesView.tsx) - tab labels
+  "sales.invoice.tab.todo": { ar: "مستني فاتورة", en: "Pending Invoices" },
+  "sales.invoice.tab.drafts": { ar: "مسودات", en: "Drafts" },
+  "sales.invoice.tab.issued": { ar: "صادرة", en: "Issued" },
+  "sales.invoice.tab.aging": { ar: "أعمار الديون", en: "Receivables Aging" },
+  // Status labels
+  "sales.invoice.draft": { ar: "مسودة", en: "Draft" },
+  "sales.invoice.issued": { ar: "صادرة", en: "Issued" },
+  "sales.invoice.voided": { ar: "ملغية", en: "Void" },
+  // Empty states
+  "sales.invoice.all_invoiced": { ar: "كل الأوردرات اللي خرجت اتفوترت", en: "All shipped orders are invoiced" },
+  "sales.invoice.no_invoices": { ar: "مفيش فواتير", en: "No invoices" },
+  "sales.invoice.no_debtors": { ar: "مفيش مديونيات مفتوحة", en: "No open debts" },
+  // Form field labels
+  "sales.invoice.issue_date_label": { ar: "تاريخ الإصدار", en: "Issue Date" },
+  "sales.invoice.due_until": { ar: "حتى تاريخ", en: "As of Date" },
+  "sales.invoice.reason_label": { ar: "السبب (مطلوب): مرتجع، مرفوض عند الاستلام، نقص…", en: "Reason (required): returned, refused on delivery, shortage…" },
+  "sales.invoice.draft_reason_placeholder": { ar: "سبب إلغاء المسودة", en: "Reason for voiding the draft" },
+  "sales.invoice.quantity_to_deduct": { ar: "كمية تتخصم (من ${qty})", en: "Qty to deduct (from ${qty})" },
+  // Summary labels
+  "sales.invoice.net": { ar: "الصافي", en: "Net" },
+  "sales.invoice.tax": { ar: "الضريبة", en: "Tax" },
+  "sales.invoice.gross": { ar: "الإجمالي", en: "Gross" },
+  "sales.invoice.open_amount_label": { ar: "مفتوح", en: "Open" },
+  "sales.invoice.credited_notifications": { ar: "إشعارات دائنة", en: "Credit Notes" },
+  // Actions / Buttons
+  "sales.invoice.create": { ar: "عمل فاتورة", en: "Create Invoice" },
+  "sales.invoice.print": { ar: "طباعة", en: "Print" },
+  "sales.invoice.issue_now": { ar: "إصدار الفاتورة", en: "Issue Invoice" },
+  "sales.invoice.toast_issued": { ar: "الفاتورة صدرت", en: "Invoice issued" },
+  "sales.invoice.void_draft": { ar: "إلغاء المسودة", en: "Void Draft" },
+  "sales.invoice.to_credit_by_qty": { ar: "إشعار بالكميات المكتوبة", en: "Credit note by listed quantities" },
+  "sales.invoice.toast_credited": { ar: "اتعمل الإشعار", en: "Credit note created" },
+  "sales.invoice.deduct_full": { ar: "خصم باقي الفاتورة كلها", en: "Deduct full remaining amount" },
+  "sales.invoice.toast_full_deduct": { ar: "اتخصمت الفاتورة كلها", en: "Full amount deducted" },
+  // Invoice detail strings
+  "sales.invoice.draft_number": { ar: "مسودة فاتورة", en: "Draft Invoice" },
+  "sales.invoice.due_date_text": { ar: " · استحقاق ", en: " · Due " },
+  "sales.invoice.is_deducted_text": { ar: "اتخصم ", en: "Deducted " },
+  // Credit note / management section
+  "sales.invoice.restock_checkbox": { ar: "البضاعة رجعت فعلًا — دخّلها المخزن (الحجر)", en: "Goods actually returned — put them back in stock (quarantine)" },
+  // Aging columns
+  "sales.invoice.age.current": { ar: "لسه", en: "Current" },
+  "sales.invoice.age.total": { ar: "الإجمالي", en: "Total" },
+  // Customer Statement headers
+  "sales.invoice.statement_title": { ar: "كشف الحساب", en: "Account Statement" },
+  "sales.invoice.stmt.date": { ar: "التاريخ", en: "Date" },
+  "sales.invoice.stmt.document": { ar: "المستند", en: "Document" },
+  "sales.invoice.stmt.debit": { ar: "مدين", en: "Debit" },
+  "sales.invoice.stmt.credit": { ar: "دائن", en: "Credit" },
+  "sales.invoice.stmt.balance": { ar: "الرصيد", en: "Balance" },
+  "sales.invoice.stmt.opening_balance": { ar: "رصيد أول المدة", en: "Opening Balance" },
+  "sales.invoice.stmt.closing_balance": { ar: "الرصيد", en: "Closing Balance" },
+  // Misc inline strings
+  "sales.invoice.customer_not_mapped": { ar: "العميل مش مربوط", en: "Customer not mapped" },
+  "sales.invoice.error_generic": { ar: "حصل خطأ", en: "An error occurred" },
+  "sales.invoice.invoice_number_placeholder": { ar: "مسودة", en: "Draft" },
+  "sales.invoice.tax_id_prefix": { ar: "ر.ض ", en: "TAX " },
+
+  // ─── Quotations (Sales) ────────────────────────────────────────────────
+  "sales.quotation.title": { ar: "عروض السعر", en: "Quotations" },
+  "sales.quotation.convert": { ar: "تحويل لأوردر", en: "Convert to Order" },
+  // Tabs
+  "sales.quotation.tab.all": { ar: "الكل", en: "All" },
+  "sales.quotation.tab.drafts": { ar: "مسودات", en: "Drafts" },
+  "sales.quotation.tab.sent": { ar: "مبعوتة", en: "Sent" },
+  "sales.quotation.tab.accepted": { ar: "مقبولة", en: "Accepted" },
+  "sales.quotation.tab.expired": { ar: "منتهية", en: "Expired" },
+  // New quotation button
+  "sales.quotation.new-btn": { ar: "+ عرض سعر", en: "+ Quote" },
+  // Empty state
+  "sales.quotation.empty": { ar: "مفيش عروض أسعار", en: "No quotations" },
+  // List item labels
+  "sales.quotation.line-count": { ar: "سطر", en: "lines" },
+  "sales.quotation.valid-until-label": { ar: "صالح لحد", en: "Valid until" },
+  "sales.quotation.expired-badge": { ar: "انتهت صلاحيته", en: "Expired" },
+  // Status labels
+  "sales.quotation.status.draft": { ar: "مسودة", en: "Draft" },
+  "sales.quotation.status.sent": { ar: "اتبعت", en: "Sent" },
+  "sales.quotation.status.accepted": { ar: "اتقبل", en: "Accepted" },
+  "sales.quotation.status.rejected": { ar: "اترفض", en: "Rejected" },
+  "sales.quotation.status.converted": { ar: "بقى أوردر", en: "Converted" },
+  "sales.quotation.status.cancelled": { ar: "اتلغى", en: "Cancelled" },
+  // Error
+  "sales.quotation.error-generic": { ar: "حصل خطأ", en: "An error occurred" },
+  // New Quotation form
+  "sales.quotation.new-title": { ar: "عرض سعر جديد", en: "New Quote" },
+  "sales.quotation.btn-back": { ar: "رجوع", en: "Back" },
+  "sales.quotation.customer-label": { ar: "العميل", en: "Customer" },
+  "sales.quotation.customer-placeholder": { ar: "اختار العميل", en: "Select customer" },
+  "sales.quotation.delivery-label": { ar: "تاريخ التسليم (الأسعار على أساسه)", en: "Delivery date (prices based on)" },
+  "sales.quotation.validity-label": { ar: "صالح لحد (فاضي = الافتراضي)", en: "Valid until (empty = default)" },
+  "sales.quotation.product-label": { ar: "الصنف", en: "Product" },
+  "sales.quotation.qty-placeholder": { ar: "الكمية", en: "Quantity" },
+  "sales.quotation.unit-default": { ar: "الوحدة", en: "Unit" },
+  "sales.quotation.price-placeholder": { ar: "السعر (فاضي = القائمة)", en: "Price (empty = list)" },
+  "sales.quotation.add-line-btn": { ar: "+ سطر", en: "+ Line" },
+  "sales.quotation.notes-placeholder": { ar: "ملاحظات للعميل", en: "Notes for customer" },
+  "sales.quotation.saving-text": { ar: "بيتسجل...", en: "Saving..." },
+  "sales.quotation.save-draft-btn": { ar: "حفظ كمسودة", en: "Save as draft" },
+  // Success toast
+  "sales.quotation.toast-created": { ar: "اتعمل", en: "Created" },
+  "sales.quotation.toast-order-created": { ar: "اتعمل الأوردر", en: "Order created" },
+  // Detail view
+  "sales.quotation.detail-heading": { ar: "التفاصيل", en: "Detail" },
+  "sales.quotation.discount-suffix": { ar: "− {pct}%", en: "− {pct}%" },
+  "sales.quotation.tax-prefix": { ar: "+ ض", en: "+ VAT" },
+  "sales.quotation.price-source.list": { ar: "قائمة", en: "List" },
+  "sales.quotation.price-source.manual": { ar: "يدوي", en: "Manual" },
+  "sales.quotation.grand-total-label": { ar: "الإجمالي (ضريبة {tax})", en: "Total (tax {tax})" },
+  "sales.quotation.decision-note": { ar: "ملاحظة: {note}", en: "Note: {note}" },
+  "sales.quotation.order-link": { ar: "الأوردر {number}", en: "Order {number}" },
+  // Actions
+  "sales.quotation.action-send": { ar: "اتبعث للعميل", en: "Send to customer" },
+  "sales.quotation.action-accept": { ar: "العميل وافق", en: "Customer accepted" },
+  "sales.quotation.action.reject": { ar: "العميل رفض", en: "Customer rejected" },
+  "sales.quotation.action.convert": { ar: "حوّله لأوردر", en: "Convert to order" },
+  "sales.quotation.action.cancel": { ar: "إلغاء العرض", en: "Cancel quote" },
+  "sales.quotation.note-placeholder": { ar: "ملاحظة / سبب (مطلوب للرفض والإلغاء)", en: "Note / reason (required for reject/cancel)" },
+
+  "sales.order.new": { ar: "أوردر جديد", en: "New Order" },
+
+  // Section headers & UI labels
+  "sales.section.data": { ar: "البيانات", en: "Data" },
+  "sales.tab.prices-label": { ar: "الأسعار", en: "Prices" },
+  "sales.button.save-link": { ar: "حفظ الربط", en: "Save Link" },
+  "sales.placeholder.price-list-reason": { ar: "سبب تغيير قائمة أسعار العميل؟", en: "Reason for changing customer's price list?" },
+  "sales.info.unpriced-default": { ar: "الأصناف اللي مش في قائمته بتتسعّر من القائمة الافتراضية.", en: "Items not in his list get priced from the default list." },
+  "sales.label.payment-cash": { ar: "كاش", en: "Cash" },
+  "sales.label.orders": { ar: "أوردر", en: "orders" },
+  "sales.label.on-hold": { ar: "موقوف آجل", en: "Credit held" },
+  "sales.label.inactive": { ar: "موقوف", en: "Inactive" },
+  "sales.form.saving": { ar: "جاري الحفظ…", en: "Saving…" },
+  "sales.empty.no-customers": { ar: "مفيش عملاء", en: "No customers" },
+  "sales.empty.all-mapped": { ar: "كل أسماء العملاء في الأوردرات مربوطة", en: "All customer names in orders are linked" },
+  "sales.heading.unmapped-desc": { ar: "الأسماء دي جت في أوردرات ومش مطابقة لأي عميل. اختار العميل الصح: الاسم بيتسجل كاسم بديل والأوردرات بتترِبط.", en: "These names appeared in orders but don't match any customer. Select the correct one: the name will be saved as an alias and orders will be linked." },
+  "sales.select.placeholder": { ar: "اختار العميل", en: "Select customer" },
+  "sales.placeholder.customer-search": { ar: "اسم، كود، تليفون، مجموعة", en: "Name, code, phone, group" },
+  "sales.toast.added": { ar: "اتضاف", en: "Added" },
+  "sales.toast.saved": { ar: "اتحفظ", en: "Saved" },
+  "sales.toast.linked": { ar: "اتربط", en: "Linked" },
+  "sales.button.link": { ar: "ربط", en: "Link" },
+  "sales.field.reason": { ar: "سبب التغيير (مطلوب)", en: "Reason (required)" },
+  "sales.exposure.open-orders": { ar: "أوردرات مفتوحة", en: "Open orders" },
+  "sales.exposure.receivable": { ar: "مديونية", en: "Receivables" },
+  "sales.exposure.available": { ar: "المتاح من الحد", en: "Available from limit" },
+  "sales.exposure.unpriced": { ar: "سطر من غير سعر مش محسوب", en: "unpriced line(s) not calculated" },
+  "sales.credit-working": { ar: "شغال", en: "Working" },
+  "sales.credit-not-set": { ar: "مش متحدد", en: "Not set" },
+  "sales.placeholder.alias": { ar: "اسم تاني بيتكتب بيه (مثلاً: فندق النيل)", en: "Another name it's written with (e.g., Nile Hotel)" },
+  "sales.aliases-known": { ar: "الأسماء اللي بيتعرف بيها في الأوردرات", en: "Names the customer is known by in orders" },
+  "contacts-heading": { ar: "جهات الاتصال", en: "Contacts" },
+  "placeholder-contact-name": { ar: "الاسم", en: "Name" },
+  "placeholder-contact-role": { ar: "الوظيفة", en: "Role" },
+  "placeholder-contact-phone": { ar: "التليفون", en: "Phone" },
+  "label-primary": { ar: "الأساسي", en: "Primary" },
+  "button-add-contact": { ar: "إضافة جهة اتصال", en: "Add contact" },
+  "heading-recent-orders": { ar: "آخر الأوردرات", en: "Recent Orders" },
+  "empty-recent-orders": { ar: "مفيش أوردرات مربوطة.", en: "No orders linked." },
+  "heading-audit-log": { ar: "السجل", en: "Audit Log" },
+  "section-invoices": { ar: "الفواتير", en: "Invoices" },
+  "sales.group-label": { ar: "المجموعات التجارية (علامات)", en: "Trade groups (labels)" },
+  "sales.legal-entity.none": { ar: "لا يوجد كيان قانوني ولا رقم ضريبي — الفوترة هتتطلب متابعة قبل إصدار الفاتورة الإلكترونية.", en: "No legal entity or tax number — invoicing will require follow-up before e-invoice generation." },
+  "sales.option.no-entity": { ar: "الفندق نفسه / مش محدد", en: "Hotel itself / Not specified" },
+  "sales.option.no-tax": { ar: "بدون رقم", en: "No number" },
+  "sales.holding-toggle": { ar: "إيقاف الآجل", en: "Credit hold" },
+  "sales.update-credit-button": { ar: "حفظ شروط الدفع", en: "Save payment terms" },
+
+  // Additional section headers & buttons
+  "sales.section.group-legal": { ar: "المجموعة والكيان القانوني", en: "Group & Legal Entity" },
+  "sales.label.payment-terms-prefix": { ar: "آجل", en: "Credit" },
+  "sales.label.day": { ar: "يوم", en: "days" },
+  "sales.button.hold-customer": { ar: "إيقاف العميل", en: "Suspend Customer" },
+  "sales.button.activate-customer": { ar: "تفعيل العميل", en: "Activate Customer" },
+  "sales.legal-no-tax": { ar: "بدون رقم ضريبي", en: "No tax number" },
+  "sales.invoice-by-hotel": { ar: "الفوترة باسم الفندق · TAX", en: "Invoiced under hotel · TAX" },
+  "sales.legal-entity-label": { ar: "الكيان القانوني للفوترة (صاحب الرقم الضريبي)", en: "Legal entity for invoicing (tax owner)" },
+  "sales.credit-heading": { ar: "الدفع والائتمان", en: "Payment & Credit" },
+  "sales.credit-terms-field": { ar: "مدة السداد (يوم، 0 = كاش)", en: "Payment terms (days, 0 = cash)" },
+  "sales.credit-limit-field": { ar: "حد الائتمان (ج.م، فاضي = مش متحدد)", en: "Credit limit (EGP, empty = unset)" },
+  "sales.default-price-list": { ar: "القائمة الافتراضية", en: "Default list" },
+
+  // fail() generic error (already covered by ui.error → get mapped)
+  // Form-specific
+  "ui.save": { ar: "حفظ", en: "Save" },
+} as const;
+
+// ─── Stock / Inventory ──────────────────────────────────────────────────
+const stock = {
+  "stock.title": { ar: "المخزون", en: "Stock" },
+  "stock.dashboard": { ar: "لوحة المخزون", en: "Stock Dashboard" },
+  "stock.intake": { ar: "استلام", en: "Receive" },
+  "stock.intake-form": { ar: "تسجيل استلام", en: "Record Receipt" },
+  "stock.quick-intake": { ar: "استلام سريع", en: "Quick Receipt" },
+  "stock.intake.list": { ar: "الاستلامات", en: "Receiving Log" },
+  "stock.inventory": { ar: "إدارة المخزون", en: "Inventory" },
+  "stock.ledger": { ar: "سجل الحركات", en: "Movement Ledger" },
+  "stock.setup": { ar: "دليل الأصناف", en: "Product Catalog" },
+  "stock.products": { ar: "الأصناف", en: "Products" },
+  "stock.suppliers": { ar: "الموردين", en: "Suppliers" },
+  "stock.coverage": { ar: "تغطية المخزون", en: "Stock Coverage" },
+  "stock.movements": { ar: "الحركات", en: "Movements" },
+  "stock.transfers": { ar: "التحويلات", en: "Transfers" },
+  "stock.adjustments": { ar: "التسويات", en: "Adjustments" },
+  "stock.scrap": { ar: "تالف / إعدام", en: "Scrap" },
+  "stock.location": { ar: "المكان", en: "Location" },
+  "stock.locations": { ar: "الأماكن", en: "Locations" },
+  "stock.bin": { ar: "الخانة", en: "Bin" },
+  "stock.product": { ar: "الصنف", en: "Product" },
+  "stock.qty": { ar: "الكمية", en: "Quantity" },
+  "stock.unit": { ar: "الوحدة", en: "Unit" },
+  "stock.on-hand": { ar: "المتاح", en: "On Hand" },
+  "stock.reserved": { ar: "محجوز", en: "Reserved" },
+  "stock.available": { ar: "الصافي", en: "Available" },
+  "stock.unit-cost": { ar: "متوسط التكلفة", en: "Avg. Cost" },
+  "stock.total-value": { ar: "إجمالي القيمة", en: "Total Value" },
+  "stock.date": { ar: "تاريخ الاستلام", en: "Receipt Date" },
+  "stock.expiry": { ar: "تاريخ الصلاحية", en: "Expiry Date" },
+  "stock.lot": { ar: "الدفعة", en: "Lot" },
+  "stock.supplier": { ar: "المورد", en: "Supplier" },
+  "stock.crates": { ar: "الكراتين", en: "Crates" },
+  "stock.notes": { ar: "ملاحظات", en: "Notes" },
+  "stock.yield": { ar: "الإنتاجية", en: "Yield" },
+  "stock.grade": { ar: "الفرز", en: "Grading" },
+  "stock.grade-b": { ar: "فرزة", en: "Grade B" },
+  "stock.waste": { ar: "هالك", en: "Waste" },
+  "stock.rejection-reason": { ar: "سبب الرفض", en: "Rejection Reason" },
+  "stock.more-details": { ar: "تفاصيل إضافية", en: "More Details" },
+  "stock.received": { ar: "المستلم", en: "Received" },
+  "stock.rejected": { ar: "المرفوض", en: "Rejected" },
+  "stock.yield-value": { ar: "الإنتاجية {pct}", en: "Yield {pct}" },
+  "stock.good": { ar: "جيد", en: "Good" },
+  "stock.needs-attention": { ar: "محتاج متابعة", en: "Needs Attention" },
+  "stock.expired": { ar: "منتهي الصلاحية", en: "Expired" },
+
+  "stock.movement.intake": { ar: "استلام", en: "Intake" },
+  "stock.movement.intake_correction": { ar: "تصحيح استلام", en: "Intake Correction" },
+  "stock.movement.intake_void": { ar: "إلغاء استلام", en: "Intake Void" },
+  "stock.movement.adjustment": { ar: "تسوية يدوية", en: "Manual Adjustment" },
+  "stock.movement.transfer_out": { ar: "تحويل (خروج)", en: "Transfer (Out)" },
+  "stock.movement.transfer_in": { ar: "تحويل (دخول)", en: "Transfer (In)" },
+  "stock.movement.issue": { ar: "صرف", en: "Issue" },
+  "stock.movement.customer_return": { ar: "مرتجع من عميل", en: "Customer Return" },
+  "stock.movement.supplier_return": { ar: "مرتجع لمورد", en: "Supplier Return" },
+  "stock.movement.scrap": { ar: "تالف / إعدام", en: "Scrap" },
+  "stock.movement.sorting_out": { ar: "فرز (خروج)", en: "Sorting (Out)" },
+  "stock.movement.sorting_in": { ar: "فرز (دخول)", en: "Sorting (In)" },
+  "stock.movement.release_out": { ar: "إفراج محجوز (خروج)", en: "Release Reserved (Out)" },
+  "stock.movement.release_in": { ar: "إفراج محجوز (دخول)", en: "Release Reserved (In)" },
+
+  "stock.audit.supplier_created": { ar: "إضافة مورد", en: "Supplier Created" },
+  "stock.audit.supplier_updated": { ar: "تعديل مورد", en: "Supplier Updated" },
+  "stock.audit.supplier_activated": { ar: "تفعيل المورد", en: "Supplier Activated" },
+  "stock.audit.supplier_deactivated": { ar: "إيقاف المورد", en: "Supplier Deactivated" },
+  "stock.audit.product_created": { ar: "إضافة صنف للدليل", en: "Product Added to Catalog" },
+  "stock.audit.product_updated": { ar: "تعديل بيانات صنف", en: "Product Updated" },
+  "stock.audit.product_activated": { ar: "تفعيل صنف", en: "Product Activated" },
+  "stock.audit.product_deactivated": { ar: "إيقاف صنف", en: "Product Deactivated" },
+  "stock.audit.alias_added": { ar: "إضافة اسم بديل", en: "Alias Added" },
+  "stock.audit.alias_removed": { ar: "حذف اسم بديل", en: "Alias Removed" },
+  "stock.audit.order_product_mapped": { ar: "ربط اسم أوردر بصنف", en: "Order Name Mapped to Product" },
+  "stock.audit.order_product_unmapped": { ar: "فك ربط اسم أوردر", en: "Order Name Unmapped" },
+  "stock.audit.intake_created": { ar: "تسجيل استلام", en: "Intake Recorded" },
+  "stock.audit.intake_updated": { ar: "تعديل استلام", en: "Intake Updated" },
+  "stock.audit.intake_voided": { ar: "إلغاء استلام", en: "Intake Voided" },
+  "stock.audit.adjustment_created": { ar: "تسوية مخزون", en: "Stock Adjustment" },
+  "stock.audit.adjustment_requested": { ar: "تسوية مستنية موافقة", en: "Adjustment Pending Approval" },
+  "stock.audit.adjustment_rejected": { ar: "تسوية اترفضت", en: "Adjustment Rejected" },
+  "stock.audit.transfer_posted": { ar: "تحويل بين أماكن", en: "Location Transfer" },
+  "stock.audit.scrap_posted": { ar: "تالف / إعدام", en: "Scrap" },
+  "stock.audit.customer_return_posted": { ar: "مرتجع من عميل", en: "Customer Return" },
+  "stock.audit.supplier_return_posted": { ar: "مرتجع لمورد", en: "Supplier Return" },
+  "stock.audit.issue_posted": { ar: "صرف مخزون", en: "Stock Issue" },
+  "stock.audit.document_reversed": { ar: "إلغاء مستند مخزون", en: "Stock Document Reversed" },
+  "stock.audit.stock_reserved": { ar: "حجز مخزون", en: "Stock Reserved" },
+  "stock.audit.reservation_released": { ar: "فك حجز", en: "Reservation Released" },
+  "stock.audit.packaging_saved": { ar: "تعبئة صنف", en: "Product Packaging" },
+  "stock.audit.lot_updated": { ar: "تعديل دفعة", en: "Lot Updated" },
+
+  // QuickIntakeForm — validation messages
+  "stock.required-supplier": { ar: "اختار المورد", en: "Choose a supplier" },
+  "stock.required-product": { ar: "اختار الصنف", en: "Choose a product" },
+  "stock.enter-received-qty": { ar: "دخّل الكمية المستلمة", en: "Enter received quantity" },
+  "stock.sorting-qty-positive": { ar: "كمية الفرز لازم تكون رقم موجب", en: "Sorting quantity must be a positive number" },
+  "stock.rejected-too-high": { ar: "المرفوض مينفعش يكون أكبر من المستلم", en: "Rejected can't exceed received" },
+  "stock.split-quantities-positive": { ar: "كميات الفرزة والهالك لازم تكون أرقام موجبة", en: "Grade B and waste quantities must be positive numbers" },
+  "stock.split-exceeds-received": { ar: "مرفوض + فرزة + هالك أكبر من المستلم", en: "Rejected + Grade B + Waste can't exceed received" },
+
+  // QuickIntakeForm — UI text
+  "stock.logged": { ar: "اتسجل", en: "Recorded" },
+  "stock.error-generic": { ar: "حصل خطأ", en: "An error occurred" },
+  "stock.setup-all": { ar: "لازم تضيف الموردين والأصناف الأول.", en: "You need to add suppliers and products first." },
+  "stock.setup-suppliers-first": { ar: "لازم تضيف الموردين الأول.", en: "You need to add suppliers first." },
+  "stock.setup-products-first": { ar: "لازم تضيف الأصناف الأول.", en: "You need to add products first." },
+  "stock.setup-link": { ar: "الموردين والأصناف", en: "Suppliers & Products" },
+  "stock.page-title": { ar: "مخزون النهارده", en: "Today's Stock" },
+  "stock.nav-intake-list": { ar: "الاستلامات", en: "Receiving Log" },
+  "stock.nav-ledger": { ar: "سجل الحركات", en: "Movement Ledger" },
+  "stock.nav-suppliers-products": { ar: "الموردين والأصناف", en: "Suppliers & Products" },
+  "stock.stat-today-received": { ar: "مستلم النهارده", en: "Received Today" },
+  "stock.unit-kg": { ar: "كجم", en: "kg" },
+  "stock.stat-intake-count": { ar: "استلام", en: "Receipt" },
+  "stock.stat-net-good": { ar: "صافي صالح", en: "Net Good" },
+  "stock.stat-sort-rejected": { ar: "فرز / مرفوض", en: "Sort / Rejected" },
+  "stock.stat-yield-pct": { ar: "نسبة التصافي", en: "Yield %" },
+  "stock.stat-crates": { ar: "قفص", en: "Crates" },
+  "stock.current-balance-title": { ar: "الرصيد الحالي", en: "Current Balance" },
+  "stock.balance-explanation": { ar: "الرصيد محسوب من سجل الحركات نفسه — مفيش رقم مخزون متخزّن يتظبط بالإيد.", en: "Balance is calculated from the movement log itself — no pre-stored inventory figure gets adjusted manually." },
+  "stock.products-today-title": { ar: "أصناف النهارده", en: "Today's Products" },
+  "stock.empty-no-stock-recorded": { ar: "مفيش رصيد مسجل لحد دلوقتي", en: "No stock recorded yet" },
+  "stock.suspended-badge": { ar: "(موقوف)", en: "(Suspended)" },
+  "stock.last-movements-title": { ar: "آخر الحركات", en: "Recent Movements" },
+  "stock.full-ledger-link": { ar: "السجل كامل ←", en: "← Full ledger" },
+  "stock.empty-no-movements-yet": { ar: "مفيش حركات لسه", en: "No movements yet" },
+  "stock.period-last-7days": { ar: "آخر ٧ أيام", en: "Last 7 days" },
+  "stock.period-this-month": { ar: "الشهر ده", en: "This month" },
+  "stock.supplier-perf-title": { ar: "أداء الموردين", en: "Supplier Performance" },
+  "stock.empty-no-supplies-month": { ar: "مفيش توريدات مسجلة الشهر ده", en: "No supplies recorded this month" },
+  "stock.supplier-delivery-unit": { ar: "توريد", en: "Delivery" },
+  "stock.supplier-received-unit": { ar: "كجم مستلم", en: "kg received" },
+  "stock.supplier-rejected-unit": { ar: "كجم مرفوض", en: "kg rejected" },
+  "stock.supplier-perf-note": { ar: "الأرقام دي من التوريدات المسجلة فعلاً بس — مفيش تقدير ولا ترتيب مصنوع.", en: "These figures are from actually recorded deliveries only — no estimates or artificial ranking." },
+  "stock.stat-label-received": { ar: "مستلم", en: "Received" },
+  "stock.stat-label-good": { ar: "صالح", en: "Good" },
+  "stock.stat-label-rejected": { ar: "مرفوض", en: "Rejected" },
+  "stock.on-order": { ar: "على أمر شراء؟", en: "Against a purchase order?" },
+  "stock.no-order": { ar: "من غير أمر", en: "Without order" },
+  "stock.packaging-unit": { ar: "بالـ {unit}", en: "In {unit}" },
+  "stock.packaging-in": { ar: "بالـ", en: "In" },
+  "stock.crates-count": { ar: "عدد الأقفاص", en: "Number of Crates" },
+  "stock.received-k": { ar: "المستلم (كجم)", en: "Received (kg)" },
+  "stock.rejected-sort-k": { ar: "فرز / مرفوض (كجم)", en: "Sort / Rejected (kg)" },
+  "stock.grade-b-desc-k": { ar: "فرزة / ثاني درجة (كجم)", en: "Grade B / Second grade (kg)" },
+  "stock.waste-k": { ar: "هالك (كجم)", en: "Waste (kg)" },
+  "stock.good-output-k": { ar: "صافي صالح (كجم)", en: "Net Good (kg)" },
+  "stock.yield-percentage": { ar: "نسبة التصافي", en: "Yield %" },
+  "stock.more-details-btn": { ar: "المكان، الصلاحية، السعر", en: "Location, Expiry, Price" },
+  "stock.hide-details": { ar: "إخفاء التفاصيل", en: "Hide Details" },
+  "stock.location-default": { ar: "اتحط فين (افتراضي: منطقة الاستلام)", en: "Where to store (default: receiving area)" },
+  "stock.receive-area": { ar: "منطقة الاستلام", en: "Receiving Area" },
+  "stock.expiry-default": { ar: "تاريخ الانتهاء (افتراضي: من مدة صلاحية الصنف)", en: "Expiry date (default: from product shelf life)" },
+  "stock.record-intake": { ar: "سجّل الاستلام", en: "Record Receipt" },
+  "stock.saving": { ar: "بيتسجل...", en: "Saving..." },
+  "stock.choose": { ar: "— اختار —", en: "— Choose —" },
+  "stock.grade-b-product-hint": { ar: "صنف الفُرزة (اختياري — لو متركش بيتبقى على نفس الصنف)", en: "Grade B product (optional — if left blank stays on same product)" },
+  "stock.grade-b-same-product": { ar: "— نفس الصنف (الوضع القديم) —", en: "— Same product (legacy mode) —" },
+  "stock.rejection-reason-placeholder": { ar: "سبب الفرز / الرفض (جودة، تلف، مقاس...)", en: "Sort/reject reason (quality, damage, size...)" },
+  "stock.notes-input": { ar: "ملاحظات (اختياري)", en: "Notes (optional)" },
+  "stock.unit-cost-field-label": { ar: "سعر الوحدة (ج.م / {unit})", en: "Unit cost ({currency} / {unit})" },
+
+  // GradingForm — فرز screen labels & messages
+  "stock.movement.sorting_out_label": { ar: "خارج الفرز", en: "Sorting Out" },
+  "stock.movement.sorting_in_label": { ar: "داخل الفرز", en: "Sorting In" },
+  "stock.cost-basis.proportional": { ar: "تناسبية (بالوزن)", en: "Proportional (by weight)" },
+  "stock.cost-basis.nrv": { ar: "صافي القيمة البيعية (NRV)", en: "Net Realizable Value (NRV)" },
+  "stock.cost-basis.nrv_fallback_proportional": { ar: "تناسبية — احتياطي (أسعار غير متاحة)", en: "Proportional — fallback (prices unavailable)" },
+  "stock.grading.record-toast-replayed": { ar: "الفرز ده اتعمل قبل كده — نفس المستند", en: "This grading was already posted — same document" },
+  "stock.grading.record-toast-success": { ar: "اتسجل الفرز", en: "Grading recorded" },
+  "stock.grading.total-input": { ar: "إجمالي الفرز", en: "Total Sorting" },
+  "stock.grading.total-input-hint": { ar: "الكمية المفرزة", en: "Sorted quantity" },
+  "stock.grading.good": { ar: "ممتاز (أ)", en: "Excellent (A)" },
+  "stock.grading.good-hint": { ar: "الفرز الممتاز", en: "Premium grading" },
+  "stock.grading.grade-b": { ar: "فرزة (ب)", en: "Grade B" },
+  "stock.grading.grade-b-hint": { ar: "ثاني درجة", en: "Second grade" },
+  "stock.grading.waste-hint": { ar: "توالف", en: "Waste" },
+  "stock.grading.reason-placeholder": { ar: "سبب الفرز (إجباري)", en: "Sort reason (required)" },
+  "stock.conservation.equal": { ar: "✓ متساوي", en: "✓ Balanced" },
+  "stock.conservation.diff": { ar: "الفرق", en: "Difference" },
+  "stock.submit.saving": { ar: "بيتسجل…", en: "Saving…" },
+  "stock.submit.label": { ar: "تسجيل الفرز", en: "Post Grading" },
+  "stock.result.recorded": { ar: "اتسجل الفرز ✓", en: "Grading Recorded ✓" },
+  "stock.result.yield": { ar: "تصافي", en: "Yield" },
+  "stock.close": { ar: "إغلاق", en: "Close" },
+
+  // ProductForm — header & buttons
+  "stock.form-new-title": { ar: "صنف جديد", en: "New Product" },
+  "stock.btn-add": { ar: "إضافة", en: "Add" },
+  "stock.btn-saving": { ar: "بيتسجل…", en: "Saving…" },
+
+  // ProductForm — labels
+  "stock.field-name-en": { ar: "الاسم الإنجليزي (رسمي)", en: "English name (official)" },
+  "stock.field-name-ar": { ar: "الاسم العربي", en: "Arabic name" },
+  "stock.field-sku": { ar: "كود داخلي (اختياري)", en: "Internal code (optional)" },
+  "stock.field-category": { ar: "التصنيف (اختياري)", en: "Category (optional)" },
+  "stock.field-unit": { ar: "الوحدة الأساسية", en: "Base unit" },
+  "stock.field-track-stock": { ar: "بيتتبع مخزونه", en: "Track inventory" },
+
+  // ProductForm — validation warning
+  "stock.warning-unit-required": {
+    ar: "الصنف اللي بيتتبع مخزونه لازم يكون له وحدة — مفيش افتراض تلقائي.",
+    en: "Stock-tracked items must have a unit — no default value.",
+  },
+
+  // Empty state
+  "stock.empty-catalog": {
+    ar: "الدليل فاضي — ابدأ بإضافة الأصناف اللي الشركة بتتعامل بيها",
+    en: "Product catalog is empty — start by adding products your company trades with",
+  },
+
+  // Button: create product
+  "stock.btn-create-product": { ar: "+ صنف جديد", en: "+ New Product" },
+
+  // Status badges
+  "stock.badge-suspended": { ar: "موقوف", en: "Suspended" },
+  "stock.badge-no-tracking": { ar: "مش بيتتبع مخزونه", en: "Not tracked" },
+
+  // Displayed field labels
+  "stock.label-unit": { ar: "الوحدة:", en: "Unit:" },
+  "stock.label-code": { ar: "كود:", en: "Code:" },
+  "stock.label-order-lines": { ar: "سطر أوردر", en: "order lines" },
+
+  // Alias toggle button
+  "stock.action-toggle-aliases": { ar: "الأسماء البديلة ({n})", en: "Aliases ({n})" },
+  "stock.action-hide": { ar: "إخفاء", en: "Hide" },
+
+  // Alias section explanation
+  "stock.alias-explanation": {
+    ar: "أي اسم من دول بيوصل للصنف ده بالظبط. المطابقة حرفية بعد توحيد الشكل — مش تقريبية.",
+    en: "Any of these names resolves exactly to this product. Matching is exact after normalization — not fuzzy.",
+  },
+  "stock.alias-kind-primary": { ar: "اسم أساسي", en: "Primary name" },
+
+  // Toast messages for alias actions
+  "stock.toast-alias-removed": { ar: "اتشال الاسم البديل", en: "Alias removed" },
+  "stock.toast-alias-added": { ar: "اتضاف الاسم البديل", en: "Alias added" },
+
+  // Placeholder text
+  "stock.placeholder-alias": { ar: "اسم بديل (عربي أو إنجليزي)", en: "Alias (Arabic or English)" },
+
+  // Product card actions (toggle active)
+  "stock.btn-deactivate": { ar: "إيقاف", en: "Deactivate" },
+  "stock.btn-activate": { ar: "تفعيل", en: "Activate" },
+  "stock.deactivate-confirm": {
+    ar: "متأكد توقف صنف \"{name}\"؟ مش هيتقدر يتسجل عليه استلام لحد ما يتفعل تاني.",
+    en: "Are you sure you want to deactivate \"{name}\"? No receipts will be accepted until reactivated.",
+  },
+  "stock.activate-confirm": {
+    ar: "متأكد تفعّل صنف \"{name}\"؟",
+    en: "Are you sure you want to activate \"{name}\"?",
+  },
+  "stock.toast-deactivated": { ar: "اتوقف الصنف", en: "Product deactivated" },
+  "stock.toast-activated": { ar: "اتفعّل الصنف", en: "Product activated" },
+
+  // Toast: product created
+  "stock.toast-created": { ar: "اتضاف الصنف {name}", en: "{name} added" },
+
+  // ─── MoveForms: stock movement forms ──────────────────────────────────────
+  "stock.move-tab.transfer": { ar: "تحويل بين أماكن", en: "Transfer between locations" },
+  "stock.move-tab.count": { ar: "جرد / تسوية", en: "Count / Adjust" },
+  "stock.move-tab.scrap": { ar: "هالك", en: "Scrap" },
+  "stock.move-tab.return-customer": { ar: "مرتجع من عميل", en: "Return from customer" },
+  "stock.move-tab.return-supplier": { ar: "مرتجع لمورد", en: "Return to supplier" },
+  "stock.move-no-access": { ar: "مالكش صلاحية تسجل حركات مخزون.", en: "You don't have permission to record stock movements." },
+  "stock.move-error-generic": { ar: "حصل خطأ", en: "An error occurred" },
+  "stock.move-qrcode": { ar: "الكمية", en: "Quantity" },
+  "stock.move-validation-fill-data": { ar: "كمّل البيانات: الصنف، من، إلى، والكمية", en: "Fill in the data: product, from, to, and quantity" },
+  "stock.move-sending": { ar: "بيتسجل...", en: "Saving..." },
+  "stock.move-btn-save-transfer": { ar: "سجّل التحويل", en: "Record Transfer" },
+  "stock.move-validation-item-qty": { ar: "اختار الصنف واكتب الكمية", en: "Select the item and enter the quantity" },
+  "stock.move-validation-count-location": { ar: "الجرد لازم يحدد المكان", en: "Stock count must specify a location" },
+  "stock.move-validation-adjustment-reason": { ar: "اكتب سبب التسوية", en: "Enter the adjustment reason" },
+  "stock.move-adjustment-counted": { ar: "عدّيت كام فعلياً", en: "Actual count" },
+  "stock.move-adjustment-delta": { ar: "زيادة / نقص", en: "Increase / Decrease" },
+  "stock.move-field-product": { ar: "الصنف", en: "Product" },
+  "stock.move-field-location": { ar: "المكان", en: "Location" },
+  "stock.move-field-any": { ar: "أي مكان", en: "Any location" },
+  "stock.move-field-from": { ar: "من", en: "From" },
+  "stock.move-field-to": { ar: "إلى", en: "To" },
+  "stock.move-qty-counted": { ar: "الكمية المعدودة", en: "Counted quantity" },
+  "stock.move-qty-delta": { ar: "الفرق (سالب للنقص)", en: "Difference (negative for decrease)" },
+  "stock.move-reason-placeholder": { ar: "السبب (مطلوب)", en: "Reason (required)" },
+  "stock-move-note-placeholder": { ar: "ملاحظة (اختياري)", en: "Note (optional)" },
+  "stock-move-large-diff": { ar: "الفرق الكبير بيستنى موافقة المشرف قبل ما يتسجل.", en: "Large differences wait for supervisor approval before recording." },
+  "stock-move-btn-recorded": { ar: "بيتسجل...", en: "Recording..." },
+  "stock-move-btn-submit": { ar: "سجّل", en: "Record" },
+  "stock-move-btn-save-scrap": { ar: "سجّل الهالك", en: "Record Scrap" },
+  "stock-move-scrap-reason-placeholder": { ar: "السبب: تالف / منتهي / ... (مطلوب)", en: "Reason: damaged / expired / ... (required)" },
+  "stock-move-btn-save-return": { ar: "سجّل المرتجع", en: "Record Return" },
+  "stock-move-field-supplier": { ar: "المورد", en: "Supplier" },
+  "stock-move-choose-supplier": { ar: "اختار المورد", en: "Choose supplier" },
+  "stock-move-field-order": { ar: "رقم الأوردر (اختياري)", en: "Order number (optional)" },
+  "stock-move-order-placeholder": { ar: "مثال: 20261205-003", en: "Example: 20261205-003" },
+  "stock-move-field-enter-location": { ar: "يدخل مكان (افتراضي: الحجر لحد الفحص)", en: "Inbound location (default: quarantine pending inspection)" },
+  "stock-move-field-exit-location": { ar: "يطلع من مكان", en: "Exit location" },
+  "stock-move-any-location": { ar: "أي مكان (FEFO)", en: "Any location (FEFO)" },
+  "stock-move-quarantine-label": { ar: "الحجر / الاستلام (افتراضي)", en: "Quarantine / Receiving (default)" },
+
+  // ─── InventoryView — tab labels ──────────────────────────────────────
+  "stock.tab.stock": { ar: "الرصيد", en: "Stock" },
+  "stock.tab.move": { ar: "حركة", en: "Move" },
+  "stock.tab.expiring": { ar: "قرب الانتهاء", en: "Expiring" },
+  "stock.tab.exceptions": { ar: "فروقات الصرف", en: "Variance" },
+  "stock.tab.documents": { ar: "المستندات", en: "Documents" },
+  "stock.tab.valuation": { ar: "قيمة المخزون", en: "Valuation" },
+  "stock.tab.default": { ar: "الافتراضي", en: "Default" },
+  "stock.tab.today": { ar: "النهارده", en: "Today" },
+  "stock.tab.days-days": { ar: "أيام", en: "Days" },
+  "stock.tab.week": { ar: "أسبوع", en: "Week" },
+
+  // ─── InventoryView — stat labels & helpers ───────────────────────────
+  "stock.stat.on-hand": { ar: "موجود", en: "On Hand" },
+  "stock.stat.quarantined": { ar: "في الحجر", en: "Quarantine" },
+  "stock.stat.expired": { ar: "منتهي الصلاحية", en: "Expired" },
+  "stock.stat.reserved": { ar: "محجوز", en: "Reserved" },
+  "stock.stat.available": { ar: "متاح", en: "Available" },
+  "stock.warehouse-available-desc": { ar: "المتاح = الموجود − المحجوز − الحجر", en: "Available = On Hand − Reserved − Quarantine" },
+  "stock.stat-value": { ar: "القيمة", en: "Value" },
+  "stock.stat-avg-cost": { ar: "متوسط التكلفة", en: "Avg. Cost" },
+
+  // ─── InventoryView — empty states ────────────────────────────────────
+  "stock.empty-products": { ar: "مفيش أصناف", en: "No products" },
+  "stock.empty-balance": { ar: "مفيش رصيد.", en: "No balance." },
+  "stock.empty-variance": { ar: "مفيش فروقات", en: "No variances" },
+  "stock.empty-documents": { ar: "مفيش مستندات", en: "No documents" },
+  "stock.no-movement-yet": { ar: "مفيش حركة لسه (مستني موافقة أو مرفوض)", en: "No movement yet (pending approval or rejected)" },
+
+  // ─── InventoryView — status / badge labels ──────────────────────────
+  "stock.badge-below-min": { ar: "تحت الحد الأدنى", en: "Below minimum" },
+  "stock.badge-reorder": { ar: "اطلب", en: "Reorder" },
+  "stock.status-posted": { ar: "متسجل", en: "Posted" },
+  "stock.status-pending": { ar: "مستني موافقة", en: "Pending" },
+  "stock.status-rejected": { ar: "مرفوض", en: "Rejected" },
+  "stock.status-reversed": { ar: "اتلغى", en: "Reversed" },
+
+  // ─── InventoryView — section headings ────────────────────────────────
+  "stock.heading-stock-location": { ar: "فين الرصيد", en: "Where is the stock" },
+  "stock.heading-movements": { ar: "آخر الحركات", en: "Last movements" },
+  "stock.heading-reservations": { ar: "حجوزات", en: "Reservations" },
+  "stock.heading-product-settings": { ar: "إعدادات المخزون للصنف", en: "Product settings" },
+  "stock.heading-packaging": { ar: "التعبئة", en: "Packaging" },
+
+  // ─── InventoryView — form fields & buttons ──────────────────────────
+  "stock.search-placeholder": { ar: "دوّر على صنف", en: "Search products" },
+  "stock.low-stock-btn": { ar: "تحت حد الطلب", en: "Low stock" },
+  "stock.lot-expiry-label": { ar: "الصلاحية", en: "Expiry" },
+  "stock.form-lot-expiry-save": { ar: "حفظ", en: "Save" },
+  "stock.form-required-reason": { ar: "السبب (مطلوب)", en: "Reason (required)" },
+  "stock.form-release": { ar: "فك الحجز", en: "Release hold" },
+  "stock.form-confirm": { ar: "تأكيد", en: "Confirm" },
+  "stock.shelf-life-field": { ar: "مدة الصلاحية (يوم)", en: "Shelf life (days)" },
+  "stock.removal-order-field": { ar: "ترتيب الصرف", en: "Removal order" },
+  "stock.reorder-point-field": { ar: "حد إعادة الطلب", en: "Reorder point" },
+  "stock.min-stock-field": { ar: "الحد الأدنى", en: "Minimum stock" },
+  "stock.max-stock-field": { ar: "الحد الأقصى", en: "Maximum stock" },
+  "stock.cold-chain-label": { ar: "سلسلة تبريد", en: "Cold chain" },
+  "stock.packaging-unit-hint": { ar: "كام في كل وحدة", en: "How many per unit" },
+  "stock.add-button": { ar: "إضافة", en: "Add" },
+
+  // ─── InventoryView — expiring report ────────────────────────────────
+  "stock.expiring-nothing": { ar: "مفيش حاجة هتنتهي", en: "Nothing expires" },
+  "stock.expiring-today": { ar: "بينتهي النهارده", en: "Expires today" },
+  "stock.expiring-left": { ar: "باقي يوم", en: "Days left" },
+  "stock.expired-since": { ar: "منتهي من يوم", en: "Expired since" },
+
+  // ─── InventoryView — exception reasons ──────────────────────────────
+  "stock.exception-unmapped": { ar: "الصنف مش متربط بدليل الأصناف", en: "Product not in catalog" },
+  "stock.exception-unit-mismatch": { ar: "الوحدة مش بتتحول لوحدة الصنف", en: "Unit doesn't convert to product unit" },
+  "stock.exception-insufficient": { ar: "الرصيد المسجل كان أقل من اللي خرج", en: "Recorded balance was less than issued" },
+
+  // ─── InventoryView — exceptions description text ────────────────────
+  "stock.variance-explain": { ar: "أوردرات خرجت والمخزون المسجل ماكفاش أو الصنف مش معروف. كل فرق لازم يتفسر: استلام اتسجل متأخر، جرد، أو ربط الصنف.", en: "Orders that went out and registered inventory insufficient or product unknown. Each variance needs explanation: late receipt, count adjustment, or link product." },
+  "stock.variance-open": { ar: "مفتوحة", en: "Open" },
+  "stock.variance-resolved": { ar: "اتحلت", en: "Resolved" },
+  "stock.variance-voided": { ar: "اتلغت", en: "Voided" },
+
+  // ─── InventoryView — resolution card ────────────────────────────────
+  "stock.resolution-solution": { ar: "الحل", en: "Solution" },
+  "stock.form-how-solved": { ar: "إزاي اتحل؟ (مطلوب)", en: "How resolved? (required)" },
+  "stock.btn-close": { ar: "قفل", en: "Close" },
+
+  // ─── InventoryView — documents ──────────────────────────────────────
+  "stock.doc-all": { ar: "الكل", en: "All" },
+  "stock.btn-reverse-doc": { ar: "إلغاء المستند", en: "Reverse document" },
+  "stock.reverse-reason-placeholder": { ar: "سبب الإلغاء (مطلوب)", en: "Cancellation reason (required)" },
+
+  // ─── InventoryView — valuation table ────────────────────────────────
+  "stock.val-col-item": { ar: "الصنف", en: "Item" },
+  "stock.val-col-method": { ar: "الطريقة", en: "Method" },
+  "stock.val-col-qty": { ar: "الكمية", en: "Quantity" },
+  "stock.val-col-avg-cost": { ar: "متوسط التكلفة", en: "Average cost" },
+  "stock.val-col-total-value": { ar: "القيمة", en: "Value" },
+  "stock.val-col-nocode": { ar: "اتسجل من غير تكلفة", en: "Registered without cost" },
+  "stock.val-info-uncosted": { ar: "\"اتسجل من غير تكلفة\" = كميات اتسجلت قبل تسجيل الأسعار أو من غير سعر؛ دخلت المخزون بقيمة صفر، فمتوسط التكلفة بيكون أقل من الحقيقي لحد ما تخلص.", en: "\"Registered without cost\" = quantities registered before prices were recorded or without a price; entered inventory at zero value, so average cost appears lower than real until depleted." },
+  "stock.val-total-title": { ar: "إجمالي قيمة المخزون", en: "Total inventory value" },
+
+  // ─── InventoryView — release button & form ──────────────────────────
+  "stock.release-btn": { ar: "إفراج", en: "Release" },
+  "stock.toast-released": { ar: "تم الإفراج", en: "Released" },
+  "stock.release-qty-label": { ar: "الكمية", en: "Quantity" },
+  "stock.release-to-label": { ar: "إلى", en: "To" },
+  "stock.release-select-default": { ar: "اختار المكان", en: "Choose location" },
+  "stock.release-dest-receiving": { ar: "منطقة الاستلام", en: "Receiving area" },
+  "stock.release-dest-loading": { ar: "منطقة التحميل", en: "Loading dock" },
+  "stock.release-dest-cold-1": { ar: "غرفة تبريد 1", en: "Cold room 1" },
+  "stock.release-dest-cold-2": { ar: "غرفة تبريد 2", en: "Cold room 2" },
+  "stock.release-reason-placeholder": { ar: "سبب الإفراج (إجباري)", en: "Release reason (mandatory)" },
+  "stock.release-notes-placeholder": { ar: "ملاحظات الفحص (اختياري)", en: "Inspection notes (optional)" },
+  "stock.btn-confirm-release": { ar: "تأكيد الإفراج", en: "Confirm release" },
+  "stock.btn-back": { ar: "رجوع", en: "Back" },
+
+  // ─── Generic toast messages used across components ──────────────────
+  "stock.toast-expiry-updated": { ar: "اتعدلت الصلاحية", en: "Expiry updated" },
+  "stock.toast-error": { ar: "حصل خطأ", en: "An error occurred" },
+  "stock.toast-reservation-released": { ar: "اتفك الحجز", en: "Hold released" },
+  "stock.toast-settings-saved": { ar: "اتحفظت إعدادات الصنف", en: "Product settings saved" },
+  "stock.toast-packaging-saved": { ar: "اتحفظت التعبئة", en: "Packaging saved" },
+  "stock.toast-variance-closed": { ar: "اتقفل الفرق", en: "Variance closed" },
+  "stock.toast-document-reversed": { ar: "اتلغى بـ", en: "Reversed with" },
+
+  // ─── Movement kind labels for EXPIRING countdown ────────────────────
+  "stock.kind-intake": { ar: "استلام", en: "Intake" },
+  "stock.kind-intake-correction": { ar: "تصحيح استلام", en: "Intake correction" },
+  "stock.kind-intake-void": { ar: "إلغاء استلام", en: "Intake void" },
+  "stock.kind-adjustment": { ar: "تسوية", en: "Adjustment" },
+  "stock.kind-transfer-out": { ar: "تحويل (خارج)", en: "Transfer (out)" },
+  "stock.kind-transfer-in": { ar: "تحويل (داخل)", en: "Transfer (in)" },
+  "stock.kind-issue": { ar: "صرف لأوردر", en: "Issue to order" },
+  "stock.kind-customer-return": { ar: "مرتجع عميل", en: "Customer return" },
+  "stock.kind-supplier-return": { ar: "مرتجع لمورد", en: "Supplier return" },
+  "stock.kind-scrap": { ar: "هالك", en: "Scrap" },
+
+  // ─── Exception card context lines ───────────────────────────────────
+  "stock.exception-ordered": { ar: "أوردر", en: "Order" },
+  "stock.exception-issued-from-books": { ar: "اتصرف من الدفاتر", en: "Issued from books" },
+  "stock.exception-grade-b": { ar: "فرزة", en: "Grade B" },
+  "stock.exception-pre-lot": { ar: "رصيد قبل الدفعات", en: "Pre-lot balance" },
+  // ─── Stock / Coverage panel labels & messages ───────────────────────
+  "stock.coverage.distinct_names": { ar: "أسماء مختلفة", en: "Distinct names" },
+  "stock.coverage.mapped": { ar: "مربوطة", en: "Mapped" },
+  "stock.coverage.unmapped": { ar: "غير مربوطة", en: "Unmapped" },
+  "stock.coverage.ambiguous": { ar: "ملتبسة", en: "Ambiguous" },
+  "stock.coverage.order_lines": { ar: "سطور الأوردرات", en: "Order lines" },
+  "stock.coverage.mapped_lines": { ar: "سطور مربوطة", en: "Mapped lines" },
+  "stock.coverage.inactive_mappings": { ar: "ربط لأصناف موقوفة", en: "Inactive mappings" },
+  "stock.coverage.unit_mismatch_warning": {
+    ar: "⚠️ {count} اسم وحدته في الأوردر مختلفة عن وحدة الصنف الأساسية — راجعها قبل ما المخزون يتربط بالأوردرات.",
+    en: "⚠️ {count} name(s) have a different unit from the master product unit — review before linking stock to orders.",
+  },
+  "stock.coverage.info_note": {
+    ar: "الوحدة اللي في الأوردر بتفضل زي ما هي — الدليل بيحدد الهوية بس، مش بيعيد كتابة الكميات.",
+    en: "Unit in the order stays as-is — the guide sets identity only, does not rewrite quantities.",
+  },
+
+  // Filters
+  "stock.filter.all": { ar: "الكل ({count})", en: "All ({count})" },
+  "stock.filter.unmapped": { ar: "غير مربوطة ({count})", en: "Unmapped ({count})" },
+  "stock.filter.mapped": { ar: "مربوطة ({count})", en: "Mapped ({count})" },
+  "stock.filter.issues": { ar: "تحتاج مراجعة ({count})", en: "Needs review ({count})" },
+
+  // Empty states
+  "stock.empty.no-items": { ar: "مفيش أصناف في الأوردرات لسه", en: "No items in orders yet" },
+  "stock.empty.filtered": { ar: "مفيش حاجة في الفلتر ده", en: "Nothing matches this filter" },
+
+  // Badges
+  "stock.badge.mapped": { ar: "مربوط", en: "Mapped" },
+  "stock.badge.ambiguous": { ar: "ملتبس", en: "Ambiguous" },
+  "stock.badge.unmapped": { ar: "غير مربوط", en: "Unmapped" },
+
+  // Row info
+  "stock.row.line_info": { ar: "{linesCount} سطر · {ordersCount} أوردر", en: "{linesCount} line · {ordersCount} order" },
+
+  // Confirmations (for window.confirm)
+  "stock.unlink.confirm": {
+    ar: 'متأكد تفك ربط "{name}" بصنف "{product}"؟',
+    en: 'Are you sure you want to unlink "{name}" from product "{product}"?',
+  },
+
+  // Management actions
+  "stock.action.link": { ar: "اربط بصنف", en: "Link to product" },
+  "stock.action.relink": { ar: "غيّر الربط", en: "Change link" },
+  "stock.action.unlink": { ar: "فك الربط", en: "Unlink" },
+
+  // Select / checkbox / notes
+  "stock.select.placeholder": { ar: "— اختار الصنف الرسمي —", en: "— Choose official product —" },
+  "stock.alias.create_checkbox": {
+    ar: "خلّي الاسم ده يتعرف تلقائي في الأوردرات الجاية",
+    en: "Auto-register this name for future orders",
+  },
+  "stock.audit_note": {
+    ar: "الربط بيتسجل في سجل المراجعة باسمك. الكميات والوحدات مش بتتغير.",
+    en: "The link is recorded in the audit log under your name. Quantities and units are unchanged.",
+  },
+
+  // Toast / success messages
+  "stock.success_linked": { ar: "اترّبط الاسم بالصنف", en: "Name linked to product" },
+  "stock.loading": { ar: "بيتربط…", en: "Linking…" },
+  "stock.back": { ar: "رجوع", en: "Back" },
+  "stock.toast.unlink_done": { ar: "اتفك الربط", en: "Unlinked" },
+
+  // ─── MoveForms: additional keys ────────────────────────────────────────
+  "stock.move-recorded": { ar: "اتسجل", en: "Recorded" },
+  "stock.move-pending-approval": { ar: "مستني موافقة المشرف", en: "Pending supervisor approval" },
+  "stock-move-field-from-location": { ar: "من مكان", en: "From location" },
+  "stock-move-scrap-reason-required": { ar: "اكتب سبب الهالك", en: "Enter scrap reason" },
+  "stock-move-return-reason-required": { ar: "اكتب سبب المرتجع", en: "Enter return reason" },
+
+  // ─── InventoryView — ProductSettings option texts ────────────────────
+  "stock.fefo-option": { ar: "الأقرب انتهاءً أولاً (FEFO)", en: "Closest expiry first (FEFO)" },
+  "stock.fifo-option": { ar: "الأقدم استلامااً اولاً (FIFO)", en: "Earliest receipt first (FIFO)" },
+  "stock.packaging-each": { ar: "في كل وحدة", en: "per each unit" },
+  "stock.suspended": { ar: "موقوف", en: "suspended" },
+  "stock.unit-choice": { ar: "الوحدة", en: "Unit" },
+  "stock.release-saving": { ar: "بيتسجل…", en: "Saving…" },
+
+  "stock.move-scrap-reason-required": { ar: "اكتب سبب الهالك", en: "Enter scrap reason" },
+} as const;
+
+// ─── Orders ─────────────────────────────────────────────────────────────
+const orders = {
+  "orders.title": { ar: "الأوردرات", en: "Orders" },
+  "orders.new": { ar: "أوردر جديد", en: "New Order" },
+  "orders.prep": { ar: "التجهيز", en: "Preparation" },
+  "orders.load": { ar: "التحميل", en: "Loading" },
+  "orders.detail": { ar: "تفاصيل الأوردر", en: "Order Details" },
+  "orders.order-number": { ar: "رقم الأوردر", en: "Order No." },
+  "orders.customer": { ar: "العميل", en: "Customer" },
+  "orders.delivery-date": { ar: "تاريخ التوصيل", en: "Delivery Date" },
+  "orders.status": { ar: "الحالة", en: "Status" },
+  "orders.items": { ar: "الأصناف", en: "Items" },
+  "orders.total": { ar: "الإجمالي", en: "Total" },
+  "orders.notes": { ar: "ملاحظات", en: "Notes" },
+  "orders.prepared": { ar: "الجاهز", en: "Prepared" },
+  "orders.remaining": { ar: "المتبقي", en: "Remaining" },
+  "orders.cancel": { ar: "إلغاء الأوردر", en: "Cancel Order" },
+  "orders.clone": { ar: "نسخ الأوردر", en: "Clone Order" },
+  "orders.dispatch": { ar: "توزيع", en: "Dispatch" },
+  "orders.mark-loaded": { ar: "تأكيد التحميل", en: "Confirm Loading" },
+
+  "orders.status.new": { ar: "جديد", en: "New" },
+  "orders.status.preparing": { ar: "جاري التجهيز", en: "Preparing" },
+  "orders.status.ready_for_loading": { ar: "جاهز للتحميل", en: "Ready for Loading" },
+  "orders.status.loading": { ar: "جاري التحميل", en: "Loading" },
+  "orders.status.loaded": { ar: "تم التحميل", en: "Loaded" },
+  "orders.status.dispatched": { ar: "تم التوزيع", en: "Dispatched" },
+  "orders.status.cancelled": { ar: "ملغي", en: "Cancelled" },
+
+  "orders.item.pending": { ar: "معلق", en: "Pending" },
+  "orders.item.done": { ar: "تم", en: "Done" },
+
+  // Order Detail — source labels
+  "orders.source.n8n": { ar: "🤖 وصل أوتوماتيك من n8n", en: "🤖 Connected automatically from n8n" },
+  "orders.source.hermes": { ar: "🤖 وصل عبر Hermes", en: "🤖 Connected via Hermes" },
+  "orders.source.manual": { ar: "✍️ أوردر يدوي", en: "✍️ Manual order" },
+  "orders.source.system": { ar: "⚙️ النظام", en: "⚙️ System" },
+  "orders.source.user": { ar: "✍️ يدوي", en: "✍️ Manual" },
+
+  // Order Detail — actions & status messages
+  "orders.error.generic": { ar: "حصل خطأ، حاول تاني", en: "An error occurred, try again" },
+  "orders.error.open_failed": { ar: "مش قادرين نفتح الأوردر دلوقتي", en: "Couldn't open this order right now" },
+  "orders.error.refresh": { ar: "مش قادرين نحدّث البيانات دلوقتي — اللي ظاهر ممكن يكون قديم شوية", en: "Couldn't refresh data right now — what you see may be slightly stale" },
+  "orders.action.retry": { ar: "حاول تاني", en: "Try again" },
+  "orders.edit.required_reason": { ar: "لازم تكتب سبب التعديل", en: "You must enter an edit reason" },
+  "orders.edit.save_success": { ar: "اتحفظ التعديل", en: "Edit saved" },
+  "orders.status.changed": { ar: "اتغيرت الحالة", en: "Status changed" },
+  "orders.approval.success": { ar: "اتعمد الفرق", en: "Team approval done" },
+  "orders.start.prep.success": { ar: "بدأ التجهيز", en: "Preparation started" },
+  "orders.finish.prep.ready_loading": { ar: "الأوردر جاهز للتحميل", en: "Order is ready for loading" },
+  "orders.load.started": { ar: "بدأ التحميل", en: "Loading started" },
+  "orders.loaded": { ar: "الأوردر تم تحميله", en: "Order loaded" },
+  "orders.dispatch.success": { ar: "العربية خرجت 🚚", en: "Vehicle dispatched 🚚" },
+  "orders.finish_load_loaded": { ar: "اتلغى الأوردر", en: "Order cancelled" },
+  "orders.reopened": { ar: "اتفتح الأوردر تاني", en: "Order reopened" },
+
+  // Order Detail — labels
+  "orders.back": { ar: "رجوع", en: "Back" },
+  "orders.label.required": { ar: "المطلوب", en: "Required" },
+  "orders.label.prepared": { ar: "اتجهز", en: "Prepared" },
+  "orders.label.remaining_prep": { ar: "فاضل تجهيز", en: "Remaining prep" },
+  "orders.delivery_slot": { ar: "تسليم", en: "Delivery" },
+  "orders.reference.number": { ar: "رقم الأوردر:", en: "Order No." },
+  "orders.reference.external": { ar: "مرجع العميل:", en: "Customer reference:" },
+  "orders.reference.source": { ar: "مصدر الأوردر:", en: "Order source:" },
+  "orders.items_title": { ar: "الأصناف", en: "Items" },
+  "orders.print.delivery_doc": { ar: "🖨️ مستند التسليم", en: "🖨️ Delivery Document" },
+  "orders.print.picking": { ar: "🖨️ شيت التجهيز", en: "🖨️ Picking Sheet" },
+  "orders.print.dispatch_sheet": { ar: "🖨️ شيت التحميل/التسليم", en: "🖨️ Dispatch/Loading Sheet" },
+  "orders.review_needed": { ar: "🔴 محتاج مراجعة المشرف — الفرق كبير ومينفعش الأوردر يكمل من غير اعتماد", en: "🔴 Requires supervisor review — large variance, order can't proceed without approval" },
+  "orders.supervisor_actions": { ar: "إجراءات المشرف", en: "Supervisor Actions" },
+  "orders.edit_btn": { ar: "✏️ تعديل بيانات الأوردر", en: "✏️ Edit Order Details" },
+  "orders.customer.choose": { ar: "اختار العميل من دليل العملاء", en: "Choose customer from directory" },
+  "orders.customer.inactive": { ar: "(موقوف)", en: "(Suspended)" },
+  "orders.edit.notes_placeholder": { ar: "ملاحظات", en: "Notes" },
+  "orders.edit.reason_placeholder": { ar: "سبب التعديل (مطلوب)", en: "Edit reason (required)" },
+  "orders.edit.save": { ar: "حفظ", en: "Save" },
+  "orders.edit.cancel": { ar: "إلغاء", en: "Cancel" },
+  "orders.override_header": { ar: "تغيير الحالة يدويًا (override)", en: "Manual status override" },
+  "orders.override_choose_status": { ar: "اختار حالة", en: "Choose status" },
+  "orders.override_reason_placeholder": { ar: "السبب (مطلوب)", en: "Reason (required)" },
+  "orders.override_execute": { ar: "تنفيذ", en: "Execute" },
+  "orders.documents": { ar: "المستندات", en: "Documents" },
+  "orders.timeline": { ar: "سجل الأوردر", en: "Order Timeline" },
+  "orders.vehicle_label": { ar: "🚚 العربية:", en: "🚚 Vehicle:" },
+  "orders.driver_label": { ar: " · السواق:", en: " · Driver:" },
+  "orders.crates_label": { ar: " · {count} برنيكة", en: " · {count} crates" },
+  "orders.prep_bar": { ar: "التجهيز", en: "Preparation" },
+  "orders.needs_supervisor_review": { ar: "محتاج اعتماد المشرف الأول", en: "Requires first supervisor approval" },
+  "orders.start_prep_button": { ar: "ابدأ التجهيز", en: "Start Preparation" },
+  "orders.finish_prep_checkmark": { ar: "خلصت التجهيز ✓", en: "Preparation complete ✓" },
+  "orders.start_load_button": { ar: "ابدأ التحميل", en: "Start Loading" },
+  "orders.finish_load_checkmark": { ar: "تم التحميل ✓", en: "Loaded ✓" },
+
+  // Supervisor action buttons
+  "orders.cancel_btn": { ar: "🚫 إلغاء الأوردر", en: "🚫 Cancel Order" },
+  "orders.reopen_btn": { ar: "🔓 إعادة فتح (رجّعه للتجهيز)", en: "🔓 Reopen (back to preparation)" },
+
+  // Next action owner labels (used in header nextAction display)
+  "orders.owner.prep": { ar: "التجهيز", en: "Preparation" },
+  "orders.owner.load": { ar: "التحميل", en: "Loading" },
+
+  // Generic empty / dash value
+  "orders.empty": { ar: "مفيش", en: "N/A" },
+
+  // Customer name display locale fallback
+  "orders.customer.nameAr_fallback": { ar: null, en: null },
+
+  // Urgency / remaining items display
+  "orders.remaining_items": { ar: "لسه فاضل {count} صنف", en: "{count} items remaining" },
+
+  // Approval sticky action
+  "orders.approve_team": { ar: "🔴 اعتماد الفرق — الأوردر محتاج اعتمادك", en: "🔴 Team approval — order needs your sign-off" },
+  "orders.approve_confirm": { ar: "اعتماد الفرق", en: "Approve team" },
+
+  // Status label interpolation key (for STATUS_MEANING which is localized separately)
+  "orders.now": { ar: "دلوقتي", en: "now" },
+
+
+  "orders.load-board-title": { ar: "أوردرات التحميل", en: "Loading Orders" },
+  "orders.load-board.empty": { ar: "مفيش أوردرات جاهزة للتحميل دلوقتي", en: "No orders ready for loading right now" },
+  "orders.load-board.active-header": { ar: "🟢 جاهز / بيتحمّل دلوقتي", en: "🟢 Ready / Loading Now" },
+  "orders.load-board.upcoming-header": { ar: "لسه بيتجهز — للمتابعة بس", en: "Still Preparing — For Reference Only" },
+  "orders.load-board.vehicle-section": { ar: "🚚 العربية", en: "🚚 Vehicle" },
+  "orders.load-board.crate-count-placeholder": { ar: "برنيكة", en: "Crates" },
+  "orders.load-board.total-orders": { ar: "إجمالي الأوردرات", en: "Total Orders" },
+  "orders.load-board.driver-placeholder": { ar: "اسم السواق", en: "Driver Name" },
+  "orders.load-board.vehicle-placeholder": { ar: "رقم/اسم العربية", en: "Vehicle No./Name" },
+  "orders.load-board.dispatch-btn": { ar: "العربية جاهزة 🚚", en: "Vehicle Ready 🚚" },
+  "orders.load-board.confirm-text": {
+    ar: 'متأكد العربية "{vehicle}" مع السواق "{driver}" هتاخد {count} أوردر دلوقتي؟',
+    en: "Confirm vehicle '{{vehicle}}' with driver '{{driver}}' taking {{count}} orders now?"
+  },
+  "orders.load-board.toast-success": { ar: "العربية خرجت 🚚 ({{count}} أوردر)", en: "Vehicle dispatched 🚚 ({{count}} orders)" },
+  "orders.load-board.error": { ar: "حصل خطأ", en: "An error occurred" },
+
+  // Prep Board specific strings
+  "orders.board-title": { ar: "أوردرات التجهيز", en: "Prep Orders" },
+  "orders.overdue": { ar: "متأخر ⏰", en: "Overdue ⏰" },
+  "orders.empty-state": { ar: "مفيش أوردرات جديدة دلوقتي", en: "No new orders right now" },
+  "orders.section.preparing-header": { ar: "🟡 جاري التجهيز", en: "🟡 Preparing" },
+  "orders.section.not-started-header": { ar: "🔵 لسه محدش بدأ فيها", en: "🔵 No one started yet" },
+} as const;
+
+// ─── Purchasing ─────────────────────────────────────────────────────────
+const purchasing = {
+  "purchasing.title": { ar: "المشتريات", en: "Purchasing" },
+  "purchasing.orders": { ar: "أوامر الشراء", en: "Purchase Orders" },
+  "purchasing.suppliers": { ar: "الموردين", en: "Suppliers" },
+  "purchasing.rfqs": { ar: "طلبات العروض", en: "RFQs" },
+  "purchasing.bills": { ar: "فواتير الموردين", en: "Supplier Bills" },
+  "purchasing.receiving": { ar: "الاستلام", en: "Receiving" },
+  "purchasing.debit-note": { ar: "أشعار مدين", en: "Debit Note" },
+  // PO status labels
+  "purchasing.po.status.draft": { ar: "مسودة", en: "Draft" },
+  "purchasing.po.status.pending_approval": { ar: "مستني اعتماد", en: "Pending Approval" },
+  "purchasing.po.status.approved": { ar: "معتمد", en: "Approved" },
+  "purchasing.po.status.sent": { ar: "اتبعت للمورد", en: "Sent to Supplier" },
+  "purchasing.po.status.partially_received": { ar: "استلام جزئي", en: "Partially Received" },
+  "purchasing.po.status.received": { ar: "اتستلم", en: "Received" },
+  "purchasing.po.status.closed": { ar: "مقفول", en: "Closed" },
+  "purchasing.po.status.cancelled": { ar: "ملغي", en: "Cancelled" },
+
+  // Supplier type labels
+  "purchasing.supplier.type.farm": { ar: "مزرعة", en: "Farm" },
+  "purchasing.supplier.type.grower": { ar: "مزارع", en: "Grower" },
+  "purchasing.supplier.type.wholesaler": { ar: "تاجر جملة", en: "Wholesaler" },
+  "purchasing.supplier.type.market_trader": { ar: "تاجر سوق العبور", en: "Market Trader" },
+  "purchasing.supplier.type.importer": { ar: "مستورد", en: "Importer" },
+  "purchasing.supplier.type.packaging": { ar: "تغليف", en: "Packaging" },
+  "purchasing.supplier.type.services": { ar: "خدمات", en: "Services" },
+  "purchasing.supplier.type.other": { ar: "أخرى", en: "Other" },
+
+  // Orders page elements
+  "purchasing.orders.filter.open": { ar: "مفتوحة", en: "Open" },
+  "purchasing.orders.filter.drafts": { ar: "مسودات", en: "Drafts" },
+  "purchasing.orders.filter.pending_approval": { ar: "مستنية اعتماد", en: "Pending Approval" },
+  "purchasing.orders.filter.all": { ar: "الكل", en: "All" },
+  "purchasing.orders.btn.new": { ar: "+ أمر شراء", en: "+ New Order" },
+  "purchasing.orders.empty": { ar: "مفيش أوامر شراء", en: "No purchase orders" },
+  "purchasing.orders.lines_label": { ar: "سطر", en: "line(s)" },
+  "purchasing.orders.expected_date": { ar: "متوقع", en: "Expected" },
+
+  // Line editor fields
+  "purchasing.line.product.placeholder": { ar: "الصنف", en: "Product" },
+  "purchasing.line.quantity.placeholder": { ar: "الكمية", en: "Quantity" },
+  "purchasing.line.unit.default": { ar: "الوحدة", en: "Unit" },
+  "purchasing.line.price.placeholder": { ar: "السعر (فاضي = المتفق عليه)", en: "Price (leave blank = agreed price)" },
+  "purchasing.line.add_btn": { ar: "+ سطر", en: "+ Add Line" },
+
+  // New Purchase Order form
+  "purchasing.new_po.toast": { ar: "اتعمل %s", en: "Created %s" },
+  "purchasing.new_po.title": { ar: "أمر شراء جديد", en: "New Purchase Order" },
+  "purchasing.new_po.back": { ar: "رجوع", en: "Back" },
+  "purchasing.new_po.supplier.label": { ar: "المورد", en: "Supplier" },
+  "purchasing.new_po.supplier.placeholder": { ar: "اختار المورد", en: "Select supplier" },
+  "purchasing.new_po.expected_date.label": { ar: "تاريخ التوريد المتوقع", en: "Expected delivery date" },
+  "purchasing.new_po.notes.placeholder": { ar: "ملاحظات للمورد", en: "Notes for supplier" },
+  "purchasing.new_po.saving": { ar: "بيتسجل...", en: "Saving..." },
+  "purchasing.new_po.save_draft": { ar: "حفظ كمسودة", en: "Save as draft" },
+
+  // PO Detail view
+  "purchasing.po_detail.expected": { ar: "متوقع", en: "Expected" },
+  "purchasing.po_detail.approved_by": { ar: "اعتمد: %s", en: "Approved by: %s" },
+  "purchasing.po_detail.reason_placeholder": { ar: "السبب (للإلغاء أو القفل)", en: "Reason (for cancel or close)" },
+  "purchasing.po_detail.submit_btn": { ar: "تقديم للاعتماد", en: "Submit for approval" },
+  "purchasing.po_detail.send_to_supplier": { ar: "اتبعت للمورد", en: "Send to supplier" },
+  "purchasing.po_detail.cancel_btn": { ar: "إلغاء", en: "Cancel" },
+  "purchasing.po_detail.close_btn": { ar: "قفل (مش هيكمل)", en: "Close (won't complete)" },
+  "purchasing.po_detail.total": { ar: "الإجمالي", en: "Total" },
+  "purchasing.po_detail.qty_good": { ar: "اتسخدم سليم", en: "Received good" },
+  "purchasing.po_detail.rejected": { ar: "مرفوض", en: "Rejected" },
+  "purchasing.po_detail.remaining": { ar: "باقي", en: "Remaining" },
+  "purchasing.po_detail.cancel_reason": { ar: "السبب", en: "Reason" },
+
+  // Replenishment
+  "purchasing.replenishment.desc": { ar: "اقتراحات حسب الرصيد الصالح للبيع والحجوزات", en: "Suggestions based on sellable balance and holds" },
+  "purchasing.replenishment.empty": { ar: "مفيش أصناف وصلت لحد إعادة الطلب", en: "No items have reached reorder point" },
+  "purchasing.replenishment.adjust_hint": { ar: "اضبط حد إعادة الطلب والحد الأقصى من كارت الصنف علشان تظهر اقتراحات التوريد.", en: "Adjust reorder point and max from item card to see suggestions." },
+  "purchasing.replenishment.prepare_btn": { ar: "جهّز طلب عروض سعر للأصناف المحددة", en: "Prepare RFQ for selected items" },
+  "purchasing.replenishment.available": { ar: "متاح", en: "Available" },
+  "purchasing.replenishment.reorder_point": { ar: "حد الطلب", en: "Reorder point" },
+  "purchasing.replenishment.target": { ar: "الهدف", en: "Target" },
+  "purchasing.replenishment.order_qty": { ar: "اطلب", en: "Order" },
+
+  // RFQs list
+  "purchasing.rfqs.new_btn": { ar: "+ طلب عرض سعر", en: "+ Request Quote" },
+  "purchasing.rfqs.empty": { ar: "مفيش طلبات", en: "No requests" },
+  "purchasing.rfqs.items_count": { ar: "صنف", en: "item(s)" },
+  "purchasing.rfqs.responses": { ar: "ردوا", en: "responded" },
+
+  // RFQ detail - comparison
+  "purchasing.rfq.comparison_title": { ar: "المقارنة", en: "Comparison" },
+  "purchasing.rfq.no_quotes": { ar: "مفيش عروض", en: "No offers" },
+  "purchasing.rfq.cheapest": { ar: "الأرخص", en: "Cheapest" },
+  "purchasing.rfq.awarded_text": { ar: "اترسّى", en: "Awarded" },
+  "purchasing.rfq.days_label": { ar: "يوم", en: "days" },
+
+  // RFQ actions
+  "purchasing.rfq.send_to_suppliers": { ar: "اتبعت للموردين", en: "Send to suppliers" },
+  "purchasing.rfq.award_btn": { ar: "رسّي واعمل أوامر الشراء", en: "Award & create purchase orders" },
+  "purchasing.rfq.quote_section_title": { ar: "تسجيل عرض مورد", en: "Record supplier quote" },
+  "purchasing.rfq.quote_supplier": { ar: "المورد", en: "Supplier" },
+  "purchasing.rfq.quote_price": { ar: "السعر", en: "Price" },
+  "purchasing.rfq.save_quote_btn": { ar: "حفظ العرض", en: "Save quote" },
+
+  // Supplier tab statuses
+  "purchasing.rfq_status.quoted": { ar: "ردّ", en: "Quoted" },
+  "purchasing.rfq_status.declined": { ar: "اعتذر", en: "Declined" },
+  "purchasing.rfq_status.pending": { ar: "مستني", en: "Waiting" },
+
+  // Suppliers section
+  "purchasing.supplier.form.name": { ar: "اسم المورد", en: "Supplier name" },
+  "purchasing.supplier.form.add_btn": { ar: "+ مورد", en: "+ Supplier" },
+  "purchasing.supplier.form.payment_terms": { ar: "أيام السداد", en: "Payment days" },
+  "purchasing.supplier.term_due": { ar: "آجل %s يوم", en: "Due %s days" },
+  "purchasing.supplier.cash": { ar: "كاش", en: "Cash" },
+  "purchasing.supplier.lead_time": { ar: "توريد %s يوم", en: "Lead time %s days" },
+  "purchasing.supplier.manage_edit_terms": { ar: "تعديل الشروط", en: "Edit terms" },
+  "purchasing.supplier.detail.tax": { ar: "TAX %s", en: "TAX %s" },
+  "purchasing.supplier.detail.delivery_in": { ar: "توريد خلال %s يوم", en: "Delivery within %s days" },
+  "purchasing.supplier.detail.not_logged": { ar: "مدة التوريد مش متسجلة", en: "Delivery time not logged" },
+  "purchasing.supplier.prices_title": { ar: "الأسعار المتفق عليها", en: "Agreed prices" },
+  "purchasing.supplier.edit_terms_days_payment": { ar: "أيام السداد", en: "Payment days" },
+  "purchasing.supplier.edit_terms_days_supply": { ar: "أيام التوريد", en: "Supply days" },
+  "purchasing.supplier.edit_terms_save": { ar: "حفظ", en: "Save" },
+  "purchasing.supplier.price_register": { ar: "سجّل السعر", en: "Register price" },
+  "purchasing.supplier.from": { ar: "من %s", en: "From %s" },
+
+  // Common labels
+  "purchasing.common.back": { ar: "رجوع", en: "Back" },
+} as const;
+
+const purchasing_bill = {
+  // Tab labels
+  "purchasing.bill.tab.bills": { ar: "الفواتير", en: "Bills" },
+  "purchasing.bill.tab.payables": { ar: "أرصدة الموردين", en: "Supplier Balances" },
+
+  // Status lookup labels
+  "purchasing.bill.status.draft": { ar: "مسودة", en: "Draft" },
+  "purchasing.bill.status.pending_approval": { ar: "مستنية اعتماد", en: "Pending Approval" },
+  "purchasing.bill.status.posted": { ar: "مترحّلة", en: "Posted" },
+  "purchasing.bill.status.cancelled": { ar: "ملغية", en: "Cancelled" },
+
+  // Match status labels
+  "purchasing.bill.match.matched": { ar: "مطابقة", en: "Matched" },
+  "purchasing.bill.match.within_tolerance": { ar: "في حدود السماحية", en: "Within Tolerance" },
+  "purchasing.bill.match.variance": { ar: "فيها فرق", en: "Variance" },
+  "purchasing.bill.match.unpriced": { ar: "مفيش سعر متفق عليه", en: "No Agreed Price" },
+
+  // Filter / summary row labels
+  "purchasing.bill.filter.all": { ar: "الكل", en: "All" },
+  "purchasing.bill.filter.drafts": { ar: "مسودات", en: "Drafts" },
+  "purchasing.bill.filter.pending_approval": { ar: "مستنية اعتماد", en: "Pending Approval" },
+  "purchasing.bill.filter.posted": { ar: "مترحّلة", en: "Posted" },
+
+  // Bill list actions & labels
+  "purchasing.bill.new_supplier": { ar: "+ فاتورة مورد", en: "+ Supplier Bill" },
+  "purchasing.bill.supplier_invoice_label": { ar: "فاتورة المورد", en: "Supplier Invoice" },
+  "purchasing.bill.due_date": { ar: "استحقاق", en: "Due" },
+  "purchasing.bill.remaining": { ar: "باقي", en: "Remaining" },
+  "purchasing.bill.empty": { ar: "مفيش فواتير موردين", en: "No supplier bills" },
+
+  // New bill form
+  "purchasing.bill.title.new": { ar: "فاتورة مورد جديدة", en: "New Supplier Bill" },
+  "purchasing.bill.title.edit": { ar: "تعديل {number}", en: "Edit {number}" },
+  "purchasing.bill.field.supplier": { ar: "المورد", en: "Supplier" },
+  "purchasing.bill.field.select_supplier": { ar: "— اختار —", en: "— Select —" },
+  "purchasing.bill.field.invoice_no": { ar: "رقم فاتورة المورد", en: "Supplier Invoice No." },
+  "purchasing.bill.field.bill_date": { ar: "تاريخ الفاتورة", en: "Bill Date" },
+  "purchasing.bill.field.notes": { ar: "ملاحظات", en: "Notes" },
+  "purchasing.bill.receipts_header": { ar: "الاستلامات اللي في الفاتورة", en: "Receipts on this Bill" },
+  "purchasing.bill.no_receipts_empty": { ar: "مفيش استلامات من المورد ده من غير فاتورة.", en: "No unbilled receipts from this supplier." },
+
+  // Per-line labels
+  "purchasing.bill.agreed_price": { ar: "المتفق عليه", en: "Agreed" },
+  "purchasing.bill.variance": { ar: "فرق", en: "Variance" },
+  "purchasing.bill.price_placeholder": { ar: "السعر", en: "Price" },
+  "purchasing.bill.before_tax": { ar: "قبل الضريبة", en: "Before Tax" },
+  "purchasing.bill.tax": { ar: "الضريبة", en: "Tax" },
+  "purchasing.bill.total": { ar: "الإجمالي", en: "Total" },
+  "purchasing.bill.amount_due_to_supplier": { ar: "المستحق للمورد", en: "Amount Due to Supplier" },
+  "purchasing.bill.debited_label": { ar: "اتخصم", en: "Debited" },
+  "purchasing.bill.received_label": { ar: "مستلم سليم", en: "Received" },
+  "purchasing.bill.invoiced_label": { ar: "مفوتر", en: "Invoiced" },
+
+  // Save button states
+  "purchasing.bill.saving": { ar: "بيتسجل...", en: "Saving..." },
+  "purchasing.bill.save_edit": { ar: "حفظ التعديل", en: "Save Edit" },
+  "purchasing.bill.save_draft": { ar: "سجّل الفاتورة (مسودة)", en: "Save Bill (Draft)" },
+
+  // Detail view action buttons
+  "purchasing.bill.debit_notes_heading": { ar: "إشعارات مدينة", en: "Debit Notes" },
+  "purchasing.bill.current_bucket": { ar: "لسه", en: "Current" },
+  "purchasing.bill.total_bucket": { ar: "الإجمالي", en: "Total" },
+  "purchasing.bill.no_payables_empty": { ar: "مفيش مستحقات مفتوحة للموردين", en: "No open supplier payables" },
+  "purchasing.bill.ap_aging_intro": { ar: "أعمار الدائنين حتى ", en: "AP aging as of " },
+  "purchasing.bill.col.date": { ar: "التاريخ", en: "Date" },
+  "purchasing.bill.col.document": { ar: "المستند", en: "Document" },
+  "purchasing.bill.col.credit": { ar: "له (فاتورة)", en: "Credit (Invoice)" },
+  "purchasing.bill.col.debit": { ar: "عليه (إشعار)", en: "Debit (Notice)" },
+  "purchasing.bill.col.balance": { ar: "الرصيد", en: "Balance" },
+  "purchasing.bill.opening_balance": { ar: "رصيد أول المدة", en: "Opening Balance" },
+  "purchasing.bill.statement_title": { ar: "كشف حساب {name}", en: "{name} Statement" },
+  "purchasing.bill.debit_reason_placeholder": { ar: "سبب الإشعار المدين", en: "Reason for debit note" },
+  "purchasing.bill.cancel_reason_placeholder": { ar: "سبب الإلغاء", en: "Cancellation reason" },
+  "purchasing.bill.cancel_bill_btn": { ar: "إلغاء الفاتورة", en: "Cancel Bill" },
+  "purchasing.bill.return_goods_checkbox": { ar: "البضاعة هترجع للمورد — اخصمها من المخزن", en: "Return goods to supplier — deduct from stock" },
+  "purchasing.bill.debit_qty_btn": { ar: "إشعار مدين بالكميات", en: "Debit Note by Quantity" },
+  "purchasing.bill.debit_full_btn": { ar: "إشعار مدين بالباقي كله", en: "Debit Note for Full Remaining" },
+  "purchasing.bill.post_action": { ar: "ترحيل", en: "Post" },
+  "purchasing.bill.success_posted": { ar: "الفاتورة اترحّلت", en: "Bill posted" },
+  "purchasing.bill.success_variance": { ar: "الفاتورة فيها فرق — اتبعتت للاعتماد", en: "Bill has variance — sent for approval" },
+
+  // Toast / error messages
+  "purchasing.bill.error_generic": { ar: "حصل خطأ", en: "An error occurred" },
+} as const;
+
+// ─── Accounting ─────────────────────────────────────────────────────────
+const accounting = {
+  // Main navigation / tab labels
+  "accounting.title": { ar: "الحسابات", en: "Accounting" },
+  "accounting.tab.health": { ar: "سلامة الحسابات", en: "Health Check" },
+  "accounting.tab.cash": { ar: "النقدية", en: "Cash" },
+  "accounting.tab.receipts": { ar: "التحصيل", en: "Receipts" },
+  "accounting.tab.payments": { ar: "السداد", en: "Payments" },
+  "accounting.tab.journals": { ar: "القيود", en: "Journals" },
+  "accounting.tab.trial": { ar: "ميزان المراجعة", en: "Trial Balance" },
+  "accounting.tab.vat": { ar: "ملخص الضريبة", en: "Tax Summary" },
+  "accounting.tab.periods": { ar: "الفترات", en: "Periods" },
+  "accounting.tab.reconcile": { ar: "تسوية البنك", en: "Bank Reconciliation" },
+  "accounting.tab.opening": { ar: "الأرصدة الافتتاحية", en: "Opening Balances" },
+  // Payment method labels
+  "accounting.method.cash": { ar: "نقدي", en: "Cash" },
+  "accounting.method.bank-transfer": { ar: "تحويل بنكي", en: "Bank Transfer" },
+  "accounting.method.cheque": { ar: "شيك", en: "Cheque" },
+  "accounting.method.wallet": { ar: "محفظة", en: "Wallet" },
+  "accounting.method.other": { ar: "أخرى", en: "Other" },
+  // Document source types
+  "accounting.source.manual": { ar: "يدوي", en: "Manual" },
+  "accounting.source.sales-invoice": { ar: "فاتورة مبيعات", en: "Sales Invoice" },
+  "accounting.source.credit-note": { ar: "إشعار دائن", en: "Credit Note" },
+  "accounting.source.supplier-bill": { ar: "فاتورة مورد", en: "Supplier Bill" },
+  "accounting.source.debit-note": { ar: "إشعار مدين", en: "Debit Note" },
+  "accounting.source.customer-receipt": { ar: "تحصيل", en: "Collection" },
+  "accounting.source.supplier-payment": { ar: "سداد", en: "Payment" },
+  "accounting.source.stock-valuation": { ar: "تقييم مخزون", en: "Stock Valuation" },
+  "accounting.source.reversal": { ar: "عكس قيد", en: "Reversal Entry" },
+  "accounting.source.expense": { ar: "مصروف", en: "Expense" },
+  "accounting.source.employee-transaction": { ar: "حركة موظف", en: "Employee Transaction" },
+  "accounting.source.opening-balance": { ar: "رصيد افتتاحي", en: "Opening Balance" },
+  "accounting.source.receipt-reversal": { ar: "عكس تحصيل", en: "Receipt Reversal" },
+  "accounting.source.payment-reversal": { ar: "عكس سداد", en: "Payment Reversal" },
+  "accounting.source.customer-refund": { ar: "رد مبلغ لعميل", en: "Customer Refund" },
+  "accounting.source.supplier-refund": { ar: "استرداد من مورد", en: "Supplier Refund" },
+  // Receipt/Payment form labels
+  "accounting.form.party.label-customer": { ar: "العميل", en: "Customer" },
+  "accounting.form.party.label-supplier": { ar: "المورد", en: "Supplier" },
+  "accounting.form.amount": { ar: "المبلغ", en: "Amount" },
+  "accounting.form.date": { ar: "التاريخ", en: "Date" },
+  "accounting.form.method": { ar: "الطريقة", en: "Method" },
+  "accounting.form.account.label": { ar: "الخزينة / البنك", en: "Treasury / Bank" },
+  "accounting.form.account.treasury": { ar: "الخزينة الرئيسية", en: "Main Treasury" },
+  "accounting.form.account.bank": { ar: "الحساب البنكي", en: "Bank Account" },
+  "accounting.form.reference": { ar: "المرجع", en: "Reference" },
+  "accounting.form.reference-hint": { ar: "المرجع (رقم تحويل / شيك)", en: "Reference (transfer/cheque number)" },
+  "accounting.form.reason": { ar: "السبب", en: "Reason" },
+  "accounting.form.party.placeholder": { ar: "— اختار —", en: "— Select —" },
+  "accounting.form.allocate": { ar: "تخصيص", en: "Allocate" },
+  // Button text
+  "accounting.button.record-receipt": { ar: "سجّل التحصيل", en: "Record Receipt" },
+  "accounting.button.record-payment": { ar: "سجّل السداد", en: "Record Payment" },
+  "accounting.button.reverse": { ar: "عكس", en: "Reverse" },
+  "accounting.button.manual-journal": { ar: "قيد يدوي", en: "Manual Journal Entry" },
+  "accounting.button.add-line": { ar: "+ سطر", en: "+ Line" },
+  "accounting.button.post": { ar: "رحّل القيد", en: "Post Entry" },
+  "accounting.button.close": { ar: "قفل", en: "Close" },
+  "accounting.button.start-reconcile": { ar: "ابدأ التسوية", en: "Start Reconciliation" },
+  "accounting.button.finish-reconcile": { ar: "إنهاء التسوية", en: "Finish Reconciliation" },
+  "accounting.button.post-stock-val": { ar: "ترحيل تقييم المخزون", en: "Post Stock Valuation" },
+  "accounting.button.sync-docs": { ar: "ترحيل أي مستندات ناقصة", en: "Sync Missing Documents" },
+  "accounting.button.record-opening": { ar: "سجّل الرصيد", en: "Record Balance" },
+  "accounting.button.record-stock": { ar: "سجّل المخزون", en: "Record Stock" },
+  "accounting.button.add-item": { ar: "+ صنف", en: "+ Item" },
+  "accounting.button.mark-customer": { ar: "علّم عميل", en: "Mark customer" },
+  "accounting.button.mark-product": { ar: "علّم صنف", en: "Mark product" },
+  // Empty state messages
+  "accounting.empty.no-transactions": { ar: "مفيش حركات", en: "No transactions" },
+  "accounting.empty.no-open-docs": { ar: "مفيش مستندات مفتوحة — المبلغ هيتسجل تحت الحساب.", en: "No open documents — amount will be recorded unallocated." },
+  "accounting.empty.no-reconcile-items": { ar: "مفيش حركات للتسوية", en: "No items to reconcile" },
+  "accounting.empty.loading": { ar: "…", en: "…" },
+  // Info & notice text
+  "accounting.notice.auto-allocate": { ar: "لو مخصصتش يدوي، المبلغ بيتخصص على الأقدم استحقاقًا؛ الباقي بيفضل تحت الحساب.", en: "If not allocated manually, amount is applied to oldest due date first; remainder stays unallocated." },
+  "accounting.warning.internal-review": { ar: "ملخص داخلي للمراجعة المحاسبية، وليس إقرارًا ضريبيًا رسميًا. راجع تصنيف الضريبة ومستندات الفترة مع المحاسب.", en: "Internal accounting review summary — not an official tax declaration. Verify tax classification and period documents with your accountant." },
+  "accounting.status.matched": { ar: "ضريبة المستندات مطابقة لحركة حسابي الضريبة في الأستاذ العام", en: "Document tax matches the VAT account movement in the general ledger" },
+  "accounting.status.difference": { ar: "فرق يحتاج مراجعة — مخرجات {output} · مدخلات {input}", en: "Difference needs review — output {output} · input {input}" },
+  "accounting.comparison-note": { ar: "المقارنة تعرض رصيد الحركة في حساب 2200 للمخرجات و1500 للمدخلات خلال الفترة، بما يشمل أي قيد دفتر أستاذ مسجل عليهما.", en: "Comparison shows movement balance in account 2200 for outputs and 1500 for inputs during the period, including any general ledger journal entries posted against them." },
+  "accounting.grni-note": { ar: "قيمة بضاعة استلمناها ولسه فاتورتها مجتش", en: "Value of goods received but invoice not yet received" },
+  "accounting.health-matched": { ar: "✓ الدفاتر متطابقة: كل الأقسام بتقرا نفس الأرقام", en: "✓ Books match: all sections read the same numbers" },
+  "accounting.health-diff": { ar: "✗ فيه اختلاف لازم يتراجع — التفاصيل تحت", en: "✗ There's a discrepancy that needs review — details below" },
+  // Period status
+  "accounting.period.open": { ar: "مفتوحة", en: "Open" },
+  "accounting.period.closed": { ar: "مقفولة ({by})", en: "Closed ({by})" },
+  "accounting.performed-by": { ar: "بتاع {by}", en: "By {by}" },
+  // Reconciliation labels
+  "accounting.rec.statement-balance": { ar: "رصيد الكشف", en: "Statement Balance" },
+  "accounting.rec.book-matched": { ar: "المطابق في الدفاتر", en: "Book-Matched Balance" },
+  "accounting.rec.difference": { ar: "الفرق", en: "Difference" },
+  // Health detail labels
+  "accounting.detail.documents": { ar: "المستندات", en: "Documents" },
+  "accounting.detail.general-ledger": { ar: "الأستاذ", en: "General Ledger" },
+  "accounting.detail.difference": { ar: "الفرق", en: "Difference" },
+  // Opening balances info
+  "accounting.info-go-live": { ar: "لليوم اللي هنبدأ فيه: أرصدة العملاء والموردين والمخزون من النظام القديم. كل رصيد بيظهر في كشف حساب الطرف وفي الأستاذ في نفس الوقت (مقابل حساب الأرصدة الافتتاحية). الخزينة والبنك ورأس المال بقيد يدوي.", en: "For go-live day: customer, supplier, and stock balances from the old system. Each balance appears in the party statement and the general ledger simultaneously (against the opening balances account). Treasury, bank, and capital are manual entries." },
+  "accounting.info-heading": { ar: "رصيد عميل / مورد", en: "Customer / Supplier Balance" },
+  "accounting.info-type": { ar: "النوع", en: "Type" },
+  "accounting.info-type-customer": { ar: "عميل", en: "Customer" },
+  "accounting.info-type-supplier": { ar: "مورد", en: "Supplier" },
+  "accounting.info-amount-customer": { ar: "المبلغ المستحق عليه (سالب لو ليه رصيد دائن)", en: "Amount owed by customer (negative if credit balance)" },
+  "accounting.info-amount-supplier": { ar: "المبلغ المستحق له (سالب لو علينا رصيد مدين عنده)", en: "Amount owed to supplier (negative if debit balance on our side)" },
+  "accounting.info-due-date": { ar: "الاستحقاق", en: "Due Date" },
+  "accounting.info-expiry": { ar: "الانتهاء", en: "Expiry" },
+  // Product label
+  "accounting.product-label": { ar: "الصنف", en: "Item" },
+  // Journal labels
+  "accounting.journal-entry": { ar: "قيد يدوي", en: "Manual Journal Entry" },
+  "accounting.journal-detail-header": { ar: "تفاصيل القيد", en: "Journal Details" },
+  "accounting.description": { ar: "البيان", en: "Description" },
+  "accounting.account-select": { ar: "الحساب", en: "Account" },
+  "accounting.debit-placeholder": { ar: "مدين", en: "Debit" },
+  "accounting.credit-placeholder": { ar: "دائن", en: "Credit" },
+  // Trial balance table headers
+  "accounting.tb.account": { ar: "الحساب", en: "Account" },
+  "accounting.tb-opening": { ar: "أول المدة", en: "Opening" },
+  "accounting.tb-debit": { ar: "مدين", en: "Debit" },
+  "accounting.tb-credit": { ar: "دائن", en: "Credit" },
+  "accounting.tb-closing": { ar: "الرصيد", en: "Closing" },
+  "accounting.tb-total": { ar: "الإجمالي", en: "Total" },
+  "accounting.tb-balanced-ok": { ar: "✓ متوازن", en: "✓ Balanced" },
+  "accounting.tb-balanced-no": { ar: "✗ غير متوازن", en: "✗ Unbalanced" },
+  // Trial balance creditor label (for negative balances)
+  "accounting.creditor-label": { ar: "دائن ", en: "Credit " },
+  // Parent ledger labels
+  "accounting.parent-ledger": { ar: "دفتر أستاذ", en: "Parent ledger" },
+  "accounting.date-from": { ar: "من", en: "From" },
+  "accounting.date-to": { ar: "إلى", en: "To" },
+  // VAT table headers
+  "accounting.vat-classification": { ar: "التصنيف", en: "Classification" },
+  "accounting.vat-rate": { ar: "النسبة", en: "Rate" },
+  "accounting.vat-taxable-sales": { ar: "مبيعات خاضعة", en: "Taxable Sales" },
+  "accounting.vat-output-tax": { ar: "ضريبة مخرجات", en: "Output Tax" },
+  "accounting.vat-taxable-purchases": { ar: "مشتريات خاضعة", en: "Taxable Purchases" },
+  "accounting.vat-input-tax": { ar: "ضريبة مدخلات", en: "Input Tax" },
+  // Net payable label
+  "accounting.net-payable": { ar: "صافي ضريبة الفترة المستحق", en: "Net period tax due" },
+  // Reverse prompt
+  "accounting.prompt-reverse-receipt": { ar: "سبب عكس {number}؟ (مثلاً: شيك مرتجع)", en: "Reason for reversing {number}? (e.g.: bounced cheque)" },
+  "accounting.prompt-reverse-payment": { ar: "سبب عكس {number}؟", en: "Reason for reversing {number}?" },
+  // Reconciliation account labels
+  "accounting.rec-account": { ar: "الحساب", en: "Account" },
+  "accounting.rec-account-bank": { ar: "الحساب البنكي", en: "Bank Account" },
+  "accounting.rec-account-treasury": { ar: "الخزينة", en: "Treasury" },
+  "accounting.rec-statement-date": { ar: "تاريخ الكشف", en: "Statement Date" },
+  "accounting.rec-statement-balance": { ar: "رصيد الكشف", en: "Statement Balance" },
+  // Customer refund header
+  "accounting.refund-customer-header": { ar: "رد مبلغ لعميل (من رصيده الدائن)", en: "Customer refund (from their credit balance)" },
+  "accounting.refund-supplier-header": { ar: "استرداد مبلغ من مورد (من رصيدنا عنده)", en: "Supplier refund (from our balance with them)" },
+  // Success toast messages
+  "accounting.toast-recorded": { ar: "{ref} اتسجل", en: "{ref} was recorded" },
+  "accounting.toast-reversed": { ar: "{n} اتعكس — المستندات اللي كان متخصص عليها اتفتحت تاني", en: "{n} reversed — documents it was allocated to are now open again" },
+  "accounting.toast-reconciled": { ar: "التسوية خلصت", en: "Reconciliation completed" },
+  "accounting-toast-opening-saved": { ar: "اتسجل الرصيد الافتتاحي", en: "Opening balance recorded" },
+  "accounting-toast-stock-saved": { ar: "المخزون الافتتاحي اتسجل", en: "Opening stock recorded" },
+  "accounting-toast-docs-synced": { ar: "اترحّلت المستندات الناقصة", en: "Missing documents synced" },
+  "accounting-toast-stock-valued": { ar: "اترحّل تقييم المخزون", en: "Stock valuation posted" },
+  "accounting-toast-period-closed": { ar: "اتقفلت {code}", en: "{code} closed" },
+  // Reversal display
+  "accounting.reversed-by": { ar: "اتعكس بالقيد {n}", en: "Reversed by entry {n}" },
+  // No transactions message
+  "accounting.no-transactions": { ar: "مفيش حركات في الفترة دي.", en: "No transactions in this period." },
+  // Total cash
+  "accounting.total-cash": { ar: "إجمالي النقدية", en: "Total Cash" },
+  // Form headers (separate from party label)
+  "accounting.form.receipt-header": { ar: "تحصيل من عميل", en: "Receipt from customer" },
+  "accounting.form.payment-header": { ar: "سداد لمورد", en: "Payment to supplier" },
+  // Due date / open labels for display rows
+  "accounting.due-date": { ar: "استحقاق", en: "Due date" },
+  "accounting.open": { ar: "مفتوح", en: "Open" },
+  // Unallocated amount indicator
+  "accounting.unallocated": { ar: "تحت الحساب", en: "Unallocated" },
+  // Reversal display line
+  "accounting.reversal-display": { ar: "{by} عكس في {date}", en: "{by} reversed on {date}" },
+  // Refund recording buttons (customer/supplier specific)
+  "accounting.button.record-customer-refund": { ar: "سجّل رد المبلغ", en: "Record Customer Refund" },
+  "accounting.button.record-supplier-refund": { ar: "سجّل الاسترداد", en: "Record Supplier Refund" },
+  // Trial balance closing balance label
+  "accounting.closing-balance": { ar: "رصيد آخر المدة", en: "Closing balance" },
+  // Opening stock section header
+  "accounting.opening-stock": { ar: "مخزون افتتاحي", en: "Opening Stock" },
+  // Health check timestamp label
+  "accounting.last-checked": { ar: "آخر فحص", en: "Last checked" },
+} as const;
+
+// ─── HR ─────────────────────────────────────────────────────────────────
+const hr = {
+  "hr.title": { ar: "الموظفين والمصروفات", en: "Employees & Expenses" },
+  "hr.employees": { ar: "الموظفين", en: "Employees" },
+  "hr.expenses": { ar: "المصروفات", en: "Expenses" },
+  "hr.advances": { ar: "المعاملات", en: "Transactions" },
+  "hr.expense.submit": { ar: "صرف", en: "Submit Expense" },
+  "hr.expense.approve": { ar: "اعتماد", en: "Approve" },
+
+  // ─── Expenses form ────────────────────────────────────────
+  "hr.error": { ar: "حصل خطأ", en: "An error occurred" },
+  "hr.status.pending_approval": { ar: "مستني اعتماد", en: "Pending Approval" },
+  "hr.status.approved": { ar: "معتمد ومترحّل", en: "Approved" },
+  "hr.status.rejected": { ar: "مرفوض", en: "Rejected" },
+  "hr.mode.cash": { ar: "من الخزينة", en: "From Treasury" },
+  "hr.mode.reimburse": { ar: "يتردّ للموظف", en: "To Employee Reimbursement" },
+  "hr.mode.advance": { ar: "من سلفة الموظف", en: "Employee Advance" },
+  "hr.label.account": { ar: "البند", en: "Account" },
+  "hr.label.amount": { ar: "المبلغ", en: "Amount" },
+  "hr.label.date": { ar: "التاريخ", en: "Date" },
+  "hr.label.description": { ar: "البيان", en: "Description" },
+  "hr.label.payment_mode": { ar: "اتدفع إزاي", en: "Payment Method" },
+  "hr.label.cash_register": { ar: "الخزينة", en: "Cash Register" },
+  "hr.label.employee": { ar: "الموظف", en: "Employee" },
+  "hr.placeholder.choose": { ar: "— اختار —", en: "— Choose —" },
+  "hr.treasury.main": { ar: "الخزينة الرئيسية", en: "Main Treasury" },
+  "hr.treasury.bank": { ar: "الحساب البنكي", en: "Bank Account" },
+  "hr.expense_submit_button": { ar: "سجّل المصروف", en: "Log Expense" },
+  "hr.empty_expenses": { ar: "مفيش مصروفات", en: "No expenses yet" },
+
+  // ─── Employees form ───────────────────────────────────────
+  "hr.placeholder.name": { ar: "الاسم", en: "Name" },
+  "hr.placeholder.job_title": { ar: "الوظيفة", en: "Job Title" },
+  "hr.placeholder.phone": { ar: "التليفون", en: "Phone" },
+  "hr.placeholder.department": { ar: "القسم", en: "Department" },
+  "hr.add_employee_button": { ar: "+ موظف", en: "+ Employee" },
+
+  // ─── Transactions form ────────────────────────────────────
+  "hr.transaction_type.advance": { ar: "صرف سلفة", en: "Pay Advance" },
+  "hr.transaction_type.reimbursement": { ar: "صرف مستحقات", en: "Pay Entitlements" },
+  "hr.transaction_type.advance_return": { ar: "رد سلفة", en: "Return Advance" },
+  "hr.record_button": { ar: "سجّل", en: "Record" },
+  "hr.registered": { ar: "اتسجل", en: "Recorded" },
+  "hr.balance_tooltip": { ar: "موجب = سلفة معاه، سالب = مستحق له", en: "Positive = advance owed, Negative = payable to him" },
+} as const;
+
+// ─── Operations / Dispatch ──────────────────────────────────────────────
+const operations = {
+  "ops.title": { ar: "التوزيع", en: "Dispatch" },
+  "ops.trips": { ar: "الرحلات", en: "Trips" },
+  "ops.vehicles": { ar: "المركبات", en: "Vehicles" },
+  "ops.drivers": { ar: "السائقين", en: "Drivers" },
+  "ops.routes": { ar: "الخطوط", en: "Routes" },
+  "ops.delivery-records": { ar: "سجل التسليم", en: "Delivery Records" },
+  // --- Trip list actions & empty state ---
+  "ops.btn.new-trip": { ar: "+ رحلة", en: "+ New Trip" },
+  "ops.trip.empty": { ar: "مفيش رحلات", en: "No trips" },
+  "ops.trip.all-orders-label": { ar: "أوردر", en: "orders" },
+  "ops.trip.delivered-hint": { ar: "اتسلم", en: "delivered" },
+
+  // --- Trip status labels ---
+  "ops.trip.status.planned": { ar: "متخططة", en: "Planned" },
+  "ops.trip.status.loading": { ar: "بتتحمل", en: "Loading" },
+  "ops.trip.status.loaded": { ar: "اتحملت", en: "Loaded" },
+  "ops.trip.status.dispatched": { ar: "خرجت", en: "Dispatched" },
+  "ops.trip.status.in_transit": { ar: "في الطريق", en: "In Transit" },
+  "ops.trip.status.completed": { ar: "خلصت", en: "Completed" },
+  "ops.trip.status.cancelled": { ar: "ملغية", en: "Cancelled" },
+
+  // --- Stop / delivery statuses ---
+  "ops.stop.pending": { ar: "لسه", en: "Pending" },
+  "ops.stop.delivered": { ar: "اتسلم", en: "Delivered" },
+  "ops.stop.partial": { ar: "اتسلم جزئي", en: "Partially delivered" },
+  "ops.stop.failed": { ar: "فشل التسليم", en: "Delivery failed" },
+
+  // --- Exception types ---
+  "ops.exception.shortage": { ar: "عجز", en: "Shortage" },
+  "ops.exception.damage": { ar: "تالف", en: "Damaged" },
+  "ops.exception.rejection": { ar: "رفض العميل", en: "Customer rejected" },
+  "ops.exception.delivery_failure": { ar: "فشل التسليم", en: "Delivery failure" },
+  "ops.exception.loading_discrepancy": { ar: "فرق تحميل", en: "Loading discrepancy" },
+
+  // --- Tab filters ---
+  "ops.tab.open": { ar: "شغالة", en: "Open" },
+  "ops.tab.exceptions": { ar: "الاستثناءات", en: "Exceptions" },
+  "ops.tab.fleet": { ar: "العربيات والسواقين", en: "Vehicles & Drivers" },
+  "ops.tab.all": { ar: "الكل", en: "All" },
+
+  // --- Trip list item detail line ---
+  "ops.trips.orders-label": { ar: "أوردر", en: "Order" },
+  "ops.trips.delivered-count": { ar: "اتسلم", en: "delivered" },
+
+  // --- New Trip form ---
+  "ops.new.title": { ar: "رحلة جديدة", en: "New Trip" },
+  "ops.new.back": { ar: "رجوع", en: "Back" },
+  "ops.new.date-label": { ar: "التاريخ", en: "Date" },
+  "ops.new.vehicle-label": { ar: "العربية", en: "Vehicle" },
+  "ops.new.driver-label": { ar: "السواق", en: "Driver" },
+  "ops.new.select-option": { ar: "— اختار —", en: "— Select —" },
+  "ops.new.capacity-unit": { ar: "كجم", en: "kg" },
+  "ops.new.orders-heading": { ar: "الأوردرات (بترتيب التسليم)", en: "Orders (delivery order)" },
+  "ops.new.no-orders": { ar: "مفيش أوردرات ليوم {date} من غير رحلة.", en: "No orders on {date} without a trip." },
+  "ops.new.create-btn": { ar: "اعمل الرحلة", en: "Create Trip" },
+  "ops.new.created-toast": { ar: "اتعملت {number}", en: "Trip {number} created" },
+
+  // --- Trip detail view ---
+  "ops.detail.back": { ar: "رجوع", en: "Back" },
+  "ops.detail.plan-box": { ar: "عدد البرنيكة", en: "Crate count" },
+  "ops.detail.record-delivery": { ar: "سجّل التسليم", en: "Record Delivery" },
+  "ops.detail.start-loading": { ar: "ابدأ التحميل", en: "Start Loading" },
+  "ops.detail.confirm-loaded": { ar: "تأكيد إن الرحلة اتحملت", en: "Confirm Trip Loaded" },
+  "ops.detail.depart-btn": { ar: "خروج الرحلة", en: "Trip Departure" },
+  "ops.detail.en-route": { ar: "في الطريق", en: "On the Way" },
+  "ops.detail.cancel-placeholder": { ar: "سبب الإلغاء", en: "Cancellation Reason" },
+  "ops.detail.cancel-btn": { ar: "إلغاء الرحلة", en: "Cancel Trip" },
+  "ops.detail.receiver-line": { ar: "استلم", en: "Received by" },
+  "ops.detail.logged-by": { ar: "سجّل", en: "Logged by" },
+  "ops.detail.crate-count": { ar: "برنيكة", en: "Crate" },
+
+  // --- Delivery Form ---
+  "ops.dlv.title-format": { ar: "تسليم {orderNumber} · {customerName}", en: "Delivery {orderNumber} · {customerName}" },
+  "ops.dlv.delivered-tab": { ar: "اتسلم", en: "Delivered" },
+  "ops.dlv.failed-tab": { ar: "فشل التسليم", en: "Delivery Failed" },
+  "ops.dlv.failure-reason-label": { ar: "سبب فشل التسليم (كل البضاعة بترجع المخزن)", en: "Reason for delivery failure (all goods return to warehouse)" },
+  "ops.dlv.receiver-name-label": { ar: "اسم المستلم", en: "Receiver Name" },
+  "ops.dlv.customer-notes-label": { ar: "ملاحظات العميل", en: "Customer Notes" },
+  "ops.dlv.qty-left-format": { ar: "خرج {shipped} · اتسلم {left}", en: "Shipped {shipped} · Delivered {left}" },
+  "ops.dlv.note": { ar: "سيب الخانات فاضية لو الصنف اتسلم كله. المرفوض بيرجع المخزن، العجز والتالف بيتسجلوا استثناء.", en: "Leave fields blank if item fully delivered. Rejected returns to warehouse; shortage and damage recorded as exceptions." },
+  "ops.dlv.shortage-ph": { ar: "عجز", en: "Shortage" },
+  "ops.dlv.damaged-ph": { ar: "تالف", en: "Damaged" },
+  "ops.dlv.rejected-ph": { ar: "مرفوض", en: "Rejected" },
+  "ops.dlv.reason-ph": { ar: "السبب", en: "Reason" },
+  "ops.dlv.record-result-btn": { ar: "سجّل النتيجة", en: "Record Result" },
+  "ops.dlv.result-saved-toast": { ar: "نتيجة التسليم اتسجلت", en: "Delivery result saved" },
+
+  // --- Exceptions tab ---
+  "ops.exc.open-tab": { ar: "مفتوحة", en: "Open" },
+  "ops.exc.resolved-tab": { ar: "اتقفلت", en: "Resolved" },
+  "ops.exc.none": { ar: "مفيش استثناءات", en: "No exceptions" },
+  "ops.exc.open-status": { ar: "مفتوح", en: "Open" },
+  "ops.exc.closed-status": { ar: "اتقفل", en: "Closed" },
+  "ops.exc.logged-by-prefix": { ar: "سجّله", en: "Logged by" },
+  "ops.exc.responsible-label": { ar: "المسؤول", en: "Responsible" },
+  "ops.exc.resolution-label": { ar: "الحل", en: "Resolution" },
+  "ops.exc.close-btn": { ar: "اقفل", en: "Close" },
+
+  // --- Fleet vehicles ---
+  "ops.fleet.vehicles-title": { ar: "العربيات", en: "Vehicles" },
+  "ops.fleet.code-ph": { ar: "الكود", en: "Code" },
+  "ops.fleet.plate-ph": { ar: "رقم اللوحة", en: "Plate Number" },
+  "ops.fleet.capacity-label": { ar: "السعة (كجم)", en: "Capacity (kg)" },
+  "ops.fleet.refrigerated": { ar: "مبردة", en: "Refrigerated" },
+  "ops.fleet.add-vehicle": { ar: "+ عربية", en: "+ Vehicle" },
+  "ops.fleet.disable": { ar: "إيقاف", en: "Disable" },
+  "ops.fleet.enable": { ar: "تفعيل", en: "Enable" },
+
+  // --- Fleet drivers ---
+  "ops.fleet.drivers-title": { ar: "السواقين", en: "Drivers" },
+  "ops.fleet.name-ph": { ar: "الاسم", en: "Name" },
+  "ops.fleet.phone-ph": { ar: "التليفون", en: "Phone" },
+  "ops.fleet.add-driver": { ar: "+ سواق", en: "+ Driver" },
+
+  // --- Vehicle type options ---
+  "ops.veh.type.truck": { ar: "نقل", en: "Truck" },
+  "ops.veh.type.van": { ar: "فان", en: "Van" },
+  "ops.veh.type.pickup": { ar: "ربع نقل", en: "Pickup" },
+  "ops.veh.type.other": { ar: "أخرى", en: "Other" },
+  "ops.veh.weight-unit": { ar: "كجم", en: "kg" },
+
+} as const;
+
+// ─── Supervisor / Control ───────────────────────────────────────────────
+const supervisor = {
+  "supervisor.title": { ar: "مركز التحكم", en: "Command Center" },
+  "supervisor.exceptions": { ar: "نواقص التجهيز", en: "Shortage Exceptions" },
+  "supervisor.daily-report": { ar: "تقرير اليوم", en: "Daily Report" },
+  "supervisor.audit-log": { ar: "سجل المراجعة", en: "Audit Log" },
+  "supervisor.pipeline": { ar: "خط سير الأوردرات", en: "Order Pipeline" },
+  "supervisor.attention-queue": { ar: "بانتظار المتابعة", en: "Needs Attention" },
+  "supervisor.operational-health": { ar: "حالة التشغيل", en: "Operational Health" },
+  "supervisor.back-to-dashboard": { ar: "رجوع لمركز التحكم", en: "Back to Control Center" },
+  "supervisor.daily-title": { ar: "تقرير التشغيل اليومي", en: "Daily Operating Report" },
+  "supervisor.print-report": { ar: "طباعة التقرير", en: "Print Report" },
+  "supervisor.orders-received-today": { ar: "أوردر وصل النهارده", en: "Orders Received Today" },
+  "supervisor.dispatched-today": { ar: "اتحرك النهارده", en: "Dispatched Today" },
+  "supervisor.exceptions-needing-attention": { ar: "استثناءات محتاجة تدخل", en: "Exceptions Needing Attention" },
+  "supervisor.completion-rate": { ar: "نسبة إنجاز أوردرات النهارده", en: "Today's Order Completion Rate" },
+  "supervisor.stalled-orders": { ar: "أوردر متوقف من فترة (bottleneck)", en: "Stalled Orders (bottleneck)" },
+  "supervisor.active-pipeline-all-days": { ar: "الأوردرات الشغالة دلوقتي (كل الأيام)", en: "Active Orders Right Now (All Days)" },
+  "supervisor.bottleneck-location": { ar: "أين الاختناق دلوقتي", en: "Where is the Bottleneck Now" },
+  "supervisor.bottleneck-calc-note": { ar: "محسوب من وقت دخول كل أوردر مرحلته الحالية فعليًا (مش وقت آخر تعديل).", en: "Calculated from each order's actual entry time into its current stage (not last modification time)." },
+  "supervisor.current-bottleneck-hint": { ar: "← الاختناق الحالي", en: "← Current Bottleneck" },
+  "supervisor.bottleneck-stats-order": { ar: "أوردر", en: "orders" },
+  "supervisor.bottleneck-stats-avg": { ar: "متوسط", en: "average" },
+  "supervisor.bottleneck-stats-minutes": { ar: "دقيقة", en: "minutes" },
+  "supervisor.bottleneck-stats-longest": { ar: "أطول", en: "longest" },
+  "supervisor.most-stalled-prefix": { ar: "أكتر أوردر واقف:", en: "Most stalled order:" },
+  "supervisor.most-stalled-suffix": { ar: "دقيقة ←", en: "minutes ←" },
+  "supervisor.needs-attention-extra": { ar: "أوردر تاني محتاج تدخل —", en: "more orders needing attention —" },
+  "supervisor.see-all-link": { ar: "شوفهم كلهم في مركز التحكم", en: "See them all in Control Center" },
+  "supervisor.today-status-title": { ar: "أوردرات النهارده حسب الحالة", en: "Today's Orders by Status" },
+  "supervisor.quantities-title": { ar: "الكميات — أوردرات النهارده", en: "Quantities — Today's Orders" },
+  "supervisor.qty-required": { ar: "مطلوب", en: "Required" },
+  "supervisor.qty-prepared": { ar: "اتجهز", en: "Prepared" },
+  "supervisor.qty-loaded": { ar: "اتحمل", en: "Loaded" },
+  "supervisor.qty-footer": { ar: "الأرقام دي مجمّعة من كل الوحدات (KG/PC/...) مع بعض — للتفاصيل بالوحدة شوف صفحة إنتاج النهارده.", en: "These figures aggregate across all units (KG/PC/...) together — for unit-by-unit details see today's production page." },
+  "supervisor.info-exceptions-existing": { ar: "أوردر فيه فرق معتمد بالفعل (مش محتاج تدخل) —", en: "orders with already-approved discrepancies (no action needed) —" },
+  "supervisor.info-exceptions-link": { ar: "شوفهم في مركز الاستثناءات", en: "View them in Exceptions Center" },
+  "supervisor.create-order": { ar: "إضافة أوردر", en: "Create Order" },
+} as const;
+
+// ─── Admin ──────────────────────────────────────────────────────────────
+const admin = {
+  // --- Title & Stats ---
+  "admin.title": { ar: "الإدارة", en: "Administration" },
+  "admin.title.system": { ar: "إدارة النظام", en: "System Administration" },
+  "admin.stats.all-users": { ar: "كل المستخدمين", en: "All Users" },
+  "admin.stats.active": { ar: "نشط", en: "Active" },
+  "admin.stats.suspended": { ar: "موقوف", en: "Suspended" },
+  "admin.stats.super-admins": { ar: "مديري النظام النشطين", en: "Active System Admins" },
+  "admin.stats.last-admin-protected": {
+    ar: "آخر مدير — محمي من الإيقاف",
+    en: "Last admin — protected from suspension",
+  },
+
+  // --- Users Panel ──────────────────────────────────────────────
+  "admin.users.new-user-btn": { ar: "+ مستخدم جديد", en: "+ New user" },
+  "admin.users.empty": { ar: "مفيش مستخدمين", en: "No users" },
+  "admin.users.created-toast": { ar: "اتضاف المستخدم {username}", en: "User {username} added" },
+  "admin.users.form-title": { ar: "مستخدم جديد", en: "New User" },
+  "admin.users.name-label": { ar: "الاسم", en: "Name" },
+  "admin.users.username-en-label": { ar: "اسم المستخدم (إنجليزي)", en: "Username (English)" },
+  "admin.users.password-label": { ar: "كلمة السر", en: "Password" },
+  "admin.users.must-change-pw-hint": {
+    ar: "يغيّر كلمة السر بنفسه أول ما يدخل (مستحسن)",
+    en: "Must change password on first login (recommended)",
+  },
+  "admin.users.save-action": { ar: "إضافة", en: "Add" },
+  "admin.users.back-action": { ar: "رجوع", en: "Back" },
+  "admin.users.suspended-badge": { ar: "موقوف", en: "Suspended" },
+  "admin.users.last-admin-badge": { ar: "🔒 آخر مدير نظام", en: "🔒 Last system admin" },
+  "admin.users.exception-badge": { ar: "{count} استثناء", en: "{count} exceptions" },
+  "admin.users.expanded-btn-expanded": { ar: "إخفاء الصلاحيات", en: "Hide permissions" },
+  "admin.users.expanded-btn-collapsed": { ar: "الصلاحيات الفعلية", en: "Effective permissions" },
+  "admin.users.role-confirm": {
+    ar: 'متأكد تغيّر دور "{name}" من {fromRole} لـ {toRole}؟',
+    en: 'Are you sure you want to change "{name}" role from {fromRole} to {toRole}?',
+  },
+  "admin.users.role-changed-toast": { ar: "اتغيّر الدور", en: "Role changed" },
+  "admin.users.revoke-sessions-confirm": {
+    ar: 'تسجيل خروج "{name}" من كل الأجهزة؟',
+    en: 'Sign out "{name}" from all devices?',
+  },
+  "admin.users.sessions-revoked-toast": { ar: "اتقفلت كل جلساته", en: "All sessions revoked" },
+  "admin.users.deactivate-confirm": {
+    ar: 'متأكد توقف حساب "{name}"؟ هيتقفل عليه الدخول فورًا.',
+    en: 'Are you sure you want to deactivate "{name}"? Access will be blocked immediately.',
+  },
+  "admin.users.activate-confirm": {
+    ar: 'متأكّد تفعّل حساب "{name}"؟',
+    en: 'Are you sure you want to activate "{name}"?',
+  },
+  "admin.users.deactivated-toast": { ar: "اتوقف الحساب", en: "Account deactivated" },
+  "admin.users.activated-toast": { ar: "اتفعّل الحساب", en: "Account activated" },
+  "admin.users.disable-action": { ar: "إيقاف", en: "Disable" },
+  "admin.users.enable-action": { ar: "تفعيل", en: "Enable" },
+  "admin.users.edit-action": { ar: "تعديل", en: "Edit" },
+  "admin.users.last-admin-warning": {
+    ar: "ده آخر مدير نظام نشط — مينفعش يتوقف أو يتغيّر دوره علشان النظام ما يتقفلش.",
+    en: "This is the last active system admin — cannot be disabled or have its role changed to prevent locking the system.",
+  },
+  "admin.users.edit-name-placeholder": { ar: "الاسم", en: "Name" },
+  "admin.users.new-password-placeholder": {
+    ar: "كلمة سر جديدة (سيبها فاضية لو مش هتتغير)",
+    en: "New password (leave blank if not changing)",
+  },
+  "admin.users.force-change-hint": {
+    ar: "يغيّرها بنفسه أول ما يدخل (مستحسن)",
+    en: "Force change on next login (recommended)",
+  },
+  "admin.users.patch-error-toast": { ar: "حصل خطأ", en: "An error occurred" },
+  "admin.users.save-changed-toast": { ar: "اتحفظ التعديل", en: "Changes saved" },
+  "admin.users.edit-save-action": { ar: "حفظ", en: "Save" },
+  "admin.users.perms-updated": { ar: "اتحدّثت الصلاحيات", en: "Permissions updated" },
+  "admin.users.exceptions-summary-prefix": { ar: "استثناءات", en: "Overrides" },
+
+  // --- Effective Permissions ────────────────────────────────────
+  "admin.users.permissions.loading": { ar: "بيحمّل الصلاحيات...", en: "Loading permissions..." },
+  "admin.users.effective.role-label": { ar: "الدور الأساسي: ", en: "Base role: " },
+  "admin.users.effective.summary-prefix": { ar: "الصلاحيات الفعلية: ", en: "Effective permissions: " },
+  "admin.users.effective.no-overrides": { ar: "من غير استثناءات", en: "No overrides" },
+  "admin.users.effective.grant-symbol": { ar: "+", en: "+" },
+  "admin.users.effective.revoke-symbol": { ar: "−", en: "−" },
+  "admin.users.admin-full-perms-notice": {
+    ar: "مدير النظام عنده كل الصلاحيات دايمًا — مفيش استثناءات بتتطبّق عليه.",
+    en: "A system admin always has all permissions — no overrides apply to them.",
+  },
+  "admin.users.override-granted": { ar: "استثناء: ممنوحة", en: "override: granted" },
+  "admin.users.override-revoked": { ar: "استثناء: مسحوبة", en: "override: revoked" },
+  "admin.users.override-tag-granted": { ar: "✓ (استثناء)", en: "✓ (override)" },
+  "admin.users.override-tag-role": { ar: "(الدور)", en: "(role)" },
+  "admin.users.manage-toggle-title": { ar: "بسبب استثناء", en: "due to override" },
+  "admin.users.from-role-title": { ar: "من الدور", en: "from role" },
+  "admin.users.reset-to-role-confirm": {
+    ar: 'متأكد ترجّع "{label}" لصلاحيات الدور العادية؟',
+    en: 'Sure you want to reset "{label}" to normal role permissions?',
+  },
+  "admin.users.grant-override-confirm": {
+    ar: 'متأكد تمنح صلاحية "{label}" استثناءً لهذا المستخدم؟',
+    en: 'Are you sure you want to grant "{label}" exception to this user?',
+  },
+  "admin.users.revoke-override-confirm": {
+    ar: 'متأكد تسحب صلاحية "{label}" من هذا المستخدم؟',
+    en: 'Are you sure you want to revoke "{label}" from this user?',
+  },
+  "admin.users.select-role-default": { ar: "حسب الدور", en: "Based on role" },
+  "admin.users.select-grant": { ar: "امنح", en: "Grant" },
+  "admin.users.select-revoke": { ar: "اسحب", en: "Revoke" },
+  "admin.users.select-permitted": { ar: "مسموح", en: "Allowed" },
+  "admin.users.select-denied": { ar: "غير مسموح", en: "Denied" },
+  "admin.users.override-select-aria": { ar: "استثناء {key}", en: "override {key}" },
+
+  // --- Warning Banner ---
+  "admin.warning.permissions-mismatch-title": {
+    ar: "⚠️ جدول الصلاحيات في قاعدة البيانات مش مطابق للكود",
+    en: "Permission table in the database does not match the code",
+  },
+  "admin.warning.permissions-mismatch-body": {
+    ar: "شغّل <code dir='ltr'>npm run db:sync-permissions</code> علشان يترجع مطابق.",
+    en: "Run <code dir='ltr'>npm run db:sync-permissions</code> to restore sync.",
+  },
+
+  // --- Tabs ---
+  "admin.tab.users": { ar: "المستخدمين", en: "Users" },
+  "admin.tab.roles-permissions": { ar: "الأدوار والصلاحيات", en: "Roles & Permissions" },
+  "admin.tab.access-overview": { ar: "نظرة عامة على الوصول", en: "Access Overview" },
+  "admin.tab.company-stores": {
+    ar: "الشركة والمخازن والوحدات",
+    en: "Company, Stores & Units",
+  },
+  "admin.tab.integrations": { ar: "التكاملات", en: "Integrations" },
+  "admin.tab.operational-settings": { ar: "إعدادات التشغيل", en: "Operational Settings" },
+  "admin.tab.initial-data-load": { ar: "تحميل بيانات البداية", en: "Initial Data Load" },
+
+  // --- Permission Matrix Panel ---
+  "admin.matrix.title": { ar: "مصفوفة الأدوار والصلاحيات", en: "Role & Permission Matrix" },
+  "admin.matrix.description": {
+    ar: "الأدوار متعرّفة في الكود ومتزامنة مع قاعدة البيانات — مش قابلة للتعديل من هنا. الاستثناءات الفردية بتتعمل من صفحة المستخدم.",
+    en: "Roles are defined in code and synced with the database - not editable from here. Individual exceptions are managed on the user page.",
+  },
+  "admin.matrix.col.permission": { ar: "الصلاحية", en: "Permission" },
+  "admin.matrix.col.active": { ar: "نشط", en: "Active" },
+  "admin.matrix.col.suspended": { ar: "موقف", en: "Suspended" },
+  "admin.matrix.allowed": { ar: "مسموح", en: "Allowed" },
+  "admin.matrix.denied": { ar: "غير مسموح", en: "Denied" },
+
+  // --- System Exceptions ---
+  "admin.exceptions.title": { ar: "الاستثناءات الفردية السارية", en: "Active Individual Overrides" },
+  "admin.exceptions.empty": {
+    ar: "مفيش استثناءات - كل المستخدمين على صلاحيات أدوارهم",
+    en: "No exceptions - all users have their role permissions",
+  },
+  "admin.exceptions.granted": { ar: "ممنوحة", en: "Granted" },
+  "admin.exceptions.revoked": { ar: "مسحوبة", en: "Revoked" },
+  "admin.reason": { ar: "السبب", en: "Reason" },
+
+  // --- Audit Log ---
+  "admin.audit.title": { ar: "سجل التغييرات الأمنية", en: "Security Change Log" },
+  "admin.audit.empty": {
+    ar: "مفيش تغييرات أمنية مسجلة",
+    en: "No security changes recorded",
+  },
+  "admin.by-label": { ar: "بواسطة", en: "by" },
+
+  // --- Operational Settings (SettingsPanel) ---
+  "admin.settings.subtitle": {
+    ar: "التغيير بيسري على كل الشاشات خلال ثواني، وبيتسجل في سجل التغييرات الأمنية بالسبب.",
+    en: "Changes apply across all screens within seconds and are logged in the security change log with the reason."
+  },
+  "admin.settings.default-value": { ar: "القيمة الافتراضية", en: "Default value" },
+  "admin.settings.is-default": { ar: "الافتراضي <bdi>{value}</bdi> · غيّره {user}", en: "Default <bdi>{value}</bdi> · Changed by {user}" },
+  "admin.settings.edit": { ar: "تعديل", en: "Edit" },
+  "admin.settings.new-value": { ar: "القيمة الجديدة{unitSuffix}", en: "New value{unitSuffix}" },
+  "admin.settings.toggled-on": { ar: "مفعّل", en: "Enabled" },
+  "admin.settings.toggled-off": { ar: "مقفول", en: "Disabled" },
+  "admin.settings.reason-required": { ar: "السبب (مطلوب)", en: "Reason (required)" },
+  "admin.settings.save": { ar: "حفظ", en: "Save" },
+  "admin.settings.reset": { ar: "رجوع للافتراضي", en: "Reset to default" },
+  "admin.settings.cancel": { ar: "إلغاء", en: "Cancel" },
+
+  // Toast & validation messages
+  "admin.settings.toast-reset": { ar: "رجع للقيمة الافتراضية", en: "Reset to default" },
+  "admin.settings.toast-save": { ar: "اتحفظ الإعداد", en: "Setting saved" },
+  "admin.settings.toast-error": { ar: "حصل خطأ", en: "An error occurred" },
+  "admin.settings.enter-reason": { ar: "اكتب سبب التغيير", en: "Enter a reason for the change" },
+  "admin.settings.numeric-value": { ar: "القيمة لازم تكون رقم", en: "Value must be a number" },
+
+  // ── Data Import Panel ──────────────────────────────────────────────
+  "admin.label.kind.customers": { ar: "كروت الفنادق/العملاء", en: "Cards – Hotels / Customers" },
+  "admin.label.kind.customer_groups": { ar: "المجموعات التجارية (العلامات)", en: "Commercial Groups (Brands)" },
+  "admin.label.kind.customer_legal_entities": { ar: "الكيانات القانونية للفوترة", en: "Legal Entities for Invoicing" },
+  "admin.label.kind.suppliers": { ar: "كروت الموردين", en: "Cards – Suppliers" },
+  "admin.label.kind.products": { ar: "كروت الأصناف", en: "Cards – Items" },
+  "admin.label.kind.product_settings": { ar: "إعدادات الأصناف", en: "Item Settings" },
+  "admin.label.kind.product_packaging": { ar: "وحدات تعبئة الأصناف", en: "Item Packaging Units" },
+  "admin.label.kind.opening_stock": { ar: "رصيد المخزون الافتتاحي", en: "Opening Stock Balance" },
+  "admin.label.kind.opening_balances": { ar: "أرصدة العملاء والموردين", en: "Customer & Supplier Balances" },
+  "admin.label.kind.sales_prices": { ar: "أسعار البيع للعملاء", en: "Sales Prices for Customers" },
+  "admin.label.kind.supplier_prices": { ar: "أسعار الشراء للموردين", en: "Purchase Prices for Suppliers" },
+
+  "admin.data-import.no-permission": { ar: "مفيش صلاحية متاحة لاستيراد البيانات.", en: "No import permissions available." },
+  "admin.data-import.header-title": { ar: "تجهيز بيانات التشغيل", en: "Operation Data Setup" },
+  "admin.data-import.header-desc": { ar: "تقدر تدخل الكروت يدويًا من المبيعات والمشتريات والمخزون، أو ترفع CSV / Excel XLSX (أول ورقة عمل). المعاينة لا تحفظ أي بيانات.", en: "You can enter cards manually from Sales, Purchases, and Stock — or upload a CSV / Excel XLSX file (first worksheet only). Preview does not save any data." },
+  "admin.data-import.label-type": { ar: "نوع البيانات", en: "Data Type" },
+  "admin.data-import.download-template": { ar: "تنزيل قالب CSV", en: "Download CSV Template" },
+  "admin.data-import.choose-file": { ar: "اختيار ملف CSV / Excel", en: "Choose CSV / Excel File" },
+  "admin.data-import.no-file": { ar: "مفيش ملف مختار", en: "No file chosen" },
+  "admin.data-import.business-date-label": { ar: "تاريخ الرصيد الافتتاحي", en: "Opening Balance Date" },
+
+  "admin.data-import.help.opening_stock": { ar: "ملف الأرصدة يستخدم SKU الصنف، والكمية ووحدتها وتكلفة الوحدة. كل الملف يسجل في مستند واحد ذري؛ إعادة الملف نفسه لا تكرر الرصيد.", en: "The balance file uses item SKU, quantity, unit, and unit cost. The entire file logs in a single atomic document; re-uploading the same file does not duplicate the balance." },
+  "admin.data-import.help.xlsx": { ar: "يُقرأ أول Sheet فقط؛ استخدم قيمًا ثابتة بدل المعادلات، واجعل الأكواد والأرقام التعريفية (مثل SKU والرقم الضريبي) نصًا للحفاظ على الأصفار في بدايتها.", en: "Only the first sheet is read; use static values instead of formulas, and keep codes and identifiers (e.g., SKU, tax number) as text to preserve leading zeros." },
+  "admin.data-import.help.opening_balances": { ar: "استخدم كود العميل أو المورد الظاهر في المتحدة، وأدخل الرصيد الافتتاحي مرة واحدة بعد اعتماد تاريخ القطع.", en: "Use the customer or supplier code shown in United, and enter the opening balance once after confirming the cutoff date." },
+  "admin.data-import.help.sales_prices": { ar: "استخدم كود قائمة الأسعار وSKU الصنف. لازم تكون قائمة الأسعار موجودة ومربوطة بالعميل من قبل.", en: "Use the price list code and item SKU. The price list must exist and be linked to the customer first." },
+  "admin.data-import.help.supplier_prices": { ar: "استخدم كود المورد وSKU الصنف. الأسعار بتاريخ صلاحية وبالجنيه المصري.", en: "Use the supplier code and item SKU. Prices require an expiry date and are in Egyptian Pounds." },
+  "admin.data-import.help.products": { ar: "قالب الأصناف يقبل الاسم وSKU والوحدة ومتابعة المخزون. عمود sales_tax_code اختياري ويتطلب صلاحية إدارة الضرائب؛ اتركه فارغًا فقط للأصناف المعفاة المعتمدة.", en: "The items template accepts the name, SKU, unit, and stock tracking column. The sales_tax_code column is optional and requires the tax management permission; leave it blank only for approved exempt items." },
+  "admin.data-import.help.product_settings": { ar: "يحدّث الملف إعدادات SKU موجود: الصلاحية، FEFO/FIFO، التبريد، حدود المخزون، وطريقة التكلفة. طريقة التكلفة والتكلفة المعيارية تحتاج صلاحية الحسابات.", en: "The file updates existing SKU settings: expiry, FEFO/FIFO, cold chain, stock limits, and costing method. Costing method and standard cost require accounting permissions." },
+  "admin.data-import.help.product_packaging": { ar: "كل صف يعرّف تعبئة لصنف: SKU + وحدة التعبئة + عدد وحدات الأساس داخلها. معاملات التعبئة مرتبطة بالصنف نفسه وليست عامة.", en: "Each row defines a packaging unit for an item: SKU + packaging unit + base-unit count inside it. Packaging parameters are tied to the item and are not global." },
+  "admin.data-import.help.customers": { ar: "عمود group_code (علامة تجارية، ويمكن الجمع بين مجموعات بـ | مثل JAZ|FS) وعمود legal_entity_code (كيان فوترة) اختياريان — استورد المجموعات والكيانات القانونية الأول ثم مرّرهما كأكواد مستقرة. الرقم الضريبي بيتسجل على الكيان القانوني مش على صف الفندق.", en: "The group_code (brand, groups combined with | like JAZ|FS) and legal_entity_code (invoicing entity) columns are optional — import Groups and Legal Entities first, then reference them as stable codes. Tax numbers are registered on the legal entity, not per hotel card." },
+  "admin.data-import.help.customer_groups": { ar: "مجموعة تجارية (JAZ، Four Seasons...) — كود فريد وأسماء فقط. مفيش رقم ضريبي هنا.", en: "A commercial group (JAZ, Four Seasons…) — unique code and names only. No tax number here." },
+  "admin.data-import.help.customer_legal_entities": { ar: "كيان الفوترة القانوني صاحب الرقم الضريبي وعنوان الفوترة وبيانات مستلم الفاتورة الإلكترونية. الرقم الضريبي فريد على مستوى الكيان — فيتنقل بين أكتر من فندق بالربط مش بالتكرار.", en: "The invoicing legal entity holds the tax number, invoice address, and e-invoice recipient data. The tax number is unique per entity — share it across hotels via linking, not duplication." },
+
+  "admin.data-import.error-invalid-file": { ar: "اختار ملف CSV أو Excel بصيغة XLSX", en: "Choose a CSV or Excel (.xlsx) file" },
+  "admin.data-import.error-file-too-large": { ar: "حجم الملف أكبر من 2 ميجابايت", en: "File size exceeds 2 MB" },
+  "admin.data-import.error-no-file": { ar: "اختار ملف الاستيراد", en: "Choose an import file" },
+  "admin.data-import.error-generic": { ar: "تعذر تنفيذ الاستيراد", en: "Import could not be executed" },
+
+  "admin.data-import.loading-preview": { ar: "جارٍ الفحص…", en: "Scanning…" },
+  "admin.data-import.preview-btn": { ar: "معاينة وفحص", en: "Preview & Validate" },
+  "admin.data-import.loading-commit": { ar: "جارٍ الحفظ…", en: "Saving…" },
+  "admin.data-import.commit-btn": { ar: "حفظ الصفوف", en: "Save Rows" },
+
+  "admin.data-import.preview-result": { ar: "نتيجة الفحص:", en: "Validation result:" },
+  "admin.data-import.preview-title": { ar: "نتيجة الفحص: {rowCount} صف · {errorCount} محتاج تصحيح", en: "Validation result: {rowCount} rows · {errorCount} need correction" },
+  "admin.data-import.preview-passed": { ar: "الملف اجتاز فحص التنسيق والحقول. الحفظ هيظل خاضعًا لقواعد الكروت والقيود الفريدة.", en: "File passed format and field validation. Save is still subject to card uniqueness rules." },
+  "admin.data-import.table-row": { ar: "الصف", en: "Row" },
+  "admin.data-import.table-label": { ar: "البيان", en: "Description" },
+  "admin.data-import.table-status": { ar: "الحالة", en: "Status" },
+  "admin.data-import.preview-truncated": { ar: "معروض أول 50 صف؛ فحص الملف شمل كل الصفوف.", en: "First 50 rows shown; the full scan covered all rows." },
+  "admin.data-import.ready": { ar: "جاهز", en: "Ready" },
+
+  "admin.data-import.commit-saved": { ar: "تم حفظ", en: "Saved" },
+  "admin.data-import.commit-separator": { ar: "·", en: "·" },
+  "admin.data-import.commit-failed": { ar: "تعذر حفظ", en: "Failed to save" },
+  "admin.data-import.commit-note": { ar: "لو حصل فشل جزئي، الصفوف الناجحة محفوظة. صحح الصفوف الفاشلة ثم ارفع الجزء المتبقي فقط.", en: "If partial failure occurs, successful rows are saved. Fix the failed rows, then upload only the remaining part." },
+  "admin.data-import.result-doc": { ar: "مستند", en: "Document" },
+  "admin.data-import.result-row-prefix": { ar: "صف ", en: "Row " },
+
+  // ─── Integrations ────────────────────────────────────────────────────────
+  "admin.integrations.title": { ar: "التكاملات", en: "Integrations" },
+  "admin.integrations.code-placeholder": { ar: "code (n8n, hermes)", en: "code (n8n, hermes)" },
+  "admin.integrations.name-placeholder": { ar: "الاسم", en: "Name" },
+  "admin.integrations.create-orders": { ar: "إنشاء أوردرات", en: "Create orders" },
+  "admin.integrations.track-status": { ar: "متابعة الحالة", en: "Track status" },
+  "admin.integrations.add-key": { ar: "+ مفتاح تكامل", en: "+ Integration key" },
+  "admin.integrations.key-copy-warning": { ar: "انسخ المفتاح دلوقتي — مش هيظهر تاني:", en: "Copy the key now — it won't appear again:" },
+  "admin.integrations.copy-key": { ar: "نسخته", en: "Copied" },
+  "admin.integrations.last-used": { ar: "آخر استخدام", en: "Last used" },
+  "admin.integrations.revoked": { ar: "ملغي", en: "Revoked" },
+  "admin.integrations.revoke-key": { ar: "إلغاء المفتاح", en: "Revoke key" },
+  "admin.integrations.recent-calls": { ar: "آخر الاتصالات", en: "Recent calls" },
+  "admin.integrations.sep-scope": { ar: "، ", en: ", " },
+} as const;
+
+
+const management = {
+  "management.title": { ar: "تقارير الإدارة", en: "Management Reports" },
+  "management.operations": { ar: "أداء التشغيل", en: "Operations Performance" },
+  "management.finance": { ar: "التقارير المالية", en: "Financial Reports" },
+  "management.sales": { ar: "تقارير المبيعات", en: "Sales Reports" },
+  "management.purchasing": { ar: "تقارير المشتريات", en: "Purchasing Reports" },
+  "management.stock": { ar: "تقارير المخزون", en: "Stock Reports" },
+  "mgmt.cf.heading.cash_change": { ar: "التغير في النقدية", en: "Cash Change" },
+  "mgmt.cf.row.change": { ar: "التغير في {}", en: "{} change" },
+  "mgmt.cf.row.closing": { ar: "رصيد {} آخر الفترة", en: "Closing balance of {}" },
+  "mgmt.cf.row.net_change": { ar: "صافي التغير", en: "Net change" },
+  "mgmt.cf.row.net_flow": { ar: "صافي التدفق النقدي", en: "Net cash flow" },
+  "mgmt.cf.row.opening": { ar: "رصيد {} أول الفترة", en: "Opening balance of {}" },
+  "mgmt.cf.row.total_closing": { ar: "إجمالي رصيد آخر الفترة", en: "Total closing balance" },
+  "mgmt.cf.row.total_opening": { ar: "إجمالي رصيد أول الفترة", en: "Total opening balance" },
+  "mgmt.cf.section.financing": { ar: "أنشطة تمويلية", en: "Financing activities" },
+  "mgmt.cf.section.investing": { ar: "أنشطة استثمارية", en: "Investing activities" },
+  "mgmt.cf.section.operating": { ar: "أنشطة تشغيلية", en: "Operating activities" },
+  "mgmt.cf.table.head.amount": { ar: "المبلغ", en: "Amount" },
+  "mgmt.cf.table.head.description": { ar: "البيان", en: "Description" },
+  "mgmt.cf.table.row.total": { ar: "الإجمالي", en: "Total" },
+  "mgmt.cf.tile.fin_total": { ar: "الأنشطة التمويلية", en: "Financing Activities" },
+  "mgmt.cf.tile.inv_total": { ar: "الأنشطة الاستثمارية", en: "Investing Activities" },
+  "mgmt.cf.tile.op_total": { ar: "التدفق النقدي من الأنشطة التشغيلية", en: "Cash flow from operating activities" },
+  "mgmt.exceptions.damage": { ar: "تالف", en: "Damaged" },
+  "mgmt.exceptions.delivery_failure": { ar: "فشل التسليم", en: "Delivery failure" },
+  "mgmt.exceptions.loading_discrepancy": { ar: "فرق تحميل", en: "Loading discrepancy" },
+  "mgmt.exceptions.rejection": { ar: "رفض العميل", en: "Customer rejection" },
+  "mgmt.exceptions.shortage": { ar: "عجز", en: "Shortage" },
+  "mgmt.finance.footnote.cost_unknown": { ar: "* ْالكمية المباعة من غير تكلفة معروفة (اتسجلت قبل تسجيل سعر المورد) — الهامش بتاعها مؤقت لحد ما التكلفة الفعلية تتسجل.", en: "* Quantity sold without known cost (recorded before supplier price was entered) — its margin is temporary until actual cost is recorded." },
+  "mgmt.finance.heading.debts_aging": { ar: "أعمار الديون", en: "Debts Aging" },
+  "mgmt.finance.heading.income_statement": { ar: "قائمة الدخل (القيود المرحّلة)", en: "Income Statement (posted entries)" },
+  "mgmt.finance.heading.margin_by_product": { ar: "الهامش حسب الصنف", en: "Margin by Product" },
+  "mgmt.finance.heading.stock_movement": { ar: "حركة المخزون", en: "Stock Movement" },
+  "mgmt.finance.heading.top_customers": { ar: "أكبر العملاء", en: "Top Customers" },
+  "mgmt.finance.heading.top_inventory_items": { ar: "أعلى أصناف المخزون قيمة", en: "Highest-Value Inventory Items" },
+  "mgmt.finance.head.customer": { ar: "العميل", en: "Customer" },
+  "mgmt.finance.head.invoices": { ar: "فواتير", en: "Invoices" },
+  "mgmt.finance.tab.cashflow": { ar: "التدفقات النقدية", en: "Cash Flow" },
+  "mgmt.finance.tab.finance": { ar: "تقارير الإدارة", en: "Management Reports" },
+  "mgmt.finance.table.debts.bucket_current": { ar: "لسه", en: "Current" },
+  "mgmt.finance.table.debts.labels.customers": { ar: "العملاء", en: "Customers" },
+  "mgmt.finance.table.debts.labels.suppliers": { ar: "الموردين", en: "Suppliers" },
+  "mgmt.finance.table.debts.total": { ar: "الإجمالي", en: "Total" },
+  "mgmt.finance.table.product.cost": { ar: "التكلفة", en: "Cost" },
+  "mgmt.finance.table.product.cost_unknown": { ar: "بسعر غير مؤكد*", en: "Unknown cost*" },
+  "mgmt.finance.table.product.item": { ar: "الصنف", en: "Product" },
+  "mgmt.finance.table.product.margin": { ar: "الهامش", en: "Margin" },
+  "mgmt.finance.table.product.pct": { ar: "%", en: "%" },
+  "mgmt.finance.table.product.quantity": { ar: "الكمية", en: "Quantity" },
+  "mgmt.finance.table.product.sales": { ar: "المبيعات", en: "Sales" },
+  "mgmt.finance.tile.cash_banks": { ar: "النقدية والبنوك", en: "Cash & Banks" },
+  "mgmt.finance.tile.cost_of_sales": { ar: "تكلفة المبيعات", en: "Cost of Sales" },
+  "mgmt.finance.tile.gross_margin": { ar: "مجمل الربح", en: "Gross Margin" },
+  "mgmt.finance.tile.inventory_value": { ar: "قيمة المخزون", en: "Inventory Value" },
+  "mgmt.finance.tile.net_profit": { ar: "صافي الربح (من القيود)", en: "Net Profit (from entries)" },
+  "mgmt.finance.tile.net_sales": { ar: "صافي المبيعات", en: "Net Sales" },
+  "mgmt.finance.tile.payables": { ar: "مستحق للموردين", en: "Payables to Suppliers" },
+  "mgmt.finance.tile.receivables": { ar: "مستحق من العملاء", en: "Receivables from Customers" },
+  "mgmt.inv_top.head.item": { ar: "الصنف", en: "Item" },
+  "mgmt.inv_top.head.quantity": { ar: "الكمية", en: "Quantity" },
+  "mgmt.inv_top.head.value": { ar: "القيمة", en: "Value" },
+  "mgmt.is.head.account": { ar: "الحساب", en: "Account" },
+  "mgmt.is.head.amount": { ar: "المبلغ", en: "Amount" },
+  "mgmt.kinds.adjustment": { ar: "تسوية/جرد", en: "Adjustment/stocktake" },
+  "mgmt.kinds.customer_return": { ar: "مرتجع عملاء", en: "Customer return" },
+  "mgmt.kinds.intake": { ar: "استلام", en: "Intake" },
+  "mgmt.kinds.intake_correction": { ar: "تصحيح استلام", en: "Intake correction" },
+  "mgmt.kinds.intake_void": { ar: "إلغاء استلام", en: "Intake void" },
+  "mgmt.kinds.issue": { ar: "صرف للعملاء", en: "Issue to customers" },
+  "mgmt.kinds.scrap": { ar: "هالك", en: "Scrap" },
+  "mgmt.kinds.supplier_return": { ar: "مرتجع موردين", en: "Supplier return" },
+  "mgmt.kinds.transfer_in": { ar: "تحويل داخل", en: "Transfer in" },
+  "mgmt.kinds.transfer_out": { ar: "تحويل خارج", en: "Transfer out" },
+  "mgmt.ops.heading.delivery": { ar: "التسليم", en: "Delivery" },
+  "mgmt.ops.heading.exceptions": { ar: "الاستثناءات", en: "Exceptions" },
+  "mgmt.ops.heading.inventory_aging": { ar: "عمر المخزون الحالي (أيام من الاستلام)", en: "Current Inventory Age (days since receipt)" },
+  "mgmt.ops.heading.preparation": { ar: "التجهيز", en: "Preparation" },
+  "mgmt.ops.table.aging.head.age_bucket": { ar: "العمر", en: "Age bucket" },
+  "mgmt.ops.table.aging.head.lots": { ar: "لوطات", en: "Lots" },
+  "mgmt.ops.table.aging.head.quantity": { ar: "الكمية", en: "Quantity" },
+  "mgmt.ops.table.delivery.head.damaged": { ar: "تالف", en: "Damaged" },
+  "mgmt.ops.table.delivery.head.delivered": { ar: "اتسلم", en: "Delivered" },
+  "mgmt.ops.table.delivery.head.rejected": { ar: "مرفوض", en: "Rejected" },
+  "mgmt.ops.table.delivery.head.shipped": { ar: "خرج", en: "Shipped" },
+  "mgmt.ops.table.delivery.head.shortage": { ar: "عجز", en: "Shortage" },
+  "mgmt.ops.table.delivery.qty_label": { ar: "الكميات", en: "Quantities" },
+  "mgmt.ops.table.driver.head.delivered": { ar: "اتسلم", en: "Delivered" },
+  "mgmt.ops.table.driver.head.driver": { ar: "السواق", en: "Driver" },
+  "mgmt.ops.table.driver.head.failed": { ar: "فشل", en: "Failed" },
+  "mgmt.ops.table.driver.head.partial": { ar: "جزئي", en: "Partial" },
+  "mgmt.ops.table.driver.head.pending": { ar: "لسه", en: "Pending" },
+  "mgmt.ops.table.exc.head.avg_hours": { ar: "متوسط وقت الحل (ساعة)", en: "Avg resolution time (hours)" },
+  "mgmt.ops.table.exc.head.open": { ar: "مفتوح", en: "Open" },
+  "mgmt.ops.table.exc.head.resolved": { ar: "اتقفل", en: "Resolved" },
+  "mgmt.ops.table.exc.head.type": { ar: "النوع", en: "Type" },
+  "mgmt.ops.table.prep.head.avg_minutes": { ar: "متوسط الوقت (دقيقة)", en: "Avg time (min)" },
+  "mgmt.ops.table.prep.head.orders": { ar: "أوردرات", en: "Orders" },
+  "mgmt.ops.table.prep.head.preparer": { ar: "المجهّز", en: "Preparer" },
+  "mgmt.ops.tile.cancelled": { ar: "ملغي", en: "Cancelled" },
+  "mgmt.ops.tile.dispatch_to_done_min": { ar: "من الخروج للتسليم (دقيقة)", en: "Dispatch to delivery (min)" },
+  "mgmt.ops.tile.dispatched": { ar: "خرجت", en: "Dispatched" },
+  "mgmt.ops.tile.delivery_pct": { ar: "نسبة التسليم من اللي خرج", en: "Delivery rate of dispatched" },
+  "mgmt.ops.tile.orders": { ar: "أوردرات", en: "Orders" },
+  "mgmt.ops.tile.prepared_pct": { ar: "نسبة التجهيز من المطلوب", en: "Prepared % of required" },
+  "mgmt.ops.tile.trips": { ar: "رحلات", en: "Trips" },
+  "mgmt.ops.tile.avg_load_min": { ar: "متوسط التحميل (دقيقة)", en: "Avg load time (min)" },
+  "mgmt.stock_move.head.quantity": { ar: "الكمية", en: "Quantity" },
+  "mgmt.stock_move.head.type": { ar: "النوع", en: "Type" },
+  "mgmt.stock_move.head.value": { ar: "القيمة", en: "Value" },
+  "management.title.cashflow": { ar: "التدفقات النقدية", en: "Cash Flow" },
+  "management.title.finance": { ar: "تقارير الإدارة", en: "Management Reports" },
+  "management.title.operations": { ar: "أداء التشغيل", en: "Operations Performance" },
+} as const;
+
+// ─── ETA ────────────────────────────────────────────────────────────────
+const eta = {
+  // Title & navigation
+  "eta.title": { ar: "الفاتورة الإلكترونية", en: "E-Invoice" },
+  "eta.tab.invoices": { ar: "الفواتير", en: "Invoices" },
+  "eta.tab.setup": { ar: "البيانات والأكواد", en: "Data & Codes" },
+  "eta.empty-invoices": { ar: "مفيش فواتير صادرة.", en: "No issued invoices." },
+  // Server config status
+  "eta.config.connected": { ar: "✓ الربط مع منظومة الضرائب متظبط على السيرفر", en: "✓ Connected to the Tax Authority server" },
+  "eta.config.environment-suffix": { ar: "", en: "" },
+  "eta.config.disconnected": { ar: "⚠ الربط مع منظومة الضرائب مش متظبط على السيرفر — الإرسال متوقف. ناقص:", en: "⚠ Not connected to the Tax Authority server — sending is paused. Missing:" },
+  "eta.config.saving-env": { ar: "حفظ بيئة الربط", en: "Save connection environment" },
+  "eta.config.env-label": { ar: "بيئة الربط", en: "Connection Environment" },
+  "eta.connect-btn": { ar: "تغيير الربط", en: "Change connection" },
+  "eta.disconnect-btn": { ar: "فك الربط", en: "Disconnect" },
+  // Invoice detail panel
+  "eta.status-label": { ar: "الحالة:", en: "Status:" },
+  "eta.attempts-label": { ar: "محاولات", en: "Attempts" },
+  "eta.missing-before-send": { ar: "ناقص قبل الإرسال ({count}):", en: "Missing before sending ({count}):" },
+  "eta.data-complete": { ar: "✓ البيانات كاملة للإرسال", en: "✓ Data is complete for sending" },
+  "eta.submit-btn-send": { ar: "إرسال للمنظومة", en: "Send to System" },
+  "eta.submit-btn-resend": { ar: "إعادة الإرسال", en: "Resubmit" },
+  "eta.refresh-btn": { ar: "تحديث الحالة", en: "Refresh Status" },
+  "eta.manual-reconcile-btn": { ar: "مطابقة يدوية", en: "Manual Reconciliation" },
+  "eta.uuid-prompt": { ar: "لو لقيت الفاتورة على بوابة الضرائب اكتب الـ UUID بتاعها. لو مش موجودة سيب الخانة فاضية.", en: "If you found the invoice on the Tax Portal, enter its UUID. Leave blank if not found." },
+  "eta.not-found-confirm-prompt": { ar: "أكد إنها مش موجودة على البوابة — اكتب اللي راجعته:", en: "Confirm it was not found on the portal — describe what you checked:" },
+  "eta.document-summary": { ar: "المستند اللي هيتبعت (JSON)", en: "Document to send (JSON)" },
+  // Setup page header
+  "eta.codes-intro": { ar: "الأكواد دي بتيجي من مصلحة الضرائب (بوابة الفاتورة الإلكترونية) — مش بتتخمن. أي خانة فاضية بتوقف إرسال الفواتير اللي محتاجاها.", en: "These codes come from the Tax Authority (e-invoicing portal) — not guessed. Any empty field stops sending invoices that need it." },
+  // Issuer section
+  "eta.issuer-title": { ar: "المُصدِر", en: "Issuer" },
+  "eta.issuer-missing-data": { ar: "بيانات الشركة ناقصة", en: "Company data is missing" },
+  "eta.tax-registration-num": { ar: "رقم التسجيل الضريبي (من بيانات الشركة):", en: "Tax registration number (from company data):" },
+  "eta.branch-code": { ar: "كود الفرع في المنظومة", en: "System branch code" },
+  "eta.activity-code": { ar: "كود النشاط", en: "Activity code" },
+  // Address fields (shared with ReceiverRow)
+  "eta.field.country": { ar: "الدولة (EG)", en: "Country (EG)" },
+  "eta.field.governorate": { ar: "المحافظة", en: "Governorate" },
+  "eta.field.city-region": { ar: "المدينة / المنطقة", en: "City / Region" },
+  "eta.field.street": { ar: "الشارع", en: "Street" },
+  "eta.field.building-number": { ar: "رقم المبنى", en: "Building Number" },
+  // Tax classification
+  "eta.tax-classification": { ar: "التصنيف الضريبي", en: "Tax Classification" },
+  "eta.tax-info": { ar: "من إعداد الضرائب الحالي — لازم المحاسب يأكده قبل التشغيل الفعلي (خصوصًا المعفى V003 ولا غير الخاضع V004 للخضار والفاكهة).", en: "From current tax settings — accountant must confirm before go-live (especially Exempt V003 vs. Non-Liable V004 for produce)." },
+  // Units
+  "eta.units-title": { ar: "الوحدات", en: "Units" },
+  "eta.unit-placeholder": { ar: "كود وحدة الضرائب", en: "Tax unit code" },
+  // Items
+  "eta.items-title": { ar: "أكواد الأصناف (اللي اتفوتروت)", en: "Item Codes (Invoiced)" },
+  "eta.item-system-code-placeholder": { ar: "الكود المسجل في المنظومة", en: "Code registered in the system" },
+  // Customers / Receivers
+  "eta.receivers-title": { ar: "العملاء (اللي اتفوتروا)", en: "Customers (Invoiced)" },
+  "eta.receiver-tax-reg": { ar: "(لهم رقم ضريبي)", en: "(Has tax reg.)" },
+  "eta.receiver-no-tax": { ar: "من غير رقم ضريبي", en: "Without tax number" },
+  "eta.receiver-type": { ar: "النوع", en: "Type" },
+  "eta.receiver-auto": { ar: "تلقائي ({derived})", en: "Auto ({derived})" },
+  "eta.receiver-company": { ar: "B — شركة", en: "B — Company" },
+  "eta.receiver-person": { ar: "P — شخص", en: "P — Individual" },
+  "eta.receiver-foreign": { ar: "F — أجنبي", en: "F — Foreigner" },
+  "eta.receiver-national-id": { ar: "الرقم القومي / الهوية", en: "National ID / Identity Card" },
+  "eta.receiver-passport": { ar: "جواز السفر", en: "Passport" },
+  "eta.receiver-commercial-reg": { ar: "السجل التجاري", en: "Commercial Registration" },
+  "eta.receiver-tax-reg-number": { ar: "رقم التسجيل الضريبي للعميل", en: "Customer Tax Registration No." },
+} as const;
+
+// ─── Production ─────────────────────────────────────────────────────────
+const production = {
+  "production.title": { ar: "إنتاج النهارده", en: "Today's Production" },
+  "production.sheet": { ar: "شيت التجهيز الموحد", en: "Master Picking Sheet" },
+  "production.board": { ar: "لوحة الإنتاج", en: "Production Board" },
+} as const;
+
+// ─── Print ──────────────────────────────────────────────────────────────
+const print = {
+  "print.title": { ar: "طباعة", en: "Print" },
+  "print.picking-sheet": { ar: "شيت التجهيز", en: "Picking Sheet" },
+  "print.delivery-note": { ar: "إذن تسليم", en: "Delivery Note" },
+  "print.dispatch-note": { ar: "إذن توزيع", en: "Dispatch Note" },
+  "print.invoice": { ar: "فاتورة", en: "Invoice" },
+  "print.date": { ar: "التاريخ", en: "Date" },
+  "print.time": { ar: "الوقت", en: "Time" },
+  "print.page": { ar: "صفحة", en: "Page" },
+  "print.of": { ar: "من", en: "of" },
+  "print.signature": { ar: "التوقيع", en: "Signature" },
+  "print.receiver-signature": { ar: "توقيع المستلم", en: "Receiver Signature" },
+  "print.company": { ar: "شركة يونايتد لتوريد الفاكهة والخضروات", en: "United Fresh Food Supply Co." },
+} as const;
+
+// ─── Approvals ──────────────────────────────────────────────────────────
+const approvals = {
+  "approvals.title": { ar: "الموافقات", en: "Approvals" },
+  "approvals.pending": { ar: "بانتظار الموافقة", en: "Pending Approval" },
+  "approvals.decided": { ar: "تم البت فيها", en: "Decided" },
+  "approvals.approve": { ar: "اعتماد", en: "Approve" },
+  "approvals.reject": { ar: "رفض", en: "Reject" },
+  "approvals.reason": { ar: "السبب", en: "Reason" },
+} as const;
+
+// ─── Validation & Error Messages ────────────────────────────────────────
+const errors = {
+  "error.generic": { ar: "حصل خطأ", en: "An error occurred" },
+  "error.network": { ar: "فشل الاتصال بالسيرفر", en: "Connection to server failed" },
+  "error.timeout": { ar: "انتهت مهلة الطلب", en: "Request timed out" },
+  "error.unauthorized": { ar: "مش مسموح لك", en: "Not authorized" },
+  "error.not-found": { ar: "مش موجود", en: "Not found" },
+  "error.validation": { ar: "بيانات غير صحيحة", en: "Invalid data" },
+  "error.required": { ar: "هذا الحقل إجباري", en: "This field is required" },
+  "error.duplicate": { ar: "القيمة موجودة بالفعل", en: "Value already exists" },
+  "error.invalid-format": { ar: "صيغة غير صحيحة", en: "Invalid format" },
+  "error.max-length": { ar: "الحد الأقصى {n} حرف", en: "Maximum {n} characters" },
+  "error.min-value": { ar: "القيمة أقل من المسموح", en: "Value is below the minimum" },
+  "error.max-value": { ar: "القيمة أكبر من المسموح", en: "Value exceeds the maximum" },
+  "error.negative-qty": { ar: "الكمية مش ممكن تكون سالب", en: "Quantity cannot be negative" },
+  "error.exceeds-available": { ar: "الكمية المطلوبة أكبر من المتاح", en: "Requested quantity exceeds available stock" },
+  "error.inactive": { ar: "هذا العنصر مش مفعل", en: "This item is inactive" },
+  "error.conflict": { ar: "تعارض في البيانات — حدث التحديث من جهاز آخر", en: "Data conflict — another device updated this record" },
+  "error.concurrent": { ar: "يتم معالجة الطلب حالياً من محاولة أخرى", en: "This request is being processed by another attempt" },
+  "error.login": { ar: "اسم المستخدم أو كلمة السر غير صحيحة", en: "Invalid username or password" },
+  "error.login-locked": { ar: "تم تأمين الحساب مؤقتاً. حاول بعد 5 دقائق.", en: "Account temporarily locked. Try again in 5 minutes." },
+  "error.password-required": { ar: "يجب تغيير كلمة السر قبل الاستخدام", en: "You must change your password before continuing" },
+  "error.no-results": { ar: "مفيش نتايج", en: "No results found" },
+} as const;
+
+// ─── Confirmations ──────────────────────────────────────────────────────
+const confirm = {
+  "confirm.logout": { ar: "تأكيد تسجيل الخروج", en: "Confirm Logout" },
+  "confirm.logout-body": { ar: "متأكد إنك عايز تسجل خروج؟", en: "Are you sure you want to log out?" },
+  "confirm.delete": { ar: "تأكيد الحذف", en: "Confirm Deletion" },
+  "confirm.delete-body": { ar: "متأكد إنك عايز تحذف؟", en: "Are you sure you want to delete?" },
+  "confirm.cancel-order": { ar: "متأكد إنك عايز تلغي الأوردر؟", en: "Are you sure you want to cancel this order?" },
+  "confirm.dispatch": { ar: "متأكد إنك عايز توزع الأوردر؟", en: "Are you sure you want to dispatch this order?" },
+  "confirm.mark-loaded": { ar: "متأكد إنك عايز تأكد التحميل؟", en: "Are you sure you want to confirm loading?" },
+  "confirm.void-invoice": { ar: "متأكد إنك عايز تلغي الفاتورة؟", en: "Are you sure you want to void this invoice?" },
+} as const;
+
+
+// ─── Combine into one dictionary ────────────────────────────────────────
+export const DICTIONARY = {
+  ...nav,
+  ...roles,
+  ...ui,
+  ...sales,
+  ...stock,
+  ...orders,
+  ...purchasing,
+  ...purchasing_bill,
+  ...accounting,
+  ...hr,
+  ...operations,
+  ...supervisor,
+  ...admin,
+  ...management,
+  ...eta,
+  ...production,
+  ...print,
+  ...approvals,
+  ...errors,
+  ...confirm,
+} as const;
+
+export type TranslationKey = keyof typeof DICTIONARY;

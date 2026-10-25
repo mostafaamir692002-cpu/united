@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api-client";
 import { useToast } from "@/components/ui/Toast";
 import { EmptyState } from "@/components/States";
 import { invalidateStockData } from "@/lib/stockInvalidation";
+import { useLocale } from "@/lib/locale";
 import type { StockProductDTO } from "@/lib/stock-client-types";
 
 /** Product Master entries: canonical identity plus every name that resolves to it. */
@@ -17,6 +18,7 @@ export function ProductsPanel({
   products: StockProductDTO[];
   canManage: boolean;
 }) {
+  const { t } = useLocale();
   const [creating, setCreating] = useState(false);
   return (
     <div className="flex flex-col gap-3">
@@ -25,14 +27,14 @@ export function ProductsPanel({
           <ProductForm onDone={() => setCreating(false)} />
         ) : (
           <button onClick={() => setCreating(true)} className="btn-primary self-start text-sm">
-            + صنف جديد
+            {t("stock.btn-create-product")}
           </button>
         ))}
 
       {products.length === 0 && (
         <EmptyState
           icon="📖"
-          title="الدليل فاضي — ابدأ بإضافة الأصناف اللي الشركة بتتعامل بيها"
+          title={t("stock.empty-catalog")}
         />
       )}
 
@@ -46,6 +48,7 @@ export function ProductsPanel({
 function ProductForm({ onDone }: { onDone: () => void }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const [name, setName] = useState("");
   const [nameAr, setNameAr] = useState("");
   const [sku, setSku] = useState("");
@@ -71,10 +74,10 @@ function ProductForm({ onDone }: { onDone: () => void }) {
       });
       invalidateStockData(qc);
       await qc.invalidateQueries({ queryKey: ["stock", "coverage"] });
-      toast.show(`اتضاف الصنف ${name}`, "success");
+      toast.show(t("stock.toast-created", { name }), "success");
       onDone();
     } catch (err) {
-      const msg = err instanceof ApiClientError ? err.message : "حصل خطأ";
+      const msg = err instanceof ApiClientError ? err.message : t("ui.error");
       setError(msg);
       toast.show(msg, "error");
     } finally {
@@ -84,27 +87,27 @@ function ProductForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={submit} className="card p-4 flex flex-col gap-3">
-      <h2 className="font-extrabold text-united-dark">صنف جديد</h2>
+      <h2 className="font-extrabold text-united-dark">{t("stock.form-new-title")}</h2>
       {error && <p className="text-united-danger font-bold text-sm">{error}</p>}
       <div className="grid sm:grid-cols-2 gap-2">
         <label className="flex flex-col gap-1">
-          <span className="text-xs font-extrabold text-united-muted">الاسم الإنجليزي (رسمي)</span>
+          <span className="text-xs font-extrabold text-united-muted">{t("stock.field-name-en")}</span>
           <input dir="ltr" value={name} onChange={(e) => setName(e.target.value)} className="field" />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-xs font-extrabold text-united-muted">الاسم العربي</span>
+          <span className="text-xs font-extrabold text-united-muted">{t("stock.field-name-ar")}</span>
           <input value={nameAr} onChange={(e) => setNameAr(e.target.value)} className="field" />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-xs font-extrabold text-united-muted">كود داخلي (اختياري)</span>
+          <span className="text-xs font-extrabold text-united-muted">{t("stock.field-sku")}</span>
           <input dir="ltr" value={sku} onChange={(e) => setSku(e.target.value)} className="field" />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-xs font-extrabold text-united-muted">التصنيف (اختياري)</span>
+          <span className="text-xs font-extrabold text-united-muted">{t("stock.field-category")}</span>
           <input value={category} onChange={(e) => setCategory(e.target.value)} className="field" />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-xs font-extrabold text-united-muted">الوحدة الأساسية</span>
+          <span className="text-xs font-extrabold text-united-muted">{t("stock.field-unit")}</span>
           <input dir="ltr" value={unit} onChange={(e) => setUnit(e.target.value)} className="field" />
         </label>
         <label className="flex items-center gap-2 mt-5">
@@ -114,20 +117,20 @@ function ProductForm({ onDone }: { onDone: () => void }) {
             onChange={(e) => setStockTracked(e.target.checked)}
             className="w-5 h-5 accent-[#3f8f3f]"
           />
-          <span className="text-sm font-bold text-united-dark">بيتتبع مخزونه</span>
+          <span className="text-sm font-bold text-united-dark">{t("stock.field-track-stock")}</span>
         </label>
       </div>
       {stockTracked && !unit.trim() && (
         <p className="text-united-warn font-bold text-xs">
-          الصنف اللي بيتتبع مخزونه لازم يكون له وحدة — مفيش افتراض تلقائي.
+          {t("stock.warning-unit-required")}
         </p>
       )}
       <div className="flex gap-2">
         <button type="submit" disabled={busy || !name.trim()} className="btn-primary flex-1 text-sm">
-          {busy ? "بيتسجل…" : "إضافة"}
+          {busy ? t("stock.btn-saving") : t("stock.btn-add")}
         </button>
         <button type="button" onClick={onDone} className="btn-secondary flex-1 text-sm">
-          رجوع
+          {t("ui.back")}
         </button>
       </div>
     </form>
@@ -137,6 +140,7 @@ function ProductForm({ onDone }: { onDone: () => void }) {
 function ProductCard({ product, canManage }: { product: StockProductDTO; canManage: boolean }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [newAlias, setNewAlias] = useState("");
   const [busy, setBusy] = useState(false);
@@ -156,7 +160,7 @@ function ProductCard({ product, canManage }: { product: StockProductDTO; canMana
       toast.show(msg, "success");
       setNewAlias("");
     } catch (err) {
-      const m = err instanceof ApiClientError ? err.message : "حصل خطأ";
+      const m = err instanceof ApiClientError ? err.message : t("ui.error");
       setError(m);
       toast.show(m, "error");
     } finally {
@@ -173,24 +177,24 @@ function ProductCard({ product, canManage }: { product: StockProductDTO; canMana
             {product.nameAr && <span className="font-bold text-united-dark/70">· {product.nameAr}</span>}
             {!product.active && (
               <span className="text-[11px] font-extrabold bg-united-danger/10 text-united-danger px-2 py-0.5 rounded-full">
-                موقوف
+                {t("stock.badge-suspended")}
               </span>
             )}
             {!product.stockTracked && (
               <span className="text-[11px] font-extrabold bg-united-dark/10 text-united-muted px-2 py-0.5 rounded-full">
-                مش بيتتبع مخزونه
+                {t("stock.badge-no-tracking")}
               </span>
             )}
           </div>
           <div className="flex flex-wrap gap-x-3 text-xs font-bold text-united-muted mt-0.5">
-            <span dir="ltr">الوحدة: {product.unit}</span>
-            {product.sku && <span dir="ltr">كود: {product.sku}</span>}
+            <span dir="ltr">{t("stock.label-unit")} {product.unit}</span>
+            {product.sku && <span dir="ltr">{t("stock.label-code")} {product.sku}</span>}
             {product.category && <span>{product.category}</span>}
-            {product._count && <span>{product._count.orderItems} سطر أوردر</span>}
+            {product._count && <span>{product._count.orderItems} {t("stock.label-order-lines")}</span>}
           </div>
         </div>
         <button onClick={() => setOpen(!open)} className="btn-secondary text-xs px-3">
-          {open ? "إخفاء" : `الأسماء البديلة (${manualAliases.length})`}
+          {open ? t("stock.action-hide") : t("stock.action-toggle-aliases", { n: manualAliases.length })}
         </button>
       </div>
 
@@ -201,8 +205,8 @@ function ProductCard({ product, canManage }: { product: StockProductDTO; canMana
           <button
             onClick={() => {
               const question = product.active
-                ? `متأكد توقف صنف "${product.name}"؟ مش هيتقدر يتسجل عليه استلام لحد ما يتفعل تاني.`
-                : `متأكد تفعّل صنف "${product.name}"؟`;
+                ? t("stock.deactivate-confirm", { name: product.name })
+                : t("stock.activate-confirm", { name: product.name });
               if (!window.confirm(question)) return;
               run(
                 () =>
@@ -210,13 +214,13 @@ function ProductCard({ product, canManage }: { product: StockProductDTO; canMana
                     active: !product.active,
                     expected_version: product.version,
                   }),
-                product.active ? "اتوقف الصنف" : "اتفعّل الصنف"
+                product.active ? t("stock.toast-deactivated") : t("stock.toast-activated")
               );
             }}
             disabled={busy}
             className={`${product.active ? "btn-danger" : "btn-primary"} text-sm px-4`}
           >
-            {product.active ? "إيقاف" : "تفعيل"}
+            {product.active ? t("stock.btn-deactivate") : t("stock.btn-activate")}
           </button>
         </div>
       )}
@@ -224,7 +228,7 @@ function ProductCard({ product, canManage }: { product: StockProductDTO; canMana
       {open && (
         <div className="mt-3 pt-3 border-t border-united-border">
           <p className="text-xs font-bold text-united-muted mb-2">
-            أي اسم من دول بيوصل للصنف ده بالظبط. المطابقة حرفية بعد توحيد الشكل — مش تقريبية.
+            {t("stock.alias-explanation")}
           </p>
           <ul className="flex flex-col gap-1 mb-3">
             {aliases.map((a) => (
@@ -233,7 +237,7 @@ function ProductCard({ product, canManage }: { product: StockProductDTO; canMana
                   <span className="font-bold text-united-dark">{a.alias}</span>
                   {a.kind !== "manual" && (
                     <span className="text-[10px] font-extrabold bg-united-green/10 text-united-green px-1.5 py-0.5 rounded mr-2">
-                      اسم أساسي
+                      {t("stock.alias-kind-primary")}
                     </span>
                   )}
                   <div dir="ltr" className="text-[10px] text-united-muted">{a.normalized}</div>
@@ -244,13 +248,13 @@ function ProductCard({ product, canManage }: { product: StockProductDTO; canMana
                       run(
                         () =>
                           apiFetch(`/api/stock/products/${product.id}/aliases/${a.id}`, { method: "DELETE" }),
-                        "اتشال الاسم البديل"
+                        t("stock.toast-alias-removed")
                       )
                     }
                     disabled={busy}
                     className="btn-danger text-xs px-3 shrink-0"
                   >
-                    شيل
+                    {t("stock.action-hide")}
                   </button>
                 )}
               </li>
@@ -261,20 +265,20 @@ function ProductCard({ product, canManage }: { product: StockProductDTO; canMana
               <input
                 value={newAlias}
                 onChange={(e) => setNewAlias(e.target.value)}
-                placeholder="اسم بديل (عربي أو إنجليزي)"
+                placeholder={t("stock.placeholder-alias")}
                 className="field flex-1"
               />
               <button
                 onClick={() =>
                   run(
                     () => apiPost(`/api/stock/products/${product.id}/aliases`, { alias: newAlias }),
-                    "اتضاف الاسم البديل"
+                    t("stock.toast-alias-added")
                   )
                 }
                 disabled={busy || !newAlias.trim()}
                 className="btn-primary text-sm px-4"
               >
-                إضافة
+                {t("stock.btn-add")}
               </button>
             </div>
           )}

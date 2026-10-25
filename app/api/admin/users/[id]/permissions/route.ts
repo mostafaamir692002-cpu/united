@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     await requirePermission(req, "users.view");
     return NextResponse.json(await getUserPermissionDetail(params.id));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -27,6 +27,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     );
     return NextResponse.json(await getUserPermissionDetail(params.id));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

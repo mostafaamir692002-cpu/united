@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     await requirePermission(req, "users.view");
     return NextResponse.json({ users: await listUsers() });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -27,6 +27,6 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

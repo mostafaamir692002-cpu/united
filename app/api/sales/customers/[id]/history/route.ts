@@ -8,6 +8,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     await requirePermission(req, "sales.customers.view");
     return NextResponse.json({ logs: await customerHistory(params.id) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

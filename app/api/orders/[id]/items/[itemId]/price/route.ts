@@ -10,6 +10,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const ctx = await requirePermission(req, "sales.price_override");
     return NextResponse.json({ price: await overrideLinePrice(params.id, params.itemId, await readJson(req), serviceActorFromContext(ctx)) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

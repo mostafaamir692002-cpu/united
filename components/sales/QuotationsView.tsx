@@ -8,6 +8,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useToast } from "@/components/ui/Toast";
 import { usePermissions } from "@/lib/use-session";
 import { Field, Tabs, fmtMoney, fmtQty } from "@/components/stock/inventory/shared";
+import { useLocale } from "@/lib/locale";
 
 /**
  * Quotations: write an offer for a customer, send it, record the answer, and turn an
@@ -23,18 +24,18 @@ type QDetail = QRow & {
 };
 type Catalog = { products: { id: string; name: string; nameAr: string | null; unit: string; packagings: { uomCode: string }[] }[] };
 
-const STATUS: Record<string, { label: string; cls: string }> = {
-  draft: { label: "مسودة", cls: "bg-united-dark/5" },
-  sent: { label: "اتبعت", cls: "bg-blue-50 text-blue-700" },
-  accepted: { label: "اتقبل", cls: "bg-united-green/10 text-united-green" },
-  rejected: { label: "اترفض", cls: "bg-united-danger/10 text-united-danger" },
-  converted: { label: "بقى أوردر", cls: "bg-united-green text-white" },
-  cancelled: { label: "اتلغى", cls: "bg-united-dark/5 text-united-muted" },
+const STATUS_CLS: Record<string, string> = {
+  draft: "bg-united-dark/5",
+  sent: "bg-blue-50 text-blue-700",
+  accepted: "bg-united-green/10 text-united-green",
+  rejected: "bg-united-danger/10 text-united-danger",
+  converted: "bg-united-green text-white",
+  cancelled: "bg-united-dark/5 text-united-muted",
 };
-const fail = (toast: ReturnType<typeof useToast>, err: unknown) => toast.show(err instanceof ApiClientError ? err.message : "حصل خطأ", "error");
 
 export function QuotationsView() {
   const { can } = usePermissions();
+  const { t } = useLocale();
   const [status, setStatus] = useState("");
   const [open, setOpen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -44,22 +45,22 @@ export function QuotationsView() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-2 items-center">
-        <div className="flex-1"><Tabs value={status} onChange={setStatus} items={[{ key: "", label: "الكل" }, { key: "draft", label: "مسودات" }, { key: "sent", label: "مبعوتة" }, { key: "accepted", label: "مقبولة" }, { key: "expired", label: "منتهية" }]} /></div>
-        {can("sales.quotations.manage") && <button type="button" className="btn-primary shrink-0" onClick={() => setCreating(true)}>+ عرض سعر</button>}
+        <div className="flex-1"><Tabs value={status} onChange={setStatus} items={[{ key: "", label: t("sales.quotation.tab.all") }, { key: "draft", label: t("sales.quotation.tab.drafts") }, { key: "sent", label: t("sales.quotation.tab.sent") }, { key: "accepted", label: t("sales.quotation.tab.accepted") }, { key: "expired", label: t("sales.quotation.tab.expired") }]} /></div>
+        {can("sales.quotations.manage") && <button type="button" className="btn-primary shrink-0" onClick={() => setCreating(true)}>{t("sales.quotation.new-btn")}</button>}
       </div>
       {q.isLoading && <LoadingState />}
       {q.isError && <ErrorState message={errorMessage(q.error)} onRetry={() => q.refetch()} />}
-      {q.data && q.data.quotations.length === 0 && <EmptyState icon="📄" title="مفيش عروض أسعار" />}
+      {q.data && q.data.quotations.length === 0 && <EmptyState icon="📄" title={t("sales.quotation.empty")} />}
       <ul className="flex flex-col gap-2">
         {q.data?.quotations.map((x) => (
           <li key={x.id}>
             <button type="button" className="card p-3 w-full text-start flex justify-between gap-2" onClick={() => setOpen(x.id)}>
               <div>
                 <div className="font-extrabold"><span dir="ltr">{x.number}</span> · {x.customer.nameAr ?? x.customer.name}</div>
-                <div className="text-xs font-bold text-united-muted">{x.lineCount} سطر · صالح لحد {x.validUntil}{x.order ? ` · ${x.order.orderNumber}` : ""}</div>
+                <div className="text-xs font-bold text-united-muted">{x.lineCount} {t("sales.quotation.line-count")} · {t("sales.quotation.valid-until-label")} {x.validUntil}{x.order ? ` · ${x.order.orderNumber}` : ""}</div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <span className={`rounded-full px-2 text-xs font-extrabold ${x.expired ? "bg-united-warn/10 text-united-warn" : STATUS[x.status]?.cls}`}>{x.expired ? "انتهت صلاحيته" : STATUS[x.status]?.label}</span>
+                <span className={`rounded-full px-2 text-xs font-extrabold ${x.expired ? "bg-united-warn/10 text-united-warn" : STATUS_CLS[x.status]}`}>{x.expired ? t("sales.quotation.expired-badge") : (() => { const s = x.status; if (s === "draft") return t("sales.quotation.status.draft"); if (s === "sent") return t("sales.quotation.status.sent"); if (s === "accepted") return t("sales.quotation.status.accepted"); if (s === "rejected") return t("sales.quotation.status.rejected"); if (s === "converted") return t("sales.quotation.status.converted"); if (s === "cancelled") return t("sales.quotation.status.cancelled"); return ""; })()}</span>
                 <span dir="ltr" className="font-extrabold">{fmtMoney(x.totals.total)}</span>
               </div>
             </button>
@@ -73,6 +74,7 @@ export function QuotationsView() {
 function NewQuotation({ onDone }: { onDone: (id?: string) => void }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const customers = useQuery({ queryKey: ["sales", "customers", "", false], queryFn: () => apiFetch<{ customers: { id: string; code: string; name: string; nameAr: string | null }[] }>("/api/sales/customers?q=") });
   const catalog = useQuery({ queryKey: ["sales", "catalog"], queryFn: () => apiFetch<Catalog>("/api/sales/catalog"), staleTime: 60_000 });
   const [customerId, setCustomerId] = useState("");
@@ -99,42 +101,42 @@ function NewQuotation({ onDone }: { onDone: (id?: string) => void }) {
           };
           const r = await apiPost<{ quotation: { id: string; number: string } }>("/api/sales/quotations", body);
           void qc.invalidateQueries({ queryKey: ["sales", "quotations"] });
-          toast.show(`اتعمل ${r.quotation.number}`, "success");
+          toast.show(`${t("sales.quotation.toast-created")} ${r.quotation.number}`, "success");
           onDone(r.quotation.id);
-        } catch (err) { fail(toast, err); } finally { setBusy(false); }
+        } catch (err) { toast.show((err instanceof ApiClientError ? err.message : t("sales.quotation.error-generic")), "error"); } finally { setBusy(false); }
       }}
     >
-      <div className="flex justify-between items-center"><h3 className="font-extrabold">عرض سعر جديد</h3><button type="button" className="btn-secondary" onClick={() => onDone()}>رجوع</button></div>
-      <Field label="العميل">
+      <div className="flex justify-between items-center"><h3 className="font-extrabold">{t("sales.quotation.new-title")}</h3><button type="button" className="btn-secondary" onClick={() => onDone()}>{t("sales.quotation.btn-back")}</button></div>
+      <Field label={t("sales.quotation.customer-label")}>
         <select className="field font-bold" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-          <option value="">اختار العميل</option>
+          <option value="">{t("sales.quotation.customer-placeholder")}</option>
           {(customers.data?.customers ?? []).map((c) => <option key={c.id} value={c.id}>{c.code} · {c.nameAr ?? c.name}</option>)}
         </select>
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="تاريخ التسليم (الأسعار على أساسه)"><input type="date" className="field" value={delivery} onChange={(e) => setDelivery(e.target.value)} /></Field>
-        <Field label="صالح لحد (فاضي = الافتراضي)"><input type="date" className="field" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></Field>
+        <Field label={t("sales.quotation.delivery-label")}><input type="date" className="field" value={delivery} onChange={(e) => setDelivery(e.target.value)} /></Field>
+        <Field label={t("sales.quotation.validity-label")}><input type="date" className="field" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></Field>
       </div>
       {lines.map((l, i) => {
         const p = products.find((x) => x.id === l.product_id);
         return (
           <div key={i} className="grid grid-cols-2 sm:grid-cols-5 gap-2 border-t border-united-dark/5 pt-2">
             <select className="field font-bold col-span-2" value={l.product_id} onChange={(e) => set(i, { product_id: e.target.value, uom: "" })}>
-              <option value="">الصنف</option>
+              <option value="">{t("sales.quotation.product-label")}</option>
               {products.map((x) => <option key={x.id} value={x.id}>{x.nameAr ?? x.name}</option>)}
             </select>
-            <input className="field" inputMode="decimal" dir="ltr" placeholder="الكمية" value={l.quantity} onChange={(e) => set(i, { quantity: e.target.value })} />
+            <input className="field" inputMode="decimal" dir="ltr" placeholder={t("sales.quotation.qty-placeholder")} value={l.quantity} onChange={(e) => set(i, { quantity: e.target.value })} />
             <select className="field" value={l.uom} onChange={(e) => set(i, { uom: e.target.value })}>
-              <option value="">{p?.unit ?? "الوحدة"}</option>
+              <option value="">{p?.unit ?? t("sales.quotation.unit-default")}</option>
               {(p?.packagings ?? []).map((x) => <option key={x.uomCode} value={x.uomCode}>{x.uomCode}</option>)}
             </select>
-            <input className="field" inputMode="decimal" dir="ltr" placeholder="السعر (فاضي = القائمة)" value={l.unit_price} onChange={(e) => set(i, { unit_price: e.target.value })} />
+            <input className="field" inputMode="decimal" dir="ltr" placeholder={t("sales.quotation.price-placeholder")} value={l.unit_price} onChange={(e) => set(i, { unit_price: e.target.value })} />
           </div>
         );
       })}
-      <button type="button" className="btn-secondary self-start" onClick={() => setLines([...lines, { product_id: "", quantity: "", uom: "", unit_price: "", discount_pct: "" }])}>+ سطر</button>
-      <input className="field" placeholder="ملاحظات للعميل" value={notes} onChange={(e) => setNotes(e.target.value)} />
-      <button className="btn-primary text-lg" disabled={busy || !customerId}>{busy ? "بيتسجل..." : "حفظ كمسودة"}</button>
+      <button type="button" className="btn-secondary self-start" onClick={() => setLines([...lines, { product_id: "", quantity: "", uom: "", unit_price: "", discount_pct: "" }])}>{t("sales.quotation.add-line-btn")}</button>
+      <input className="field" placeholder={t("sales.quotation.notes-placeholder")} value={notes} onChange={(e) => setNotes(e.target.value)} />
+      <button className="btn-primary text-lg" disabled={busy || !customerId}>{busy ? t("sales.quotation.saving-text") : t("sales.quotation.save-draft-btn")}</button>
     </form>
   );
 }
@@ -143,6 +145,7 @@ function QuotationDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const { can } = usePermissions();
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const [note, setNote] = useState("");
   const q = useQuery({ queryKey: ["sales", "quotation", id], queryFn: () => apiFetch<{ quotation: QDetail }>(`/api/sales/quotations/${id}`) });
   if (q.isLoading) return <LoadingState />;
@@ -150,7 +153,7 @@ function QuotationDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const x = q.data.quotation;
   const refresh = () => void qc.invalidateQueries({ queryKey: ["sales"] });
   const act = async (action: string) => {
-    try { await apiPost(`/api/sales/quotations/${id}/transition`, { action, note: note || undefined, expected_version: x.version }); setNote(""); refresh(); } catch (err) { fail(toast, err); }
+    try { await apiPost(`/api/sales/quotations/${id}/transition`, { action, note: note || undefined, expected_version: x.version }); setNote(""); refresh(); } catch (err) { toast.show((err instanceof ApiClientError ? err.message : t("sales.quotation.error-generic")), "error"); }
   };
   const canManage = can("sales.quotations.manage");
   const open = !x.expired;
@@ -159,42 +162,42 @@ function QuotationDetail({ id, onClose }: { id: string; onClose: () => void }) {
       <div className="flex justify-between items-center gap-2">
         <div>
           <h2 className="text-xl font-extrabold" dir="ltr">{x.number}</h2>
-          <p className="text-sm font-bold text-united-muted">{x.customer.nameAr ?? x.customer.name} · صالح لحد {x.validUntil}{x.deliveryDate ? ` · تسليم ${x.deliveryDate}` : ""}</p>
+          <p className="text-sm font-bold text-united-muted">{x.customer.nameAr ?? x.customer.name} · {t("sales.quotation.valid-until-label")} {x.validUntil}{x.deliveryDate ? ` · ${x.deliveryDate}` : ""}</p>
         </div>
-        <button type="button" className="btn-secondary" onClick={onClose}>رجوع</button>
+        <button type="button" className="btn-secondary" onClick={onClose}>{t("sales.quotation.btn-back")}</button>
       </div>
-      <span className={`self-start rounded-full px-3 py-1 text-sm font-extrabold ${x.expired ? "bg-united-warn/10 text-united-warn" : STATUS[x.status]?.cls}`}>{x.expired ? "انتهت صلاحيته" : STATUS[x.status]?.label}</span>
+      <span className={`self-start rounded-full px-3 py-1 text-sm font-extrabold ${x.expired ? "bg-united-warn/10 text-united-warn" : STATUS_CLS[x.status]}`}>{x.expired ? t("sales.quotation.expired-badge") : (() => { const s = x.status; if (s === "draft") return t("sales.quotation.status.draft"); if (s === "sent") return t("sales.quotation.status.sent"); if (s === "accepted") return t("sales.quotation.status.accepted"); if (s === "rejected") return t("sales.quotation.status.rejected"); if (s === "converted") return t("sales.quotation.status.converted"); if (s === "cancelled") return t("sales.quotation.status.cancelled"); return ""; })()}</span>
       <section className="card p-4 flex flex-col divide-y divide-united-dark/5">
         {x.lines.map((l) => (
           <div key={l.id} className="py-2 flex justify-between gap-2 text-sm">
             <div>
               <div className="font-extrabold">{l.product.nameAr ?? l.product.name}</div>
-              <div className="text-xs font-bold text-united-muted" dir="rtl"><span dir="ltr">{fmtQty(l.quantity, l.uomCode)} × {l.unitPrice}</span>{Number(l.discountPct) > 0 ? ` − ${l.discountPct}%` : ""}{Number(l.taxRate) > 0 ? ` + ض ${l.taxRate}%` : ""} · {l.priceSource === "list" ? "قائمة" : "يدوي"}</div>
+              <div className="text-xs font-bold text-united-muted" dir="rtl"><span dir="ltr">{fmtQty(l.quantity, l.uomCode)} × {l.unitPrice}</span>{Number(l.discountPct) > 0 ? ` − ${l.discountPct}%` : ""}{Number(l.taxRate) > 0 ? ` ${t("sales.quotation.tax-prefix")} ${l.taxRate}%` : ""} · {l.priceSource === "list" ? t("sales.quotation.price-source.list") : t("sales.quotation.price-source.manual")}</div>
             </div>
             <span dir="ltr" className="font-extrabold">{fmtMoney(l.amounts.total)}</span>
           </div>
         ))}
-        <div className="pt-2 flex justify-between font-extrabold"><span>الإجمالي (ضريبة {fmtMoney(x.totals.tax)})</span><span dir="ltr">{fmtMoney(x.totals.total)}</span></div>
+        <div className="pt-2 flex justify-between font-extrabold"><span>{`الإجمالي (ضريبة ${fmtMoney(x.totals.tax)})`}</span><span dir="ltr">{fmtMoney(x.totals.total)}</span></div>
       </section>
-      {x.decisionNote && <p className="text-sm font-bold text-united-muted">ملاحظة: {x.decisionNote}</p>}
-      {x.order && <Link href={`/orders/${x.order.id}`} className="btn-secondary self-start">الأوردر {x.order.orderNumber}</Link>}
+      {x.decisionNote && <p className="text-sm font-bold text-united-muted">{`ملاحظة: ${x.decisionNote}`}</p>}
+      {x.order && <Link href={`/orders/${x.order.id}`} className="btn-secondary self-start">{`الأوردر ${x.order.orderNumber}`}</Link>}
       {canManage && !["converted", "rejected", "cancelled"].includes(x.status) && (
         <section className="card p-4 flex flex-col gap-2">
-          <input className="field" placeholder="ملاحظة / سبب (مطلوب للرفض والإلغاء)" value={note} onChange={(e) => setNote(e.target.value)} />
+          <input className="field" placeholder={t("sales.quotation.note-placeholder")} value={note} onChange={(e) => setNote(e.target.value)} />
           <div className="flex flex-wrap gap-2">
-            {x.status === "draft" && open && <button type="button" className="btn-primary" onClick={() => act("send")}>اتبعت للعميل</button>}
-            {x.status === "sent" && open && <button type="button" className="btn-primary" onClick={() => act("accept")}>العميل وافق</button>}
-            {x.status === "sent" && <button type="button" className="btn-danger" onClick={() => act("reject")}>العميل رفض</button>}
+            {x.status === "draft" && open && <button type="button" className="btn-primary" onClick={() => act("send")}>{t("sales.quotation.action-send")}</button>}
+            {x.status === "sent" && open && <button type="button" className="btn-primary" onClick={() => act("accept")}>{t("sales.quotation.action-accept")}</button>}
+            {x.status === "sent" && <button type="button" className="btn-danger" onClick={() => act("reject")}>{t("sales.quotation.action.reject")}</button>}
             {["sent", "accepted"].includes(x.status) && open && can("orders.create") && (
               <button type="button" className="btn-primary" onClick={async () => {
                 try {
                   const r = await apiPost<{ order: { id: string; orderNumber: string } }>(`/api/sales/quotations/${id}/convert`, {});
-                  toast.show(`اتعمل الأوردر ${r.order.orderNumber}`, "success");
+                  toast.show(`${t("sales.quotation.toast-order-created")} ${r.order.orderNumber}`, "success");
                   refresh();
-                } catch (err) { fail(toast, err); }
-              }}>حوّله لأوردر</button>
+                } catch (err) { toast.show((err instanceof ApiClientError ? err.message : t("sales.quotation.error-generic")), "error"); }
+              }}>{t("sales.quotation.action.convert")}</button>
             )}
-            <button type="button" className="btn-secondary" onClick={() => act("cancel")}>إلغاء العرض</button>
+            <button type="button" className="btn-secondary" onClick={() => act("cancel")}>{t("sales.quotation.action.cancel")}</button>
           </div>
         </section>
       )}

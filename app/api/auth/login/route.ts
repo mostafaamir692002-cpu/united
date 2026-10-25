@@ -20,9 +20,10 @@ function clientIp(req: NextRequest): string | null {
 
 export async function POST(req: NextRequest) {
   try {
+    const loc = req.headers.get("accept-language") === "en" ? "en" : "ar";
     const { username, password } = await readJson(req);
     if (typeof username !== "string" || typeof password !== "string" || !username || !password) {
-      throw new ApiError(400, "دخّل اسم المستخدم وكلمة السر");
+      throw new ApiError(400, loc === "en" ? "Enter username and password" : "دخّل اسم المستخدم وكلمة السر");
     }
     const ip = clientIp(req);
 
@@ -30,12 +31,12 @@ export async function POST(req: NextRequest) {
     // still trips it, because the lock is on where the guesses come from.
     const ipLock = await isIpLoginLocked(ip, await getSetting("auth.login_ip_lockout_threshold"));
     if (ipLock.locked) {
-      throw new ApiError(429, `محاولات كتير غلط من العنوان ده — حاول تاني بعد ${Math.ceil(ipLock.retryAfterSec / 60)} دقيقة`);
+      throw new ApiError(429, loc === "en" ? `Too many failed attempts from this IP — try again in ${Math.ceil(ipLock.retryAfterSec / 60)} minutes` : `محاولات كتير غلط من العنوان ده — حاول تاني بعد ${Math.ceil(ipLock.retryAfterSec / 60)} دقيقة`);
     }
 
     const lockState = await isLoginLocked(username);
     if (lockState.locked) {
-      throw new ApiError(429, `محاولات كتير غلط — حاول تاني بعد ${Math.ceil(lockState.retryAfterSec / 60)} دقيقة`);
+      throw new ApiError(429, loc === "en" ? `Too many failed attempts — try again in ${Math.ceil(lockState.retryAfterSec / 60)} minutes` : `محاولات كتير غلط — حاول تاني بعد ${Math.ceil(lockState.retryAfterSec / 60)} دقيقة`);
     }
 
     const user = await prisma.user.findUnique({ where: { username } });
@@ -45,11 +46,11 @@ export async function POST(req: NextRequest) {
     const ok = await verifyPassword(password, user?.passwordHash ?? TIMING_DUMMY_HASH);
     if (!user || !user.active) {
       await recordLoginFailure(username, ip);
-      throw new ApiError(401, "بيانات الدخول غلط");
+      throw new ApiError(401, loc === "en" ? "Invalid login credentials" : "بيانات الدخول غلط");
     }
     if (!ok) {
       await recordLoginFailure(username, ip);
-      throw new ApiError(401, "بيانات الدخول غلط");
+      throw new ApiError(401, loc === "en" ? "Invalid login credentials" : "بيانات الدخول غلط");
     }
     await recordLoginSuccess(username, ip);
 
@@ -81,6 +82,6 @@ export async function POST(req: NextRequest) {
       token,
     });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

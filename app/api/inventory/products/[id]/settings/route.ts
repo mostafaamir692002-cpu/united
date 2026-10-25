@@ -14,6 +14,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const product = await updateInventorySettings(params.id, await readJson(req), actor);
     return jsonFor(actor, { product }, { status: 200 });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

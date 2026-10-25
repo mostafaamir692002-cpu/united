@@ -9,6 +9,6 @@ export async function GET(req: NextRequest, { params }: { params: Record<string,
     await requirePermission(req, "accounting.view");
     return NextResponse.json({ bills: await openBills(prisma, params.id).then((r) => r.map((b) => ({ ...b, total: b.total.toFixed(2), open: b.open.toFixed(2) }))) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

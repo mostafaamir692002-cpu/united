@@ -32,6 +32,6 @@ export async function POST(
 
     return NextResponse.json({ error: "لازم تبعت quantity أو mark_done" }, { status: 400 });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

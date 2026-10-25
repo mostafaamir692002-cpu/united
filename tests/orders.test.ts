@@ -22,21 +22,28 @@ async function productCard(name: string, unit = "KG") {
   const key = `${name}\u0000${unit}`;
   let pending = productCards.get(key);
   if (!pending) {
-    pending = call("admin", "POST", "/api/stock/products", { name, unit }).then((r) => {
-      if (r.status !== 201) throw new Error(`Could not create test product card: ${JSON.stringify(r.body)}`);
-      return r.body.product;
-    });
+    pending = (async () => {
+      const r = await call("admin", "POST", "/api/stock/products", { name, unit });
+      if (r.status === 201) return r.body.product;
+      const list = await call("admin", "GET", `/api/stock/products?q=${encodeURIComponent(name)}`);
+      const found = list.body?.products?.find((p: any) => p.name === name && (!unit || p.unit === unit));
+      if (found) return found;
+      throw new Error(`Could not create test product card: ${JSON.stringify(r.body)}`);
+    })();
     productCards.set(key, pending);
   }
-  return pending;
+ return pending;
 }
 async function manualOrder(input: any) {
-  const customer = await customerCard(input.customer_name);
-  const items = await Promise.all(input.items.map(async (item: any) => {
+  const tag = `ZZ${Date.now()}`;
+  const opts = { ...input };
+  if (!opts.customer_name) opts.customer_name = `${tag} تحقق`;
+  const customer = await customerCard(opts.customer_name);
+  const items = await Promise.all(opts.items.map(async (item: any) => {
     const product = await productCard(item.product_name, item.unit ?? "KG");
     return { ...item, stock_product_id: product.id };
   }));
-  return call("sara", "POST", "/api/orders", { ...input, customer_account_id: customer.id, items });
+  return call("sara", "POST", "/api/orders", { ...opts, customer_account_id: customer.id, items });
 }
 
 async function main() {

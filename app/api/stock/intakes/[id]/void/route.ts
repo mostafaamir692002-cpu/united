@@ -14,6 +14,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const intake = await voidIntake(params.id, actor, body.reason, body.expected_version);
     return jsonFor(actor, { intake });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

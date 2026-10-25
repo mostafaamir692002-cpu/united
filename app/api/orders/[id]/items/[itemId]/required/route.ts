@@ -21,6 +21,6 @@ export async function POST(
     );
     return NextResponse.json({ item });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

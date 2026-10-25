@@ -311,7 +311,7 @@ export async function GET(req: NextRequest) {
     const kind = kindOf(new URL(req.url).searchParams.get("template"));
     assertPermission(actor, permissionByKind[kind]);
     return new NextResponse(`${templates[kind].headers}\r\n`, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="united-${kind}.csv"` } });
-  } catch (err) { return handleApiError(err); }
+  } catch (err) { return handleApiError(err, req); }
 }
 
 export async function POST(req: NextRequest) {
@@ -500,5 +500,5 @@ export async function POST(req: NextRequest) {
       }
     }
     return NextResponse.json({ created: results.filter((r) => r.status === "تم").length, failed: results.filter((r) => r.status === "فشل").length, results });
-  } catch (err) { return handleApiError(err); }
+  } catch (err) { return handleApiError(err, req); }
 }

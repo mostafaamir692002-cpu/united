@@ -22,6 +22,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       creditHold: c.creditHold,
     });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

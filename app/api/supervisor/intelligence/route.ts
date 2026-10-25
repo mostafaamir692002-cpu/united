@@ -14,6 +14,6 @@ export async function GET(req: NextRequest) {
     const intelligence = await getOperationalIntelligence(orders);
     return NextResponse.json({ orders, intelligence });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

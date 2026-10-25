@@ -37,6 +37,18 @@ export const ROLE_LABEL: Record<Role, string> = {
   PURCHASER: "مشتريات",
 };
 
+/** English role labels for localized interface. */
+export const ROLE_LABEL_EN: Record<Role, string> = {
+  SUPER_ADMIN: "System Admin",
+  SUPERVISOR: "Supervisor",
+  STOCK_CONTROLLER: "Stock Controller",
+  PREPARER: "Preparer",
+  LOADER: "Loader",
+  SALES: "Sales",
+  ACCOUNTANT: "Accountant",
+  PURCHASER: "Purchaser",
+};
+
 /** Human-readable one-line description of each role, shown on the read-only profile. */
 export const ROLE_DESC: Record<Role, string> = {
   SUPER_ADMIN: "إدارة كاملة للنظام والمستخدمين والإعدادات",
@@ -47,6 +59,18 @@ export const ROLE_DESC: Record<Role, string> = {
   SALES: "المبيعات: الأوردرات والتسعير والعملاء والفوترة",
   ACCOUNTANT: "الحسابات: القيود والميزان والتحصيل والسداد",
   PURCHASER: "المشتريات: أوامر الشراء والاستلام وفواتير الموردين",
+};
+
+/** English role descriptions for localized interface. */
+export const ROLE_DESC_EN: Record<Role, string> = {
+  SUPER_ADMIN: "Full system, user, and settings management",
+  SUPERVISOR: "Oversee order prep, loading, and shortage approval",
+  STOCK_CONTROLLER: "Manage stock, receiving, inventory, and transfers",
+  PREPARER: "Prepare orders from stock",
+  LOADER: "Loading and dispatch",
+  SALES: "Sales: orders, pricing, customers, invoicing",
+  ACCOUNTANT: "Accounting: entries, balance, collection, payments",
+  PURCHASER: "Purchasing: POs, receiving, supplier bills",
 };
 
 export function isRole(value: unknown): value is Role {

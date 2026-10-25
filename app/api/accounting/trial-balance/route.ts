@@ -10,6 +10,6 @@ export async function GET(req: NextRequest) {
     const sp = new URL(req.url).searchParams;
     return NextResponse.json({ trialBalance: await trialBalance(sp.get("from") ?? `${todayLocalISO().slice(0, 4)}-01-01`, sp.get("to") ?? todayLocalISO()) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

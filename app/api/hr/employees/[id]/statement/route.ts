@@ -8,6 +8,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     await requirePermission(req, "hr.employees.manage");
     return NextResponse.json({ statement: await employeeStatement(params.id) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

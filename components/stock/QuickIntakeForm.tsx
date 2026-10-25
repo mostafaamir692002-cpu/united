@@ -12,6 +12,7 @@ import { usePermissions } from "@/lib/use-session";
 import { LocationSelect } from "@/components/stock/inventory/shared";
 import { newClientKey } from "@/lib/clientKey";
 import Link from "next/link";
+import { useLocale } from "@/lib/locale";
 
 type OpenPoLine = { lineId: string; poNumber: string; expectedDate: string | null; supplier: { id: string; name: string }; product: { id: string; name: string; unit: string }; ordered: string; receivedGood: string; remaining: string };
 type Packaging = { uomCode: string; qtyInBaseUnit: string; active: boolean; uom: { nameAr: string | null; name: string } };
@@ -31,6 +32,7 @@ type Packaging = { uomCode: string; qtyInBaseUnit: string; active: boolean; uom:
 export function QuickIntakeForm({ date }: { date: string }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const receivedRef = useRef<HTMLInputElement>(null);
 
   const suppliersQ = useQuery({
@@ -133,17 +135,17 @@ export function QuickIntakeForm({ date }: { date: string }) {
     if (busy) return;
     setError(null);
 
-    if (!supplierId) return setError("اختار المورد");
-    if (!productId) return setError("اختار الصنف");
+    if (!supplierId) return setError(t("stock.required-supplier"));
+    if (!productId) return setError(t("stock.required-product"));
     const r = Number(receivedKg);
-    if (!Number.isFinite(r) || r <= 0) return setError("دخّل الكمية المستلمة");
+    if (!Number.isFinite(r) || r <= 0) return setError(t("stock.enter-received-qty"));
     const x = rejectedKg === "" ? 0 : Number(rejectedKg);
-    if (!Number.isFinite(x) || x < 0) return setError("كمية الفرز لازم تكون رقم موجب");
-    if (x > r * factor) return setError("المرفوض مينفعش يكون أكبر من المستلم");
+    if (!Number.isFinite(x) || x < 0) return setError(t("stock.sorting-qty-positive"));
+    if (x > r * factor) return setError(t("stock.rejected-too-high"));
     const gb = gradeBKg === "" ? 0 : Number(gradeBKg);
     const wst = wasteKg === "" ? 0 : Number(wasteKg);
-    if (!Number.isFinite(gb) || gb < 0 || !Number.isFinite(wst) || wst < 0) return setError("كميات الفرزة والهالك لازم تكون أرقام موجبة");
-    if (x + gb + wst > r * factor) return setError("مرفوض + فرزة + هالك أكبر من المستلم");
+    if (!Number.isFinite(gb) || gb < 0 || !Number.isFinite(wst) || wst < 0) return setError(t("stock.split-quantities-positive"));
+    if (x + gb + wst > r * factor) return setError(t("stock.split-exceeds-received"));
 
     setBusy(true);
     try {
@@ -169,7 +171,7 @@ export function QuickIntakeForm({ date }: { date: string }) {
       });
       setSubmitKey(newClientKey());
       await invalidateStockData(qc);
-      toast.show(`اتسجل ${intake.receiptNumber} · ${fmtKg(intake.goodKg)} ${baseUnit} صالح${intake.lot ? ` · ${intake.lot.lotNumber}` : ""}${poLine ? ` · ${poLine.poNumber}` : ""}`, "success");
+      toast.show(`${t("stock.logged")} ${intake.receiptNumber} · ${fmtKg(intake.goodKg)} ${baseUnit}${intake.lot ? ` · ${intake.lot.lotNumber}` : ""}${poLine ? ` · ${poLine.poNumber}` : ""}`, "success");
       if (poLineId) qc.invalidateQueries({ queryKey: ["purchasing"] });
       // Keep supplier/product — the next delivery is usually from the same truck.
       setReceivedKg("");
@@ -184,7 +186,7 @@ export function QuickIntakeForm({ date }: { date: string }) {
       setExpiry("");
       receivedRef.current?.focus();
     } catch (err) {
-      const msg = err instanceof ApiClientError ? err.message : "حصل خطأ";
+      const msg = err instanceof ApiClientError ? err.message : t("stock.error-generic");
       setError(msg);
       toast.show(msg, "error");
     } finally {
@@ -195,16 +197,16 @@ export function QuickIntakeForm({ date }: { date: string }) {
   if (setupIncomplete) {
     return (
       <div className="card p-5 flex flex-col gap-2 items-start">
-        <h2 className="text-xl font-extrabold text-united-dark">تسجيل استلام</h2>
+        <h2 className="text-xl font-extrabold text-united-dark">{t("stock.intake-form")}</h2>
         <p className="text-sm font-bold text-united-muted">
           {suppliers.length === 0 && products.length === 0
-            ? "لازم تضيف الموردين والأصناف الأول."
+            ? t("stock.setup-all")
             : suppliers.length === 0
-            ? "لازم تضيف الموردين الأول."
-            : "لازم تضيف الأصناف الأول."}
+            ? t("stock.setup-suppliers-first")
+            : t("stock.setup-products-first")}
         </p>
         <Link href="/stock/setup" className="btn-primary text-sm">
-          الموردين والأصناف
+          {t("stock.setup-link")}
         </Link>
       </div>
     );
@@ -213,25 +215,25 @@ export function QuickIntakeForm({ date }: { date: string }) {
   return (
     <form onSubmit={submit} className="card p-4 flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-extrabold text-united-dark">تسجيل استلام</h2>
+        <h2 className="text-xl font-extrabold text-united-dark">{t("stock.intake-form")}</h2>
         <input
           type="date"
           value={receivedDate}
           onChange={(e) => setReceivedDate(e.target.value || todayLocalISO())}
           className="tap-target border-2 border-united-dark/10 rounded-xl px-3 font-bold text-sm bg-white focus:border-united-green outline-none"
-          aria-label="تاريخ الاستلام"
+          aria-label={t("stock.date")}
         />
       </div>
 
       {error && <p className="text-united-danger font-bold text-sm">{error}</p>}
 
-      <ChipPicker label="المورد" items={suppliers} value={supplierId} onChange={pickSupplier} />
+      <ChipPicker label={t("stock.supplier")} items={suppliers} value={supplierId} onChange={pickSupplier} />
       {supplierId && openLines.length > 0 && (
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-extrabold text-united-muted">على أمر شراء؟</span>
+          <span className="text-xs font-extrabold text-united-muted">{t("stock.on-order")}</span>
           <div className="flex flex-wrap gap-2">
             <button type="button" aria-pressed={!poLineId} onClick={() => pickPoLine(null)} className={`tap-target px-4 rounded-xl font-extrabold text-sm ${!poLineId ? "bg-united-dark text-white" : "bg-united-dark/5 text-united-dark"}`}>
-              من غير أمر
+              {t("stock.no-order")}
             </button>
             {openLines.map((l) => (
               <button
@@ -247,11 +249,11 @@ export function QuickIntakeForm({ date }: { date: string }) {
           </div>
         </div>
       )}
-      <ChipPicker label="الصنف" items={products} value={productId} onChange={pickProduct} />
+      <ChipPicker label={t("stock.product")} items={products} value={productId} onChange={pickProduct} />
 
       {packagings.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {[{ code: "", label: `بالـ ${baseUnit}` }, ...packagings.map((p) => ({ code: p.uomCode, label: `بالـ${p.uom.nameAr ?? p.uom.name} (${Number(p.qtyInBaseUnit)} ${baseUnit})` }))].map((o) => (
+          {[{ code: "", label: t("stock.packaging-unit", { unit: baseUnit }) }, ...packagings.map((p) => ({ code: p.uomCode, label: `${t("stock.packaging-in")} ${p.uom.nameAr ?? p.uom.name} (${Number(p.qtyInBaseUnit)} ${baseUnit})` }))].map((o) => (
             <button
               key={o.code}
               type="button"
@@ -268,32 +270,32 @@ export function QuickIntakeForm({ date }: { date: string }) {
       <div className="grid grid-cols-2 gap-3">
         <NumberField
           ref={receivedRef}
-          label={countUom ? `المستلم (${packagings.find((p) => p.uomCode === countUom)?.uom.nameAr ?? countUom})` : "المستلم (كجم)"}
+          label={countUom ? `${t("stock.received")} (${packagings.find((p) => p.uomCode === countUom)?.uom.nameAr ?? countUom})` : t("stock.received-k")}
           value={receivedKg}
           onChange={setReceivedKg}
           autoFocusable
         />
-        <NumberField label="عدد الأقفاص" value={crates} onChange={setCrates} integer />
+        <NumberField label={t("stock.crates-count")} value={crates} onChange={setCrates} integer />
         <NumberField
-          label="فرز / مرفوض (كجم)"
+          label={t("stock.rejected-sort-k")}
           value={rejectedKg}
           onChange={setRejectedKg}
           invalid={rejectedTooHigh}
         />
         <NumberField
-          label="فرزة / ثاني درجة (كجم)"
+          label={t("stock.grade-b-desc-k")}
           value={gradeBKg}
           onChange={setGradeBKg}
           invalid={splitTooHigh}
         />
         <NumberField
-          label="هالك (كجم)"
+          label={t("stock.waste-k")}
           value={wasteKg}
           onChange={setWasteKg}
           invalid={splitTooHigh}
         />
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-extrabold text-united-muted">صافي صالح (كجم)</span>
+          <span className="text-xs font-extrabold text-united-muted">{t("stock.good-output-k")}</span>
           <div className="tap-target flex items-center justify-center rounded-xl bg-united-green/10 border-2 border-united-green/20">
             <span dir="ltr" className="text-2xl font-extrabold text-united-green">
               {preview ? fmtKg(preview.good) : "—"}
@@ -304,19 +306,19 @@ export function QuickIntakeForm({ date }: { date: string }) {
 
       {splitTooHigh && (
         <p className="text-[11px] font-bold text-united-danger">
-          مرفوض + فرزة + هالك أكبر من المستلم — صافي صالح مينفعش يبقى سالب.
+          {t("stock.split-exceeds-received")}
         </p>
       )}
 
       {Number(gradeBKg) > 0 && (
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-extrabold text-united-muted">صنف الفُرزة (اختياري — لو متركش بيتبقى على نفس الصنف)</span>
+          <span className="text-xs font-extrabold text-united-muted">{t("stock.grade-b-product-hint")}</span>
           <select
             className="field"
             value={gradeBProductId}
             onChange={(e) => setGradeBProductId(e.target.value)}
           >
-            <option value="">— نفس الصنف (الوضع القديم) —</option>
+            <option value="">{t("stock.grade-b-same-product")}</option>
             {products
               .filter((p) => p.stockTracked && p.unit === "KG" && p.id !== productId)
               .map((p) => (
@@ -329,32 +331,32 @@ export function QuickIntakeForm({ date }: { date: string }) {
       )}
 
       {Number(rejectedKg) > 0 && (
-        <input placeholder="سبب الفرز / الرفض (جودة، تلف، مقاس...)" value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} className="field" />
+        <input placeholder={t("stock.rejection-reason-placeholder")} value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} className="field" />
       )}
 
       <div className="flex items-center justify-between rounded-xl bg-united-dark/[0.03] px-4 py-3">
-        <span className="text-sm font-extrabold text-united-dark">نسبة التصافي</span>
+        <span className="text-sm font-extrabold text-united-dark">{t("stock.yield-percentage")}</span>
         <span dir="ltr" className={`text-2xl font-extrabold ${YIELD_TONE_CLASS[yieldTone(preview?.pct ?? null)]}`}>
           {fmtYield(preview?.pct ?? null)}
         </span>
       </div>
 
       <button type="button" className="text-sm font-extrabold text-united-green self-start underline" onClick={() => setShowMore(!showMore)}>
-        {showMore ? "إخفاء التفاصيل" : "المكان، الصلاحية، السعر"}
+        {showMore ? t("stock.hide-details") : t("stock.more-details-btn")}
       </button>
       {showMore && (
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1 col-span-2">
-            <span className="text-xs font-extrabold text-united-muted">اتحط فين (افتراضي: منطقة الاستلام)</span>
-            <LocationSelect value={locationId} onChange={setLocationId} allowAny anyLabel="منطقة الاستلام" />
+            <span className="text-xs font-extrabold text-united-muted">{t("stock.location-default")}</span>
+            <LocationSelect value={locationId} onChange={setLocationId} allowAny anyLabel={t("stock.receive-area")} />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-extrabold text-united-muted">تاريخ الانتهاء (افتراضي: من مدة صلاحية الصنف)</span>
+            <span className="text-xs font-extrabold text-united-muted">{t("stock.expiry-default")}</span>
             <input type="date" className="field" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
           </label>
           {can("stock.valuation.view") && !poLineId && (
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-extrabold text-united-muted">سعر الوحدة (ج.م / {baseUnit})</span>
+              <span className="text-xs font-extrabold text-united-muted">{t("stock.unit-cost")}</span>
               <input inputMode="decimal" dir="ltr" className="field" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} />
             </label>
           )}
@@ -362,14 +364,14 @@ export function QuickIntakeForm({ date }: { date: string }) {
       )}
 
       <input
-        placeholder="ملاحظات (اختياري)"
+        placeholder={t("stock.notes-input")}
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         className="field"
       />
 
       <button type="submit" disabled={busy || !preview} className="btn-primary w-full text-lg">
-        {busy ? "بيتسجل..." : "سجّل الاستلام"}
+        {busy ? t("stock.saving") : t("stock.record-intake")}
       </button>
     </form>
   );
@@ -388,12 +390,13 @@ function ChipPicker({
   value: string;
   onChange: (id: string) => void;
 }) {
+  const { t } = useLocale();
   if (items.length > 12) {
     return (
       <label className="flex flex-col gap-1">
         <span className="text-xs font-extrabold text-united-muted">{label}</span>
         <select value={value} onChange={(e) => onChange(e.target.value)} className="field font-bold">
-          <option value="">— اختار —</option>
+          <option value="">{t("stock.choose")}</option>
           {items.map((i) => (
             <option key={i.id} value={i.id}>
               {i.name}

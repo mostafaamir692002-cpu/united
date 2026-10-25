@@ -7,13 +7,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession, usePermissions } from "@/lib/use-session";
 import { apiPost } from "@/lib/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { ROLE_LABEL } from "@/lib/types";
+import { ROLE_LABEL, ROLE_LABEL_EN } from "@/lib/types";
 import { visibleNavLinks, homePathFor, NAV_GROUPS, type NavGroup } from "@/lib/nav";
 import { NotificationBell } from "@/components/NotificationBell";
+import { useLocale } from "@/lib/locale";
 
 export function Nav() {
   const { data } = useSession();
   const { permissions } = usePermissions();
+  const { t, locale, toggleLocale, isRTL } = useLocale();
   const pathname = usePathname();
   const router = useRouter();
   const qc = useQueryClient();
@@ -45,6 +47,7 @@ export function Nav() {
   // Links come from the shared NAV_LINKS definition filtered by effective permissions,
   // so the header can never offer a module the server would refuse.
   const links = visibleNavLinks(permissions);
+  const roleLabel = locale === "en" ? ROLE_LABEL_EN[user.role] : ROLE_LABEL[user.role];
 
   return (
     <header className="sticky top-0 z-20 bg-white border-b-2 border-united-green/20 shadow-sm">
@@ -54,16 +57,28 @@ export function Nav() {
           <span className="font-extrabold text-lg text-united-dark hidden sm:inline">UNITED</span>
         </Link>
         <div className="flex items-center gap-2 shrink-0">
-          <Link href="/profile" className="text-sm text-right hidden sm:block" title="الملف الشخصي — بياناتك وصلاحياتك (للاطلاع فقط)">
+          <button
+            type="button"
+            onClick={toggleLocale}
+            className="px-2.5 py-1.5 rounded-lg bg-united-dark/5 hover:bg-united-dark/10 text-xs font-extrabold shrink-0"
+            title={t("ui.lang.switch")}
+          >
+            {t("ui.lang.switch")}
+          </button>
+          <Link
+            href="/profile"
+            className={`text-sm ${isRTL ? "text-right" : "text-left"} hidden sm:block`}
+            title={t("ui.profile")}
+          >
             <div className="font-bold">{user.name}</div>
-            <div className="text-united-green">{ROLE_LABEL[user.role]}</div>
+            <div className="text-united-green">{roleLabel}</div>
           </Link>
           <NotificationBell />
           <button
             onClick={() => setConfirmingLogout(true)}
             className="px-3 py-2 rounded-lg bg-united-dark/5 hover:bg-united-dark/10 text-sm font-bold shrink-0"
           >
-            خروج
+            {t("ui.logout")}
           </button>
         </div>
         {confirmingLogout && (
@@ -71,13 +86,13 @@ export function Nav() {
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
             role="dialog"
             aria-modal="true"
-            aria-label="تأكيد تسجيل الخروج"
+            aria-label={t("confirm.logout")}
             onClick={() => { if (!loggingOut) setConfirmingLogout(false); }}
           >
             <div className="card p-5 w-full max-w-sm flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-lg font-extrabold text-united-dark">تسجيل الخروج؟</h2>
+              <h2 className="text-lg font-extrabold text-united-dark">{t("confirm.logout")}</h2>
               <p className="text-sm font-bold text-united-muted">
-                هتخرج من التبويب ده بس — التبويبات التانية اللي مسجل دخول فيها هتفضل شغالة.
+                {isRTL ? "هتخرج من التبويب ده بس — التبويبات التانية اللي مسجل دخول فيها هتفضل شغالة." : "You will only leave this tab — other tabs where you are signed in will keep working."}
               </p>
               <div className="flex gap-2 justify-end">
                 <button
@@ -86,7 +101,7 @@ export function Nav() {
                   disabled={loggingOut}
                   onClick={() => setConfirmingLogout(false)}
                 >
-                  إلغاء
+                  {t("ui.cancel")}
                 </button>
                 <button
                   type="button"
@@ -94,7 +109,7 @@ export function Nav() {
                   disabled={loggingOut}
                   onClick={logout}
                 >
-                  {loggingOut ? "...بيخرج" : "تأكيد الخروج"}
+                  {loggingOut ? t("ui.saving") : t("confirm.logout")}
                 </button>
               </div>
             </div>
@@ -113,7 +128,11 @@ export function Nav() {
         if (links.length <= 7 || groups.length <= 1) {
           return (
             <nav className="flex items-center gap-1 overflow-x-auto no-scrollbar px-4 pb-2">
-              {links.map((l) => <Link key={l.href} href={l.href} className={pill(l.href === activeHref)}>{l.label}</Link>)}
+              {links.map((l) => (
+                <Link key={l.href} href={l.href} className={pill(l.href === activeHref)}>
+                  {t(l.labelKey)}
+                </Link>
+              ))}
             </nav>
           );
         }
@@ -123,12 +142,16 @@ export function Nav() {
             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
               {groups.map((g) => (
                 <button key={g.key} type="button" onClick={() => setOpenGroup(g.key)} className={`px-3 py-1.5 rounded-lg text-sm font-extrabold whitespace-nowrap shrink-0 ${g.key === current ? "bg-united-dark text-white" : "bg-united-dark/5 text-united-dark"}`}>
-                  {g.label}
+                  {t(g.labelKey)}
                 </button>
               ))}
             </div>
             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-              {links.filter((l) => l.group === current).map((l) => <Link key={l.href} href={l.href} className={pill(l.href === activeHref)}>{l.label}</Link>)}
+              {links.filter((l) => l.group === current).map((l) => (
+                <Link key={l.href} href={l.href} className={pill(l.href === activeHref)}>
+                  {t(l.labelKey)}
+                </Link>
+              ))}
             </div>
           </nav>
         );

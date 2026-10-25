@@ -12,6 +12,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const alias = await addAlias(params.id, body.alias, actor);
     return jsonFor(actor, { alias }, { status: 201 });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

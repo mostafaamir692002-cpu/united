@@ -15,6 +15,6 @@ export async function GET(req: NextRequest) {
     ]);
     return NextResponse.json({ matrix, overview, audit });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

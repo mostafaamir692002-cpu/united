@@ -12,6 +12,6 @@ export async function GET(req: NextRequest) {
     const products = await dailyProduction();
     return NextResponse.json({ date, products });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

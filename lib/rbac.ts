@@ -1,29 +1,76 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /** Optional error code for known message patterns that need bilingual support. */
+  code?: string;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
-export function handleApiError(err: unknown) {
+const ERRORS_AR: Record<string, string> = {
+  validation: "بيانات الطلب غير صالحة: نوع حقل غير متوقع",
+  duplicate: "السجل ده موجود بالفعل (تكرار) — حدّث الصفحة وراجع",
+  nul_char: "النص فيه حرف غير مسموح (NUL)",
+  check_ref: "مرجع غير موجود (صنف/مكان/طرف غير معروف)",
+  check_default: "البيانات مخالفة لقاعدة:",
+  server: "خطأ في السيرفر",
+  "auth.required": "لازم تسجل دخول الأول",
+  "auth.change-password": "لازم تغيّر كلمة السر الأول",
+  "auth.invalid-login": "بيانات الدخول غلط",
+  "auth.enter-credentials": "دخّل اسم المستخدم وكلمة السر",
+};
+
+const ERRORS_EN: Record<string, string> = {
+  validation: "Invalid request data: unexpected field type",
+  duplicate: "This record already exists (duplicate) — refresh and review",
+  nul_char: "Text contains an unsupported character (NUL)",
+  check_ref: "Reference not found (product/location/party unknown)",
+  check_default: "Data violates rule:",
+  server: "Server error",
+  "auth.required": "You must sign in first",
+  "auth.change-password": "You must change your password first",
+  "auth.invalid-login": "Invalid login credentials",
+  "auth.enter-credentials": "Enter username and password",
+};
+
+function localeFromReq(req?: NextRequest): "ar" | "en" {
+  if (!req) return "ar";
+  const h = req.headers.get("accept-language");
+  return h === "en" ? "en" : "ar";
+}
+
+function msg(locale: "ar" | "en", key: string, fallbackAr: string): string {
+  if (locale === "en") return ERRORS_EN[key] ?? fallbackAr;
+  return ERRORS_AR[key] ?? fallbackAr;
+}
+
+export function handleApiError(err: unknown, req?: NextRequest) {
+  const loc = localeFromReq(req);
   if (err instanceof ApiError) {
+    // If the error has a known code, translate it; otherwise return as-is
+    if (err.code && loc === "en") {
+      const translated = ERRORS_EN[err.code];
+      if (translated) {
+        return NextResponse.json({ error: translated }, { status: err.status });
+      }
+    }
     return NextResponse.json({ error: err.message }, { status: err.status });
   }
   // A short reference ties what the user reports to the server log line.
   const ref = randomUUID().slice(0, 8);
-  const mapped = clientFault(err);
+  const mapped = clientFault(err, loc);
   if (mapped) {
-    // The request was wrong, not the server: say so (4xx), but keep the log line —
-    // at error level for a database rule, which may also point at a missing check.
     (mapped.loud ? console.error : console.warn)(`[api-${mapped.status} ${ref}]`, (err as Error)?.message?.split("\n").filter(Boolean).slice(-1)[0]);
     return NextResponse.json({ error: mapped.message, ref }, { status: mapped.status });
   }
   console.error(`[api-error ${ref}]`, err);
-  return NextResponse.json({ error: "خطأ في السيرفر", ref }, { status: 500 });
+  return NextResponse.json({ error: msg(loc, "server", "خطأ في السيرفر"), ref }, { status: 500 });
 }
 
 /**
@@ -34,17 +81,17 @@ export function handleApiError(err: unknown) {
  * - PostgreSQL refusing a NUL character in text.
  * Everything else stays a 500.
  */
-function clientFault(err: unknown): { status: number; message: string; loud?: boolean } | null {
+function clientFault(err: unknown, loc: "ar" | "en"): { status: number; message: string; loud?: boolean } | null {
   const e = err as { name?: string; code?: string; message?: string } | null;
   if (!e || typeof e !== "object") return null;
-  if (e.name === "PrismaClientValidationError") return { status: 400, message: "بيانات الطلب غير صالحة: نوع حقل غير متوقع" };
-  if (e.name === "PrismaClientKnownRequestError" && e.code === "P2002") return { status: 409, message: "السجل ده موجود بالفعل (تكرار) — حدّث الصفحة وراجع" };
-  if (typeof e.message === "string" && /invalid byte sequence for encoding \\?"UTF8\\?": 0x00|unsupported Unicode escape sequence/.test(e.message)) return { status: 400, message: "النص فيه حرف غير مسموح (NUL)" };
+  if (e.name === "PrismaClientValidationError") return { status: 400, message: msg(loc, "validation", "بيانات الطلب غير صالحة: نوع حقل غير متوقع") };
+  if (e.name === "PrismaClientKnownRequestError" && e.code === "P2002") return { status: 409, message: msg(loc, "duplicate", "السجل ده موجود بالفعل (تكرار) — حدّث الصفحة وراجع") };
+  if (typeof e.message === "string" && /invalid byte sequence for encoding \\"?UTF8\\"?": 0x00|unsupported Unicode escape sequence/.test(e.message)) return { status: 400, message: msg(loc, "nul_char", "النص فيه حرف غير مسموح (NUL)") };
   // A database rule refused the row (CHECK / foreign key). The transaction rolled back,
   // nothing was written; the request cannot succeed as sent.
-  const check = typeof e.message === "string" ? /violates check constraint \\?"([A-Za-z0-9_]+)\\?"/.exec(e.message) : null;
-  if (check) return { status: 422, message: `البيانات مخالفة لقاعدة: ${check[1]} — راجع التواريخ والكميات`, loud: true };
+  const check = typeof e.message === "string" ? /violates check constraint \\"?([A-Za-z0-9_]+)\\?"/.exec(e.message) : null;
+  if (check) return { status: 422, message: loc === "en" ? `Data violates rule: ${check[1]} — check dates and quantities` : `البيانات مخالفة لقاعدة: ${check[1]} — راجع التواريخ والكميات`, loud: true };
   if ((e.name === "PrismaClientKnownRequestError" && e.code === "P2003") || (typeof e.message === "string" && /violates foreign key constraint/.test(e.message)))
-    return { status: 400, message: "مرجع غير موجود (صنف/مكان/طرف غير معروف)", loud: true };
+    return { status: 400, message: msg(loc, "check_ref", "مرجع غير موجود (صنف/مكان/طرف غير معروف)"), loud: true };
   return null;
 }

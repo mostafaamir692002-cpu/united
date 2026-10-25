@@ -12,6 +12,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     const body = await readJson(req);
     return NextResponse.json(await deleteAttachment(params.id, body.reason, actor));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

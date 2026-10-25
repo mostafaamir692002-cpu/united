@@ -18,6 +18,6 @@ export async function GET(req: NextRequest) {
     const sheet = await dailyConsolidatedSheet(date);
     return NextResponse.json(sheet);
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

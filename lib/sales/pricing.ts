@@ -72,7 +72,7 @@ const listCreate = z.object({
   currency_code: egpCurrencyCode.optional(),
   is_default: z.boolean().optional(),
 });
-const listUpdate = z.object({ name: text("اسم القائمة").optional(), is_default: z.boolean().optional(), active: active.optional(), expected_version: version });
+const listUpdate = z.object({ name: text("اسم القائمة").optional(), is_default: z.boolean().optional(), active: active().optional(), expected_version: version });
 
 export async function listPriceLists() {
   return prisma.priceList.findMany({ orderBy: [{ isDefault: "desc" }, { code: "asc" }], include: { _count: { select: { customers: true, items: true } } } });

@@ -8,6 +8,6 @@ export async function GET(req: NextRequest) {
     await requirePermission(req, "operations.trips.manage");
     return NextResponse.json({ orders: await plannableOrders(new URL(req.url).searchParams.get("date") ?? undefined) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

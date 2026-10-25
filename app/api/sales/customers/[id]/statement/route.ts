@@ -12,6 +12,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const from = sp.get("from") ?? `${to.slice(0, 4)}-01-01`;
     return NextResponse.json(await customerStatement(params.id, from, to));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

@@ -61,7 +61,7 @@ const employeeInput = z.object({
   phone: optText("التليفون", 30).optional(),
   user_id: z.string().nullable().optional(),
   hire_date: date,
-  active: active.optional(),
+  active: active().optional(),
 });
 
 export async function saveEmployee(id: string | null, input: unknown, actor: ServiceActor) {

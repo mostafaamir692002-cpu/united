@@ -25,6 +25,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     );
     return jsonFor(actor, { product });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

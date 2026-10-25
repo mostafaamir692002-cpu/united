@@ -19,7 +19,7 @@ export function postHandler(
       // Cost fields leave only for holders of stock.valuation.view (see redact.ts).
       return jsonFor(actor, result, { status: status(result) });
     } catch (err) {
-      return handleApiError(err);
+      return handleApiError(err, req);
     }
   };
 }

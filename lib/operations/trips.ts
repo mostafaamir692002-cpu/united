@@ -51,10 +51,10 @@ const vehicleInput = z.object({
   type: z.enum(["van", "truck", "pickup", "other"]).optional(),
   capacity_kg: z.union([z.number().positive(), z.null()]).optional(),
   refrigerated: z.boolean().optional(),
-  active: active.optional(),
+  active: active().optional(),
   expected_version: version,
 });
-const driverInput = z.object({ name: text("اسم السواق", 100), phone: optText("التليفون", 30).optional(), active: active.optional(), expected_version: version });
+const driverInput = z.object({ name: text("اسم السواق", 100), phone: optText("التليفون", 30).optional(), active: active().optional(), expected_version: version });
 
 function uniqueClash(err: unknown, msg: string): never {
   if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") throw new ApiError(409, msg);

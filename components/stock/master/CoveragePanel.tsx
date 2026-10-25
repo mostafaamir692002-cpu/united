@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "@/lib/locale";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiPost, ApiClientError } from "@/lib/api-client";
 import { useToast } from "@/components/ui/Toast";
@@ -24,6 +25,7 @@ export function CoveragePanel({
   products: StockProductDTO[];
   canManage: boolean;
 }) {
+  const { t } = useLocale();
   const [filter, setFilter] = useState<"all" | "unmapped" | "mapped" | "issues">("all");
   const { summary, rows } = coverage;
 
@@ -38,37 +40,36 @@ export function CoveragePanel({
     <div className="flex flex-col gap-3">
       <div className="card p-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-          <Metric label="أسماء مختلفة" value={summary.distinctNames} />
-          <Metric label="مربوطة" value={summary.mapped} tone="text-united-green" />
-          <Metric label="غير مربوطة" value={summary.unmapped} tone={summary.unmapped ? "text-united-warn" : "text-united-muted"} />
-          <Metric label="ملتبسة" value={summary.ambiguous} tone={summary.ambiguous ? "text-united-danger" : "text-united-muted"} />
+          <Metric label={t("stock.coverage.distinct_names")} value={summary.distinctNames} />
+          <Metric label={t("stock.coverage.mapped")} value={summary.mapped} tone="text-united-green" />
+          <Metric label={t("stock.coverage.unmapped")} value={summary.unmapped} tone={summary.unmapped ? "text-united-warn" : "text-united-muted"} />
+          <Metric label={t("stock.coverage.ambiguous")} value={summary.ambiguous} tone={summary.ambiguous ? "text-united-danger" : "text-united-muted"} />
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-center mt-3 pt-3 border-t border-united-border">
-          <Metric label="سطور الأوردرات" value={summary.totalLines} />
-          <Metric label="سطور مربوطة" value={summary.mappedLines} tone="text-united-green" />
+          <Metric label={t("stock.coverage.order_lines")} value={summary.totalLines} />
+          <Metric label={t("stock.coverage.mapped_lines")} value={summary.mappedLines} tone="text-united-green" />
           <Metric
-            label="ربط لأصناف موقوفة"
+            label={t("stock.coverage.inactive_mappings")}
             value={summary.inactiveMappings}
             tone={summary.inactiveMappings ? "text-united-warn" : "text-united-muted"}
           />
         </div>
         {summary.unitMismatches > 0 && (
           <p className="text-united-warn font-bold text-sm mt-3">
-            ⚠️ {summary.unitMismatches} اسم وحدته في الأوردر مختلفة عن وحدة الصنف الأساسية — راجعها قبل
-            ما المخزون يتربط بالأوردرات.
+            {t("stock.coverage.unit_mismatch_warning").replace("{count}", String(summary.unitMismatches))}
           </p>
         )}
         <p className="text-[11px] font-bold text-united-muted mt-3">
-          الوحدة اللي في الأوردر بتفضل زي ما هي — الدليل بيحدد الهوية بس، مش بيعيد كتابة الكميات.
+          {t("stock.coverage.info_note")}
         </p>
       </div>
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar">
         {([
-          ["all", `الكل (${rows.length})`],
-          ["unmapped", `غير مربوطة (${summary.unmapped})`],
-          ["mapped", `مربوطة (${summary.mapped})`],
-          ["issues", `تحتاج مراجعة (${summary.ambiguous + summary.inactiveMappings + summary.unitMismatches})`],
+          ["all", `${t("stock.filter.all").replace("{count}", String(rows.length))}`],
+          ["unmapped", `${t("stock.filter.unmapped").replace("{count}", String(summary.unmapped))}`],
+          ["mapped", `${t("stock.filter.mapped").replace("{count}", String(summary.mapped))}`],
+          ["issues", `${t("stock.filter.issues").replace("{count}", String(summary.ambiguous + summary.inactiveMappings + summary.unitMismatches))}`],
         ] as const).map(([key, label]) => (
           <button
             key={key}
@@ -85,7 +86,7 @@ export function CoveragePanel({
       {visible.length === 0 && (
         <EmptyState
           icon={rows.length === 0 ? "📋" : "✅"}
-          title={rows.length === 0 ? "مفيش أصناف في الأوردرات لسه" : "مفيش حاجة في الفلتر ده"}
+          title={rows.length === 0 ? t("stock.empty.no-items") : t("stock.empty.filtered")}
         />
       )}
 
@@ -121,6 +122,7 @@ function CoverageRow({
 }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const [linking, setLinking] = useState(false);
   const [productId, setProductId] = useState("");
   const [createAlias, setCreateAlias] = useState(true);
@@ -150,10 +152,10 @@ function CoverageRow({
 
   const badge =
     row.status === "mapped"
-      ? { text: "مربوط", cls: "bg-united-green/10 text-united-green" }
+      ? { text: t("stock.badge.mapped"), cls: "bg-united-green/10 text-united-green" }
       : row.status === "ambiguous"
-      ? { text: "ملتبس", cls: "bg-united-danger/10 text-united-danger" }
-      : { text: "غير مربوط", cls: "bg-united-warn/10 text-united-warn" };
+      ? { text: t("stock.badge.ambiguous"), cls: "bg-united-danger/10 text-united-danger" }
+      : { text: t("stock.badge.unmapped"), cls: "bg-united-warn/10 text-united-warn" };
 
   return (
     <div className="card p-4">
@@ -167,7 +169,7 @@ function CoverageRow({
             </span>
           </div>
           <div className="text-xs font-bold text-united-muted mt-0.5">
-            {row.lineCount} سطر · {row.orderCount} أوردر
+            {t("stock.row.line_info").replace("{linesCount}", String(row.lineCount)).replace("{ordersCount}", String(row.orderCount))}
           </div>
           {row.product && (
             <div className="text-sm font-bold text-united-green mt-1">
@@ -189,7 +191,7 @@ function CoverageRow({
       )}
       {row.status === "ambiguous" && (
         <p className="text-united-danger font-bold text-sm mt-2">
-          ⚠️ الاسم ده بيوصل لأكتر من صنف ({row.candidates.map((c) => c.name).join("، ")}) — لازم يتحل يدوي
+          ⚠️ {t("stock.row.needs_resolution")} — {row.candidates.map((c) => c.name).join("، ")}
         </p>
       )}
 

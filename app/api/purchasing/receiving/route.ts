@@ -10,6 +10,6 @@ export async function GET(req: NextRequest) {
     const supplierId = new URL(req.url).searchParams.get("supplier_id") ?? undefined;
     return NextResponse.json({ lines: await openLinesForReceiving({ supplierId }) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

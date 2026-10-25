@@ -63,6 +63,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ from, to, count: rows.length, totals, entries: rows.slice(0, 500) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

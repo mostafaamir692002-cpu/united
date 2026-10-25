@@ -11,6 +11,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const order = await approveShortage(params.id, actor, body.reason, body.expected_version);
     return NextResponse.json({ order });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

@@ -14,6 +14,7 @@ import { invalidateDerivedOrderData } from "@/lib/queryInvalidation";
 import { applyOrderToCache } from "@/lib/orderCache";
 import { useReadyForLoadingAlert } from "@/lib/liveAlerts";
 import { useOperationalSettings } from "@/lib/use-operational-settings";
+import { useLocale } from "@/lib/locale/useLocale";
 
 const URGENCY_RANK = { late: 0, soon: 1, ok: 2, none: 3 } as const;
 
@@ -21,6 +22,7 @@ export function LoadBoard() {
   const ops = useOperationalSettings();
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const [vehicle, setVehicle] = useState("");
   const [driverName, setDriverName] = useState("");
   const [crateCounts, setCrateCounts] = useState<Record<string, string>>({});
@@ -61,7 +63,11 @@ export function LoadBoard() {
     if (busy) return;
     if (
       !window.confirm(
-        `متأكد العربية "${vehicle.trim()}" مع السواق "${driverName.trim()}" هتاخد ${readyToDispatch.length} أوردر دلوقتي؟`
+        t("orders.load-board.confirm-text", {
+          vehicle: vehicle.trim(),
+          driver: driverName.trim(),
+          count: String(readyToDispatch.length),
+        })
       )
     ) {
       return;
@@ -82,12 +88,12 @@ export function LoadBoard() {
         applyOrderToCache(qc, order);
       }
       invalidateDerivedOrderData(qc);
-      toast.show(`العربية خرجت 🚚 (${readyToDispatch.length} أوردر)`, "success");
+      toast.show(t("orders.load-board.toast-success", { count: String(readyToDispatch.length) }), "success");
       setVehicle("");
       setDriverName("");
       setCrateCounts({});
     } catch (err) {
-      const msg = err instanceof ApiClientError ? err.message : "حصل خطأ";
+      const msg = err instanceof ApiClientError ? err.message : t("orders.load-board.error");
       setError(msg);
       toast.show(msg, "error");
     } finally {
@@ -98,7 +104,7 @@ export function LoadBoard() {
   return (
     <div className="p-4 max-w-2xl mx-auto pb-10">
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-2xl font-extrabold text-united-dark">أوردرات التحميل</h1>
+        <h1 className="text-2xl font-extrabold text-united-dark">{t("orders.load-board-title")}</h1>
         <LiveIndicator dataUpdatedAt={dataUpdatedAt} isLoading={isLoading} />
       </div>
 
@@ -108,11 +114,11 @@ export function LoadBoard() {
         !isError &&
         active.length === 0 &&
         readyToDispatch.length === 0 &&
-        upcoming.length === 0 && <EmptyState icon="👍" title="مفيش أوردرات جاهزة للتحميل دلوقتي" />}
+        upcoming.length === 0 && <EmptyState icon="👍" title={t("orders.load-board.empty")} />}
 
       {active.length > 0 && (
         <div className="mt-3">
-          <h2 className="text-sm font-extrabold text-united-muted mb-2">🟢 جاهز / بيتحمّل دلوقتي</h2>
+          <h2 className="text-sm font-extrabold text-united-muted mb-2">{t("orders.load-board.active-header")}</h2>
           <div className="flex flex-col gap-3">
             {active.map((o) => (
               <OrderCard key={o.id} order={o} />
@@ -123,7 +129,7 @@ export function LoadBoard() {
 
       {upcoming.length > 0 && (
         <div className="mt-6">
-          <h2 className="text-sm font-extrabold text-united-muted mb-2">لسه بيتجهز — للمتابعة بس</h2>
+          <h2 className="text-sm font-extrabold text-united-muted mb-2">{t("orders.load-board.upcoming-header")}</h2>
           <div className="flex flex-col gap-3 opacity-80">
             {upcoming.map((o) => (
               <OrderCard key={o.id} order={o} />
@@ -134,7 +140,7 @@ export function LoadBoard() {
 
       {readyToDispatch.length > 0 && (
         <div className="mt-8 card p-5">
-          <h2 className="text-xl font-extrabold mb-3 text-united-dark">🚚 العربية</h2>
+          <h2 className="text-xl font-extrabold mb-3 text-united-dark">{t("orders.load-board.vehicle-section")}</h2>
           <ul className="flex flex-col gap-2 mb-4">
             {readyToDispatch.map((o) => (
               <li key={o.id} className="flex items-center gap-2">
@@ -143,7 +149,7 @@ export function LoadBoard() {
                 <input
                   type="number"
                   inputMode="numeric"
-                  placeholder="برنيكة"
+                  placeholder={t("orders.load-board.crate-count-placeholder")}
                   value={crateCounts[o.id] ?? ""}
                   onChange={(e) => setCrateCounts((c) => ({ ...c, [o.id]: e.target.value }))}
                   className="w-20 tap-target border-2 border-united-dark/10 rounded-lg px-2 text-center focus:border-united-green outline-none shrink-0"
@@ -151,22 +157,22 @@ export function LoadBoard() {
               </li>
             ))}
           </ul>
-          <p className="mb-3 font-bold text-united-dark">إجمالي الأوردرات: {readyToDispatch.length}</p>
+          <p className="mb-3 font-bold text-united-dark">{t("orders.load-board.total-orders")}: {readyToDispatch.length}</p>
           <input
-            placeholder="اسم السواق"
+            placeholder={t("orders.load-board.driver-placeholder")}
             value={driverName}
             onChange={(e) => setDriverName(e.target.value)}
             className="field mb-3"
           />
           <input
-            placeholder="رقم/اسم العربية"
+            placeholder={t("orders.load-board.vehicle-placeholder")}
             value={vehicle}
             onChange={(e) => setVehicle(e.target.value)}
             className="field mb-3"
           />
           {error && <p className="text-united-danger font-bold mb-2">{error}</p>}
           <button disabled={busy || !canDispatch} onClick={dispatchAll} className="btn-dark w-full text-xl">
-            العربية جاهزة 🚚
+            {t("orders.load-board.dispatch-btn")}
           </button>
         </div>
       )}

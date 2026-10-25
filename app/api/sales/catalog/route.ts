@@ -15,6 +15,6 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json({ products });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

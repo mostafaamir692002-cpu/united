@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     const orders = await listOrders({ status, date, assignedToId });
     return NextResponse.json({ orders });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   try {
     return NextResponse.json({ order: await create(req) }, { status: 201 });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 

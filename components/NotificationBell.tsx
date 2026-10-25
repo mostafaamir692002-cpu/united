@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, apiPost } from "@/lib/api-client";
+import { useLocale } from "@/lib/locale";
 
 type NotificationDTO = {
   id: string;
@@ -31,6 +32,7 @@ export function NotificationBell() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const { t, dir, isRTL, locale: curLocale } = useLocale();
 
   const q = useQuery({
     queryKey: ["notifications"],
@@ -68,7 +70,8 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen((x) => !x)}
-        aria-label={unread > 0 ? `${unread} إشعار جديد` : "الإشعارات"}
+        aria-label={unread > 0 ? t("ui.notifications.count", { n: unread }) : t("ui.notifications")}
+        dir={dir}
         className="relative w-11 h-11 rounded-lg bg-united-dark/5 hover:bg-united-dark/10 grid place-items-center"
       >
         <span aria-hidden className="text-xl leading-none">🔔</span>
@@ -79,17 +82,17 @@ export function NotificationBell() {
         )}
       </button>
       {open && (
-        <div className="absolute left-0 mt-2 w-[min(22rem,calc(100vw-2rem))] card p-2 z-30">
+        <div className={`absolute ${isRTL ? "right-0" : "left-0"} mt-2 w-[min(22rem,calc(100vw-2rem))] card p-2 z-30`}>
           <div className="flex items-center justify-between px-2 py-1">
-            <span className="font-extrabold text-united-dark">الإشعارات</span>
+            <span className="font-extrabold text-united-dark">{t("ui.notifications")}</span>
             {unread > 0 && (
               <button type="button" onClick={readAll} className="text-xs font-bold text-united-green">
-                تعليم الكل كمقروء
+                {t("ui.notifications.mark-read")}
               </button>
             )}
           </div>
           {(q.data?.items.length ?? 0) === 0 ? (
-            <p className="p-4 text-center text-sm font-bold text-united-muted">مفيش إشعارات</p>
+            <p className="p-4 text-center text-sm font-bold text-united-muted">{t("ui.notifications.empty")}</p>
           ) : (
             <ul className="max-h-[60vh] overflow-y-auto">
               {q.data!.items.map((n) => (
@@ -97,16 +100,17 @@ export function NotificationBell() {
                   <button
                     type="button"
                     onClick={() => openItem(n)}
-                    className={`w-full text-right flex gap-2 items-start rounded-xl px-2 py-2.5 hover:bg-united-dark/5 ${
+                    className={`w-full flex gap-2 items-start rounded-xl px-2 py-2.5 hover:bg-united-dark/5 ${
                       n.readAt ? "opacity-60" : ""
                     }`}
+                    dir={isRTL ? "rtl" : "ltr"}
                   >
                     <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.readAt ? "bg-united-dark/20" : DOT[n.severity]}`} />
                     <span className="min-w-0">
                       <span className="block font-bold text-sm text-united-dark">{n.title}</span>
                       {n.body && <span className="block text-xs font-bold text-united-muted">{n.body}</span>}
-                      <span dir="ltr" className="block text-[10px] font-bold text-united-muted mt-0.5 text-right">
-                        {new Date(n.createdAt).toLocaleString("ar-EG", { dateStyle: "short", timeStyle: "short" })}
+                      <span className="block text-[10px] font-bold text-united-muted mt-0.5" dir="ltr">
+                        {new Date(n.createdAt).toLocaleString(curLocale === "ar" ? "ar-EG" : "en-US", { dateStyle: "short", timeStyle: "short" })}
                       </span>
                     </span>
                   </button>

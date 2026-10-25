@@ -12,6 +12,10 @@ export async function apiFetch<T = any>(path: string, init?: RequestInit): Promi
     if (typeof window !== "undefined") {
       const token = window.sessionStorage.getItem("united_token");
       if (token) headers.set("Authorization", `Bearer ${token}`);
+      // Forward the selected locale so the server returns messages in the
+      // right language.  Falls back to "ar" (existing default).
+      const locale = window.localStorage.getItem("united_locale");
+      if (locale) headers.set("Accept-Language", locale);
     }
     res = await fetch(path, {
       ...init,
@@ -19,17 +23,20 @@ export async function apiFetch<T = any>(path: string, init?: RequestInit): Promi
       credentials: "include",
     });
   } catch {
-    throw new ApiClientError("مفيش اتصال بالإنترنت، حاول تاني");
+    const loc = typeof window !== "undefined" ? window.localStorage.getItem("united_locale") : null;
+    throw new ApiClientError(loc === "en" ? "No internet connection, please try again" : "مفيش اتصال بالإنترنت، حاول تاني");
   }
 
   if (res.status === 401 && typeof window !== "undefined" && !path.includes("/auth/")) {
+    const loc = window.localStorage.getItem("united_locale");
     window.location.href = "/login";
-    throw new ApiClientError("لازم تسجل دخول تاني");
+    throw new ApiClientError(loc === "en" ? "Please sign in again" : "لازم تسجل دخول تاني");
   }
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiClientError(data.error ?? `خطأ (${res.status})`);
+    const loc = typeof window !== "undefined" ? window.localStorage.getItem("united_locale") : null;
+    throw new ApiClientError(data.error ?? (loc === "en" ? `Error (${res.status})` : `خطأ (${res.status})`));
   }
   return data as T;
 }

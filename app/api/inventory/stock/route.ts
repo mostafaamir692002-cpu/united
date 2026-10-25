@@ -19,6 +19,6 @@ export async function GET(req: NextRequest) {
       rows: withValue ? rows : rows.map((r) => ({ ...r, averageCost: null, stockValue: null })),
     });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

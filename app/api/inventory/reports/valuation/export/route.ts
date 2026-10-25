@@ -21,6 +21,6 @@ export async function GET(req: NextRequest) {
     ];
     return csvResponse(toCsv(rows), `inventory-valuation-${new Date().toISOString().slice(0, 10)}`);
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

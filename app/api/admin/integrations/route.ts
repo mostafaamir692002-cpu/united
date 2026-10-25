@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     await requirePermission(req, "integrations.manage");
     return NextResponse.json(await listIntegrations());
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 

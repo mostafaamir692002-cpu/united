@@ -89,6 +89,19 @@ export const SECURITY_ACTION_LABEL: Record<string, string> = {
   setting_reset: "رجوع إعداد للافتراضي",
 };
 
+export const SECURITY_ACTION_LABEL_EN: Record<string, string> = {
+  user_created: "User created",
+  user_updated: "User updated",
+  user_enabled: "User enabled",
+  user_disabled: "User disabled",
+  user_role_changed: "Role changed",
+  user_permission_granted: "Permission granted",
+  user_permission_revoked: "Permission revoked",
+  user_permission_override_cleared: "Override cleared",
+  setting_changed: "Setting changed",
+  setting_reset: "Setting reset to default",
+};
+
 /** One row of GET /api/admin/settings. */
 export type SettingDTO = {
   key: string;
@@ -118,4 +131,20 @@ export const GROUP_LABEL: Record<PermissionGroup, string> = {
   accounting: "الحسابات",
   hr: "الموظفين والمصروفات",
   integrations: "التكاملات",
+};
+
+export const GROUP_LABEL_EN: Record<PermissionGroup, string> = {
+  orders: "Orders",
+  stock: "Stock",
+  reports: "Reports",
+  audit: "Audit Log",
+  users: "Users",
+  settings: "Settings",
+  core: "Core Data",
+  sales: "Sales & Customers",
+  purchasing: "Purchasing & Suppliers",
+  operations: "Operations & Dispatch",
+  accounting: "Accounting",
+  hr: "Employees & Expenses",
+  integrations: "Integrations",
 };

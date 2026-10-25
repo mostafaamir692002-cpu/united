@@ -9,6 +9,7 @@ import { fmtKg, fmtYield } from "@/lib/stockPresentation";
 import { invalidateStockData } from "@/lib/stockInvalidation";
 import { newClientKey } from "@/lib/clientKey";
 import { usePermissions } from "@/lib/use-session";
+import { useLocale } from "@/lib/locale";
 import type { IntakeDTO, StockProductDTO } from "@/lib/stock-client-types";
 
 /**
@@ -63,15 +64,16 @@ type LedgerMove = {
   location?: { id: string; code: string } | null;
 };
 
-const KIND_LABEL: Record<string, string> = {
-  sorting_out: "خارج الفرز",
-  sorting_in: "داخل الفرز",
+// Runtime value → dictionary key lookup for localized labels
+const SOURCE_TKEY: Record<string, string> = {
+  sorting_out: "stock.movement.sorting_out_label",
+  sorting_in: "stock.movement.sorting_in_label",
 };
 
-const COST_BASIS_LABEL: Record<string, string> = {
-  proportional: "تناسبية (بالوزن)",
-  nrv: "صافي القيمة البيعية (NRV)",
-  nrv_fallback_proportional: "تناسبية — احتياطي (أسعار غير متاحة)",
+const COST_BASIS_TKEY: Record<string, string> = {
+  proportional: "stock.cost-basis.proportional",
+  nrv: "stock.cost-basis.nrv",
+  nrv_fallback_proportional: "stock.cost-basis.nrv_fallback_proportional",
 };
 
 const p3 = (v: number) => Math.round(v * 1000) / 1000;
@@ -89,6 +91,7 @@ export function GradingForm({
   const toast = useToast();
   const { can } = usePermissions();
   const canSeeCosts = can("stock.valuation.view");
+  const { t, dir } = useLocale();
 
   const [inputKg, setInputKg] = useState("");
   const [goodKg, setGoodKg] = useState("");
@@ -166,9 +169,9 @@ export function GradingForm({
       setSubmitKey(newClientKey); // a fresh key for the next grading event
       await invalidateStockData(qc);
       onPosted?.(res.document);
-      toast.show(res.replayed ? "الفرز ده اتعمل قبل كده — نفس المستند" : "اتسجل الفرز", res.replayed ? "info" : "success");
+      toast.show(res.replayed ? t("stock.grading.record-toast-replayed") : t("stock.grading.record-toast-success"), res.replayed ? "info" : "success");
     } catch (err) {
-      const msg = err instanceof ApiClientError ? err.message : "حصل خطأ";
+      const msg = err instanceof ApiClientError ? err.message : t("stock.error-generic");
       setError(msg);
       toast.show(msg, "error");
     } finally {
@@ -183,7 +186,7 @@ export function GradingForm({
       {!result ? (
         <>
           <div className="flex items-center justify-between">
-            <div className="text-sm font-extrabold text-united-dark">
+            <div className="text-sm font-extrabold text-united-dark" dir={dir}>
               فرز استلام <span dir="ltr">{intake.receiptNumber}</span> — {intake.product.name}
             </div>
             <span dir="ltr" className="text-xs font-bold text-united-muted">
@@ -196,17 +199,17 @@ export function GradingForm({
           )}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <QtyField label="إجمالي الفرز" value={inputKg} onChange={setInputKg} hint="الكمية المفرزة" tone={remainingOk || !inputKg ? "" : "danger"} />
-            <QtyField label="ممتاز (أ)" value={goodKg} onChange={setGoodKg} hint="الفرز الممتاز" tone="good" />
-            <QtyField label="فرزة (ب)" value={gradeBKg} onChange={setGradeBKg} hint="ثاني درجة" />
-            <QtyField label="هالك" value={wasteKg} onChange={setWasteKg} hint="توالف" tone={Number(wasteKg) > 0 ? "warn" : ""} />
+            <QtyField label={t("stock.grading.total-input")} value={inputKg} onChange={setInputKg} hint={t("stock.grading.total-input-hint")} tone={remainingOk || !inputKg ? "" : "danger"} />
+            <QtyField label={t("stock.grading.good")} value={goodKg} onChange={setGoodKg} hint={t("stock.grading.good-hint")} tone="good" />
+            <QtyField label={t("stock.grading.grade-b")} value={gradeBKg} onChange={setGradeBKg} hint={t("stock.grading.grade-b-hint")} />
+            <QtyField label={t("stock.waste")} value={wasteKg} onChange={setWasteKg} hint={t("stock.grading.waste-hint")} tone={Number(wasteKg) > 0 ? "warn" : ""} />
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex flex-col gap-1 min-w-[180px] flex-1">
-              <span className="text-[11px] font-extrabold text-united-muted">صنف الفُرزة (اختياري)</span>
+              <span className="text-[11px] font-extrabold text-united-muted">{t("stock.grade-b-product-hint")}</span>
               <select className="field" value={gradeBProductId} onChange={(e) => setGradeBProductId(e.target.value)}>
-                <option value="">— نفس الصنف (الوضع القديم) —</option>
+                <option value="">{t("stock.grade-b-same-product")}</option>
                 {gbProducts
                   .filter((p) => p.id !== intake.productId)
                   .map((p) => (
@@ -217,13 +220,13 @@ export function GradingForm({
               </select>
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] font-extrabold text-united-muted">تاريخ الفرز</span>
+              <span className="text-[11px] font-extrabold text-united-muted">{t("stock.date")}</span>
               <input type="date" value={businessDate} onChange={(e) => setBusinessDate(e.target.value || todayLocalISO())} className="field tap-target" />
             </label>
           </div>
 
           <input
-            placeholder="سبب الفرز (إجباري)"
+            placeholder={t("stock.grading.reason-placeholder")}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             className="field"
@@ -240,7 +243,7 @@ export function GradingForm({
               {fmtKg(total)} = ممتاز {fmtKg(g)} + فرزة {fmtKg(b)} + هالك {fmtKg(w)}
             </span>
             <span dir="ltr">
-              {conservationOk ? "✓ متساوي" : `الفرق ${fmtKg(residual)}`}
+              {conservationOk ? t("stock.conservation.equal") : `${t("stock.conservation.diff")} ${fmtKg(residual)}`}
             </span>
           </div>
 
@@ -259,7 +262,7 @@ export function GradingForm({
 
           <div className="flex gap-2">
             <button onClick={submit} disabled={busy || !valid} className="btn-primary flex-1 text-sm" data-testid="grading-submit">
-              {busy ? "بيتسجل…" : "تسجيل الفرز"}
+              {busy ? t("stock.submit.saving") : t("stock.submit.label")}
             </button>
             <button onClick={onClose} disabled={busy} className="btn-secondary text-sm">
               رجوع
@@ -286,31 +289,34 @@ function SortResult({
   yieldPct: number | null;
   onClose: () => void;
 }) {
+  const { t, dir } = useLocale();
   const p = doc.payload;
   const moved = (kind: string) => doc.movements.filter((m) => m.kind === kind).reduce((s, m) => s + (m.quantityKg ?? 0), 0);
   const fallback = p?.costBasis === "nrv_fallback_proportional";
+
+  const costBasisKey = p?.costBasis ? COST_BASIS_TKEY[p.costBasis] : null;
 
   return (
     <div className="flex flex-col gap-3">
       <div className="rounded-xl bg-united-green/10 border-2 border-united-green/40 p-3">
         <div className="flex items-center justify-between">
-          <span className="font-extrabold text-united-dark text-lg">اتسجل الفرز ✓</span>
+          <span className="font-extrabold text-united-dark text-lg">{t("stock.result.recorded")}</span>
           <span dir="ltr" className="font-bold text-united-muted text-sm">
             {doc.number}
           </span>
         </div>
         <div className="grid grid-cols-4 gap-1 mt-2 text-center text-xs font-extrabold">
-          <ResultCell label="خارج" value={fmtKg(moved("sorting_out"))} />
-          <ResultCell label="ممتاز" value={fmtKg(moved("sorting_in") - 0)} tone="text-united-green" />
-          <ResultCell label="هالك" value={fmtKg(moved("sorting_in"))} />
-          <ResultCell label="تصافي" value={yieldPct == null ? "—" : fmtYield(yieldPct)} />
+          <ResultCell label={t("stock.movement.sorting_out_label")} value={fmtKg(moved("sorting_out"))} />
+          <ResultCell label={t("stock.grading.good")} value={fmtKg(moved("sorting_in") - 0)} tone="text-united-green" />
+          <ResultCell label={t("stock.waste")} value={fmtKg(moved("sorting_in"))} />
+          <ResultCell label={t("stock.result.yield")} value={yieldPct == null ? "—" : fmtYield(yieldPct)} />
         </div>
       </div>
 
       {/* Costing basis from the backend — allocated costs only for valuation users. */}
       {p?.costBasis && (
         <div className={`rounded-xl px-3 py-2 text-sm font-bold ${fallback ? "bg-united-warn/10 text-united-warn" : "bg-united-dark/[0.04] text-united-muted"}`}>
-          أساس التكلفة: {COST_BASIS_LABEL[p.costBasis] ?? p.costBasis}
+          أساس التكلفة: {costBasisKey ? t(costBasisKey as Parameters<typeof t>[0]) : p.costBasis}
           {fallback && p.fallbackReason ? ` — سبب: ${p.fallbackReason}` : ""}
         </div>
       )}
@@ -324,22 +330,25 @@ function SortResult({
       )}
 
       <div className="flex flex-col divide-y divide-united-border rounded-xl bg-white overflow-hidden">
-        {doc.movements.map((m) => (
-          <div key={m.id} className="flex items-center justify-between px-3 py-2 text-sm font-bold">
-            <span>
-              {KIND_LABEL[m.kind] ?? m.kind} · {m.product?.name ?? ""}
-              {m.location ? ` · ${m.location.code}` : ""}
-            </span>
-            <span dir="ltr" className="font-extrabold">
-              {m.quantityKg > 0 ? "+" : ""}
-              {fmtKg(m.quantityKg)} {m.product?.unit ?? ""}
-            </span>
-          </div>
-        ))}
+        {doc.movements.map((m) => {
+          const labelKey = SOURCE_TKEY[m.kind];
+          return (
+            <div key={m.id} className="flex items-center justify-between px-3 py-2 text-sm font-bold">
+              <span>
+                {labelKey ? t(labelKey as Parameters<typeof t>[0]) : m.kind} · {m.product?.name ?? ""}
+                {m.location ? ` · ${m.location.code}` : ""}
+              </span>
+              <span dir="ltr" className="font-extrabold">
+                {m.quantityKg > 0 ? "+" : ""}
+                {fmtKg(m.quantityKg)} {m.product?.unit ?? ""}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       <button onClick={onClose} className="btn-secondary text-sm">
-        إغلاق
+        {t("stock.close")}
       </button>
     </div>
   );

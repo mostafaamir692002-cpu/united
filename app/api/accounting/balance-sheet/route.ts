@@ -11,6 +11,6 @@ export async function GET(req: NextRequest) {
     const asOf = sp.get("as_of") ?? todayLocalISO();
     return NextResponse.json(await balanceSheet(asOf));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

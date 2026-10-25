@@ -201,6 +201,7 @@ Enforcement is verified end to end by `tests/security.test.ts` (every handler ×
 | POST | `/api/inventory/products/[id]/packagings` | `stock.manage_products` | ✓ | ✓ | ✓ |  |  |  |  |  |
 | GET | `/api/inventory/products/[id]` | `stock.view` | ✓ | ✓ | ✓ |  |  |  | ✓ | ✓ |
 | PATCH | `/api/inventory/products/[id]/settings` | any of `stock.manage_products`, `accounting.manage` | ✓ | ✓ | ✓ |  |  |  | ✓ |  |
+| POST | `/api/inventory/release` | `stock.adjust` | ✓ | ✓ | ✓ |  |  |  |  |  |
 | GET | `/api/inventory/reports/expiring` | `stock.view` | ✓ | ✓ | ✓ |  |  |  | ✓ | ✓ |
 | GET | `/api/inventory/reports/valuation/export` | `stock.valuation.view` | ✓ | ✓ |  |  |  |  | ✓ |  |
 | GET | `/api/inventory/reports/valuation` | `stock.valuation.view` | ✓ | ✓ |  |  |  |  | ✓ |  |
@@ -211,6 +212,7 @@ Enforcement is verified end to end by `tests/security.test.ts` (every handler ×
 | POST | `/api/inventory/scrap` | `stock.adjust` | ✓ | ✓ | ✓ |  |  |  |  |  |
 | GET | `/api/inventory/stock` | `stock.view` | ✓ | ✓ | ✓ |  |  |  | ✓ | ✓ |
 | POST | `/api/inventory/transfers` | `stock.transfer` | ✓ | ✓ | ✓ |  |  |  |  |  |
+| GET | `/api/management/cash-flow` | `reports.finance` | ✓ |  |  |  |  |  | ✓ |  |
 | GET | `/api/management/finance/export` | `reports.finance` | ✓ |  |  |  |  |  | ✓ |  |
 | GET | `/api/management/finance` | `reports.finance` | ✓ |  |  |  |  |  | ✓ |  |
 | GET | `/api/management/operations` | `reports.view` | ✓ | ✓ |  |  |  |  |  |  |
@@ -292,6 +294,8 @@ Enforcement is verified end to end by `tests/security.test.ts` (every handler ×
 | POST | `/api/purchasing/suppliers` | `purchasing.suppliers.manage` | ✓ |  |  |  |  |  | ✓ | ✓ |
 | GET | `/api/reports/daily` | `reports.view` | ✓ | ✓ |  |  |  |  |  |  |
 | GET | `/api/sales/catalog` | any of `sales.quotations.view`, `sales.pricing.view`, `purchasing.orders.view`, `purchasing.rfq.manage`, `purchasing.prices.view` | ✓ | ✓ | ✓ |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/sales/customer-groups` | `sales.customers.view` | ✓ | ✓ |  |  |  | ✓ | ✓ |  |
+| POST | `/api/sales/customer-groups` | `sales.customers.manage` | ✓ | ✓ |  |  |  | ✓ |  |  |
 | POST | `/api/sales/customers/[id]/aliases` | `sales.customers.manage` | ✓ | ✓ |  |  |  | ✓ |  |  |
 | PATCH | `/api/sales/customers/[id]/contacts/[contactId]` | `sales.customers.manage` | ✓ | ✓ |  |  |  | ✓ |  |  |
 | POST | `/api/sales/customers/[id]/contacts` | `sales.customers.manage` | ✓ | ✓ |  |  |  | ✓ |  |  |
@@ -317,6 +321,9 @@ Enforcement is verified end to end by `tests/security.test.ts` (every handler ×
 | GET | `/api/sales/invoices` | `sales.invoices.view` | ✓ |  |  |  |  | ✓ | ✓ |  |
 | POST | `/api/sales/invoices` | `sales.invoices.manage` | ✓ |  |  |  |  |  | ✓ |  |
 | GET | `/api/sales/invoices/to-invoice` | `sales.invoices.view` | ✓ |  |  |  |  | ✓ | ✓ |  |
+| PATCH | `/api/sales/legal-entities/[id]` | `sales.customers.manage` | ✓ | ✓ |  |  |  | ✓ |  |  |
+| GET | `/api/sales/legal-entities` | `sales.customers.view` | ✓ | ✓ |  |  |  | ✓ | ✓ |  |
+| POST | `/api/sales/legal-entities` | `sales.customers.manage` | ✓ | ✓ |  |  |  | ✓ |  |  |
 | POST | `/api/sales/price-lists/[id]/prices` | `sales.pricing.manage` | ✓ |  |  |  |  | ✓ |  |  |
 | GET | `/api/sales/price-lists/[id]` | `sales.pricing.view` | ✓ | ✓ |  |  |  | ✓ | ✓ |  |
 | PATCH | `/api/sales/price-lists/[id]` | `sales.pricing.manage` | ✓ |  |  |  |  | ✓ |  |  |

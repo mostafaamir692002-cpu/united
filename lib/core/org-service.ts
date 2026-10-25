@@ -54,7 +54,7 @@ const companyCreate = z.object({
   email: optText("الإيميل", 200).optional(),
   base_currency_code: egpCurrencyCode.optional(),
 });
-const companyUpdate = companyCreate.omit({ code: true }).partial().extend({ active: active.optional(), expected_version: version });
+const companyUpdate = companyCreate.omit({ code: true }).partial().extend({ active: active().optional(), expected_version: version });
 
 const branchCreate = z.object({
   company_id: text("الشركة"),
@@ -64,7 +64,7 @@ const branchCreate = z.object({
   address: optText("العنوان", 500).optional(),
   phone: optText("التليفون", 40).optional(),
 });
-const branchUpdate = branchCreate.omit({ code: true, company_id: true }).partial().extend({ active: active.optional(), expected_version: version });
+const branchUpdate = branchCreate.omit({ code: true, company_id: true }).partial().extend({ active: active().optional(), expected_version: version });
 
 const warehouseCreate = z.object({
   branch_id: text("الفرع"),
@@ -75,7 +75,7 @@ const warehouseCreate = z.object({
   area_m2: optDecimal("المساحة").optional(),
   daily_capacity_kg: optDecimal("الطاقة اليومية").optional(),
 });
-const warehouseUpdate = warehouseCreate.omit({ code: true, branch_id: true }).partial().extend({ active: active.optional(), expected_version: version });
+const warehouseUpdate = warehouseCreate.omit({ code: true, branch_id: true }).partial().extend({ active: active().optional(), expected_version: version });
 
 const locationCreate = z.object({
   warehouse_id: text("المخزن"),
@@ -91,7 +91,7 @@ const locationCreate = z.object({
 const locationUpdate = locationCreate
   .omit({ code: true, warehouse_id: true })
   .partial()
-  .extend({ active: active.optional(), expected_version: version });
+  .extend({ active: active().optional(), expected_version: version });
 
 const uomCreate = z.object({
   code: code("كود الوحدة", UOM_CODE_RE),
@@ -105,7 +105,7 @@ const uomUpdate = z.object({
   name: text("اسم الوحدة").optional(),
   name_ar: optText("الاسم بالعربي").optional(),
   precision: z.number().int("عدد الخانات العشرية لازم يكون رقم صحيح").min(0).max(6).optional(),
-  active: active.optional(),
+  active: active().optional(),
   expected_version: version,
 });
 
@@ -120,7 +120,7 @@ const currencyCreate = z.object({
   symbol: optText("الرمز", 10).optional(),
   decimal_places: z.number().int().min(0).max(4).optional(),
 });
-const currencyUpdate = currencyCreate.omit({ code: true }).partial().extend({ active: active.optional(), expected_version: version });
+const currencyUpdate = currencyCreate.omit({ code: true }).partial().extend({ active: active().optional(), expected_version: version });
 
 // ---------------------------------------------------------------------------
 // Shared write plumbing

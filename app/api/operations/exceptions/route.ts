@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const sp = new URL(req.url).searchParams;
     return NextResponse.json({ exceptions: await listExceptions({ status: sp.get("status") ?? undefined, type: sp.get("type") ?? undefined, orderId: sp.get("order_id") ?? undefined, tripId: sp.get("trip_id") ?? undefined }) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 

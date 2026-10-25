@@ -11,6 +11,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const user = await revokeUserSessions(params.id, actor);
     return NextResponse.json({ user: { id: user.id, version: user.version } });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

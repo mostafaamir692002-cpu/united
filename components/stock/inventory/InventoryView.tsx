@@ -10,6 +10,8 @@ import { invalidateStockData } from "@/lib/stockInvalidation";
 import { Field, Tabs, fmtMoney, fmtQty, LOCATION_TYPE_LABEL, useLocations, type StockRow } from "./shared";
 import { MoveForms } from "./MoveForms";
 import { Pagination } from "@/components/ui/Pagination";
+import { DICTIONARY } from "@/lib/locale";
+import { useLocale } from "@/lib/locale";
 
 /**
  * The stock controller's screen: what is where, what is free to sell, what is about
@@ -20,16 +22,30 @@ import { Pagination } from "@/components/ui/Pagination";
 
 type Tab = "stock" | "move" | "expiring" | "exceptions" | "documents" | "valuation";
 
+// Module-level translation maps (app always runs Arabic — DICTIONARY resolves correctly)
+const KIND_LABEL: Record<string, string> = {
+  intake: DICTIONARY["stock.kind-intake"].ar, intake_correction: DICTIONARY["stock.kind-intake-correction"].ar, intake_void: DICTIONARY["stock.kind-intake-void"].ar, adjustment: DICTIONARY["stock.kind-adjustment"].ar,
+  transfer_out: DICTIONARY["stock.kind-transfer-out"].ar, transfer_in: DICTIONARY["stock.kind-transfer-in"].ar, issue: DICTIONARY["stock.kind-issue"].ar, customer_return: DICTIONARY["stock.kind-customer-return"].ar,
+  supplier_return: DICTIONARY["stock.kind-supplier-return"].ar, scrap: DICTIONARY["stock.kind-scrap"].ar,
+};
+
+const EXCEPTION_REASON: Record<ExceptionDTO["reason"], string> = {
+  unmapped: DICTIONARY["stock.exception-unmapped"].ar,
+  unit_mismatch: DICTIONARY["stock.exception-unit-mismatch"].ar,
+  insufficient: DICTIONARY["stock.exception-insufficient"].ar,
+};
+
 export function InventoryView() {
   const { can, isLoading } = usePermissions();
+  const { t } = useLocale();
   const [tab, setTab] = useState<Tab>("stock");
   const [productId, setProductId] = useState<string | null>(null);
 
   // Deep links: /stock/inventory?tab=exceptions, ?doc=<id> (from the approvals inbox).
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
-    const t = sp.get("tab") as Tab | null;
-    if (t) setTab(t);
+    const t2 = sp.get("tab") as Tab | null;
+    if (t2) setTab(t2);
     if (sp.get("doc")) setTab("documents");
     if (sp.get("product")) setProductId(sp.get("product"));
   }, []);
@@ -42,17 +58,17 @@ export function InventoryView() {
 
   if (isLoading) return <LoadingState />;
   const tabs: { key: Tab; label: string; badge?: number }[] = [
-    { key: "stock", label: "الرصيد" },
-    { key: "move", label: "حركة" },
-    { key: "expiring", label: "قرب الانتهاء" },
-    { key: "exceptions", label: "فروقات الصرف", badge: exceptions.data?.exceptions.length },
-    { key: "documents", label: "المستندات" },
-    ...(can("stock.valuation.view") ? [{ key: "valuation" as Tab, label: "قيمة المخزون" }] : []),
+    { key: "stock", label: t("stock.tab.stock") },
+    { key: "move", label: t("stock.tab.move") },
+    { key: "expiring", label: t("stock.tab.expiring") },
+    { key: "exceptions", label: t("stock.tab.exceptions"), badge: exceptions.data?.exceptions.length },
+    { key: "documents", label: t("stock.tab.documents") },
+    ...(can("stock.valuation.view") ? [{ key: "valuation" as Tab, label: t("stock.tab.valuation") }] : []),
   ];
 
   return (
     <div className="p-4 max-w-5xl mx-auto pb-10 flex flex-col gap-4">
-      <h1 className="text-2xl font-extrabold text-united-dark">إدارة المخزون</h1>
+      <h1 className="text-2xl font-extrabold text-united-dark">{t("stock.inventory")}</h1>
       <Tabs value={tab} onChange={setTab} items={tabs} />
       {productId ? (
         <ProductPanel productId={productId} onClose={() => setProductId(null)} />
@@ -73,6 +89,7 @@ export function InventoryView() {
 // ---------------------------------------------------------------------------
 
 function StockList({ onOpen }: { onOpen: (id: string) => void }) {
+  const { t } = useLocale();
   const [filter, setFilter] = useState("");
   const [onlyLow, setOnlyLow] = useState(false);
   const q = useQuery({
@@ -90,13 +107,13 @@ function StockList({ onOpen }: { onOpen: (id: string) => void }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-2">
-        <input className="field" placeholder="دوّر على صنف" value={filter} onChange={(e) => setFilter(e.target.value)} />
+        <input className="field" placeholder={t("stock.search-placeholder")} value={filter} onChange={(e) => setFilter(e.target.value)} />
         <button type="button" onClick={() => setOnlyLow(!onlyLow)} className={`tap-target shrink-0 rounded-xl px-4 font-extrabold text-sm ${onlyLow ? "bg-united-warn text-white" : "bg-united-dark/5 text-united-dark"}`}>
-          تحت حد الطلب
+          {t("stock.low-stock-btn")}
         </button>
       </div>
-      <p className="text-xs font-bold text-united-muted">{q.data?.warehouse.name} · المتاح = الموجود − المحجوز − الحجر</p>
-      {rows.length === 0 && <EmptyState icon="📦" title="مفيش أصناف" />}
+      <p className="text-xs font-bold text-united-muted">{q.data?.warehouse.name} · {t("stock.warehouse-available-desc")}</p>
+      {rows.length === 0 && <EmptyState icon="📦" title={t("stock.empty-products")} />}
       <ul className="grid gap-2 sm:grid-cols-2">
         {rows.map((r) => (
           <li key={r.productId}>
@@ -104,15 +121,15 @@ function StockList({ onOpen }: { onOpen: (id: string) => void }) {
               <div className="flex items-center justify-between gap-2">
                 <span className="font-extrabold text-united-dark">{r.productNameAr ?? r.productName}</span>
                 {r.belowMin ? (
-                  <span className="rounded-full bg-united-danger/10 text-united-danger px-2 text-xs font-extrabold">تحت الحد الأدنى</span>
+                  <span className="rounded-full bg-united-danger/10 text-united-danger px-2 text-xs font-extrabold">{t("stock.badge-below-min")}</span>
                 ) : r.belowReorder ? (
-                  <span className="rounded-full bg-united-warn/10 text-united-warn px-2 text-xs font-extrabold">اطلب</span>
+                  <span className="rounded-full bg-united-warn/10 text-united-warn px-2 text-xs font-extrabold">{t("stock.badge-reorder")}</span>
                 ) : null}
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
-                <Stat label="موجود" value={fmtQty(r.onHand)} />
-                <Stat label="محجوز" value={fmtQty(r.reserved)} />
-                <Stat label="متاح" value={fmtQty(r.available)} strong />
+                <Stat label={t("stock.stat.on-hand")} value={fmtQty(r.onHand)} />
+                <Stat label={t("stock.stat.reserved")} value={fmtQty(r.reserved)} />
+                <Stat label={t("stock.stat.available")} value={fmtQty(r.available)} strong />
               </div>
               <div className="flex justify-between text-xs font-bold text-united-muted">
                 <span>{r.unit}</span>
@@ -152,14 +169,9 @@ type ProductDetail = {
   valuation: { averageCost: string | null; value: string } | null;
 };
 
-const KIND_LABEL: Record<string, string> = {
-  intake: "استلام", intake_correction: "تصحيح استلام", intake_void: "إلغاء استلام", adjustment: "تسوية",
-  transfer_out: "تحويل (خارج)", transfer_in: "تحويل (داخل)", issue: "صرف لأوردر", customer_return: "مرتجع عميل",
-  supplier_return: "مرتجع لمورد", scrap: "هالك",
-};
-
 function ProductPanel({ productId, onClose }: { productId: string; onClose: () => void }) {
   const { can } = usePermissions();
+  const { t } = useLocale();
   const q = useQuery({
     queryKey: ["stock", "inventory", "product", productId],
     queryFn: () => apiFetch<ProductDetail>(`/api/inventory/products/${productId}`),
@@ -173,25 +185,25 @@ function ProductPanel({ productId, onClose }: { productId: string; onClose: () =
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-xl font-extrabold text-united-dark">{d.product.nameAr ?? d.product.name}</h2>
-        <button type="button" className="btn-secondary" onClick={onClose}>رجوع</button>
+        <button type="button" className="btn-secondary" onClick={onClose}>{t("stock.btn-back")}</button>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-        <Stat label="موجود" value={fmtQty(d.onHand, u)} />
-        <Stat label="في الحجر" value={fmtQty(d.quarantined, u)} />
-        <Stat label="منتهي الصلاحية" value={fmtQty(d.expired, u)} />
-        <Stat label="محجوز" value={fmtQty(d.reserved, u)} />
-        <Stat label="متاح" value={fmtQty(d.available, u)} strong />
+        <Stat label={t("stock.stat.on-hand")} value={fmtQty(d.onHand, u)} />
+        <Stat label={t("stock.stat.quarantined")} value={fmtQty(d.quarantined, u)} />
+        <Stat label={t("stock.stat.expired")} value={fmtQty(d.expired, u)} />
+        <Stat label={t("stock.stat.reserved")} value={fmtQty(d.reserved, u)} />
+        <Stat label={t("stock.stat.available")} value={fmtQty(d.available, u)} strong />
       </div>
       {d.valuation && (
         <div className="card p-3 flex justify-between font-extrabold">
-          <span>القيمة: <span dir="ltr">{fmtMoney(d.valuation.value)}</span></span>
-          <span>متوسط التكلفة: <span dir="ltr">{d.valuation.averageCost ?? "—"}</span></span>
+          <span>{t("stock.stat-value")}: <span dir="ltr">{fmtMoney(d.valuation.value)}</span></span>
+          <span>{t("stock.stat-avg-cost")}: <span dir="ltr">{d.valuation.averageCost ?? "—"}</span></span>
         </div>
       )}
 
       <section className="card p-4 flex flex-col gap-2">
-        <h3 className="font-extrabold text-united-dark">فين الرصيد (بترتيب الصرف {d.product.removalStrategy === "fefo" ? "FEFO" : "FIFO"})</h3>
-        {d.buckets.length === 0 && <p className="text-sm font-bold text-united-muted">مفيش رصيد.</p>}
+        <h3 className="font-extrabold text-united-dark">{t("stock.heading-stock-location")} ({d.product.removalStrategy === "fefo" ? "FEFO" : "FIFO"})</h3>
+        {d.buckets.length === 0 && <p className="text-sm font-bold text-united-muted">{t("stock.empty-balance")}</p>}
         <ul className="flex flex-col divide-y divide-united-dark/5">
           {d.buckets.map((b) => (
             <BucketRow key={`${b.locationId}:${b.lotId}`} b={b} unit={u} today={d.today} canEditLot={can("stock.sort")} productId={d.product.id} />
@@ -201,7 +213,7 @@ function ProductPanel({ productId, onClose }: { productId: string; onClose: () =
 
       {d.reservations.length > 0 && (
         <section className="card p-4 flex flex-col gap-2">
-          <h3 className="font-extrabold text-united-dark">حجوزات</h3>
+          <h3 className="font-extrabold text-united-dark">{t("stock.heading-reservations")}</h3>
           {d.reservations.map((r) => (
             <ReservationRow key={r.id} r={r} unit={u} canRelease={can("stock.reserve")} />
           ))}
@@ -211,7 +223,7 @@ function ProductPanel({ productId, onClose }: { productId: string; onClose: () =
       {can("stock.manage_products") && <ProductSettings d={d} />}
 
       <section className="card p-4 flex flex-col gap-2">
-        <h3 className="font-extrabold text-united-dark">آخر الحركات</h3>
+        <h3 className="font-extrabold text-united-dark">{t("stock.heading-movements")}</h3>
         <ul className="flex flex-col divide-y divide-united-dark/5 text-sm">
           {d.movements.map((m) => (
             <li key={m.id} className="py-2 flex items-center justify-between gap-2">
@@ -231,6 +243,7 @@ function ProductPanel({ productId, onClose }: { productId: string; onClose: () =
 function BucketRow({ b, unit, today, canEditLot, productId }: { b: Bucket; unit: string; today: string; canEditLot: boolean; productId: string }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const [editing, setEditing] = useState(false);
   const [expiry, setExpiry] = useState(b.expiryDate ?? "");
   const [reason, setReason] = useState("");
@@ -243,18 +256,18 @@ function BucketRow({ b, unit, today, canEditLot, productId }: { b: Bucket; unit:
             {b.locationCode}{" "}
             <span className="text-xs text-united-muted">
               ({LOCATION_TYPE_LABEL[b.locationType] ?? b.locationType}
-              {b.locationCode === "GRADE-B" ? " · فرزة" : ""})
+              {b.locationCode === "GRADE-B" ? ` · ${t("stock.exception-grade-b")}` : ""})
             </span>
           </span>
           <span className="text-xs font-bold text-united-muted">
-            {b.lotNumber ?? "رصيد قبل الدفعات"}
-            {b.expiryDate && <span className={expired ? "text-united-danger" : ""}> · صلاحية {b.expiryDate}</span>}
+            {b.lotNumber ?? t("stock.exception-pre-lot")}
+            {b.expiryDate && <span className={expired ? "text-united-danger" : ""}> · {t("stock.lot-expiry-label")} {b.expiryDate}</span>}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <span dir="ltr" className="font-extrabold">{fmtQty(b.quantity, unit)}</span>
           {canEditLot && b.lotId && (
-            <button type="button" className="text-xs font-extrabold text-united-green underline" onClick={() => setEditing(!editing)}>الصلاحية</button>
+            <button type="button" className="text-xs font-extrabold text-united-green underline" onClick={() => setEditing(!editing)}>{t("stock.lot-expiry-label")}</button>
           )}
           {b.locationType === "quarantine" && <ReleaseButton productId={productId} bucket={b} />}
         </div>
@@ -267,16 +280,16 @@ function BucketRow({ b, unit, today, canEditLot, productId }: { b: Bucket; unit:
             try {
               await apiPatch(`/api/inventory/lots/${b.lotId}`, { expiry_date: expiry || null, reason });
               invalidateStockData(qc);
-              toast.show("اتعدلت الصلاحية", "success");
+              toast.show(t("stock.toast-expiry-updated"), "success");
               setEditing(false);
             } catch (err) {
-              toast.show(err instanceof ApiClientError ? err.message : "حصل خطأ", "error");
+              toast.show(err instanceof ApiClientError ? err.message : t("stock.toast-error"), "error");
             }
           }}
         >
           <input type="date" className="field flex-1" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
-          <input className="field flex-[2]" placeholder="السبب (مطلوب)" value={reason} onChange={(e) => setReason(e.target.value)} />
-          <button className="btn-primary">حفظ</button>
+          <input className="field flex-[2]" placeholder={t("stock.form-required-reason")} value={reason} onChange={(e) => setReason(e.target.value)} />
+          <button className="btn-primary">{t("stock.form-lot-expiry-save")}</button>
         </form>
       )}
     </li>
@@ -286,15 +299,16 @@ function BucketRow({ b, unit, today, canEditLot, productId }: { b: Bucket; unit:
 function ReservationRow({ r, unit, canRelease }: { r: ProductDetail["reservations"][number]; unit: string; canRelease: boolean }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const [reason, setReason] = useState("");
   const [open, setOpen] = useState(false);
   return (
     <div className="flex flex-col gap-2 border-b border-united-dark/5 pb-2">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-bold">{r.sourceType === "order" ? "أوردر" : "يدوي"} · {r.createdBy}</span>
+        <span className="font-bold">{r.sourceType === "order" ? t("stock.exception-ordered") : t("stock.form-release")} · {r.createdBy}</span>
         <span className="flex items-center gap-2">
           <span dir="ltr" className="font-extrabold">{fmtQty(r.quantity, unit)}</span>
-          {canRelease && <button type="button" className="text-xs font-extrabold text-united-danger underline" onClick={() => setOpen(!open)}>فك الحجز</button>}
+          {canRelease && <button type="button" className="text-xs font-extrabold text-united-danger underline" onClick={() => setOpen(!open)}>{t("stock.form-release")}</button>}
         </span>
       </div>
       {open && (
@@ -305,14 +319,14 @@ function ReservationRow({ r, unit, canRelease }: { r: ProductDetail["reservation
             try {
               await apiPost(`/api/inventory/reservations/${r.id}/release`, { reason });
               invalidateStockData(qc);
-              toast.show("اتفك الحجز", "success");
+              toast.show(t("stock.toast-reservation-released"), "success");
             } catch (err) {
-              toast.show(err instanceof ApiClientError ? err.message : "حصل خطأ", "error");
+              toast.show(err instanceof ApiClientError ? err.message : t("stock.toast-error"), "error");
             }
           }}
         >
-          <input className="field" placeholder="السبب (مطلوب)" value={reason} onChange={(e) => setReason(e.target.value)} />
-          <button className="btn-danger">فك</button>
+          <input className="field" placeholder={t("stock.form-required-reason")} value={reason} onChange={(e) => setReason(e.target.value)} />
+          <button className="btn-danger">{t("stock.form-release")}</button>
         </form>
       )}
     </div>
@@ -322,6 +336,7 @@ function ReservationRow({ r, unit, canRelease }: { r: ProductDetail["reservation
 function ProductSettings({ d }: { d: ProductDetail }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const { uoms } = useLocations();
   const p = d.product;
   const [form, setForm] = useState({
@@ -348,9 +363,9 @@ function ProductSettings({ d }: { d: ProductDetail }) {
         expected_version: p.version,
       });
       invalidateStockData(qc);
-      toast.show("اتحفظت إعدادات الصنف", "success");
+      toast.show(t("stock.toast-settings-saved"), "success");
     } catch (err) {
-      toast.show(err instanceof ApiClientError ? err.message : "حصل خطأ", "error");
+      toast.show(err instanceof ApiClientError ? err.message : t("stock.toast-error"), "error");
     }
   }
   async function addPack(e: React.FormEvent) {
@@ -358,49 +373,49 @@ function ProductSettings({ d }: { d: ProductDetail }) {
     try {
       await apiPost(`/api/inventory/products/${p.id}/packagings`, { uom: pack.uom, qty_in_base_unit: pack.qty });
       invalidateStockData(qc);
-      toast.show("اتحفظت التعبئة", "success");
+      toast.show(t("stock.toast-packaging-saved"), "success");
       setPack({ uom: "", qty: "" });
     } catch (err) {
-      toast.show(err instanceof ApiClientError ? err.message : "حصل خطأ", "error");
+      toast.show(err instanceof ApiClientError ? err.message : t("stock.toast-error"), "error");
     }
   }
   return (
     <section className="card p-4 flex flex-col gap-3">
-      <h3 className="font-extrabold text-united-dark">إعدادات المخزون للصنف</h3>
+      <h3 className="font-extrabold text-united-dark">{t("stock.heading-product-settings")}</h3>
       <form onSubmit={save} className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <Field label="مدة الصلاحية (يوم)"><input className="field" inputMode="numeric" dir="ltr" value={form.shelf_life_days} onChange={(e) => set("shelf_life_days", e.target.value)} /></Field>
-        <Field label="ترتيب الصرف">
+        <Field label={t("stock.shelf-life-field")}><input className="field" inputMode="numeric" dir="ltr" value={form.shelf_life_days} onChange={(e) => set("shelf_life_days", e.target.value)} /></Field>
+        <Field label={t("stock.removal-order-field")}>
           <select className="field font-bold" value={form.removal_strategy} onChange={(e) => set("removal_strategy", e.target.value)}>
-            <option value="fefo">الأقرب انتهاءً أولاً (FEFO)</option>
-            <option value="fifo">الأقدم استلاماً أولاً (FIFO)</option>
+            <option value="fefo">{t("stock.fefo-option")}</option>
+            <option value="fifo">{t("stock.fifo-option")}</option>
           </select>
         </Field>
-        <Field label="حد إعادة الطلب"><input className="field" inputMode="decimal" dir="ltr" value={form.reorder_point_qty} onChange={(e) => set("reorder_point_qty", e.target.value)} /></Field>
-        <Field label="الحد الأدنى"><input className="field" inputMode="decimal" dir="ltr" value={form.min_stock_qty} onChange={(e) => set("min_stock_qty", e.target.value)} /></Field>
-        <Field label="الحد الأقصى"><input className="field" inputMode="decimal" dir="ltr" value={form.max_stock_qty} onChange={(e) => set("max_stock_qty", e.target.value)} /></Field>
+        <Field label={t("stock.reorder-point-field")}><input className="field" inputMode="decimal" dir="ltr" value={form.reorder_point_qty} onChange={(e) => set("reorder_point_qty", e.target.value)} /></Field>
+        <Field label={t("stock.min-stock-field")}><input className="field" inputMode="decimal" dir="ltr" value={form.min_stock_qty} onChange={(e) => set("min_stock_qty", e.target.value)} /></Field>
+        <Field label={t("stock.max-stock-field")}><input className="field" inputMode="decimal" dir="ltr" value={form.max_stock_qty} onChange={(e) => set("max_stock_qty", e.target.value)} /></Field>
         <label className="tap-target flex items-center gap-2 font-extrabold">
           <input type="checkbox" className="w-6 h-6" checked={form.cold_chain} onChange={(e) => set("cold_chain", e.target.checked)} />
-          سلسلة تبريد
+          {t("stock.cold-chain-label")}
         </label>
-        <button className="btn-primary col-span-full">حفظ</button>
+        <button className="btn-primary col-span-full">{t("stock.form-lot-expiry-save")}</button>
       </form>
-      <h4 className="font-extrabold text-united-dark text-sm">التعبئة (كام {p.unit} في كل وحدة)</h4>
+      <h4 className="font-extrabold text-united-dark text-sm">{t("stock.heading-packaging")} (كام {p.unit} {t("stock.packaging-each")})</h4>
       <ul className="flex flex-wrap gap-2">
         {p.packagings.map((x) => (
           <li key={x.id} className="rounded-xl bg-united-dark/5 px-3 py-2 text-sm font-extrabold" dir="ltr">
-            1 {x.uomCode} = {fmtQty(x.qtyInBaseUnit)} {p.unit}{x.active ? "" : " (موقوفة)"}
+            1 {x.uomCode} = {fmtQty(x.qtyInBaseUnit)} {p.unit}{x.active ? "" : ` (${t("stock.suspended")})`}
           </li>
         ))}
       </ul>
       <form onSubmit={addPack} className="flex gap-2">
         <select className="field font-bold" value={pack.uom} onChange={(e) => setPack({ ...pack, uom: e.target.value })}>
-          <option value="">الوحدة</option>
+          <option value="">{t("stock.unit-choice")}</option>
           {uoms.filter((x) => x.code !== p.unit).map((x) => (
             <option key={x.code} value={x.code}>{x.nameAr ?? x.name} ({x.code})</option>
           ))}
         </select>
-        <input className="field" inputMode="decimal" dir="ltr" placeholder={`كام ${p.unit}`} value={pack.qty} onChange={(e) => setPack({ ...pack, qty: e.target.value })} />
-        <button className="btn-secondary shrink-0">إضافة</button>
+        <input className="field" inputMode="decimal" dir="ltr" placeholder={`كام ${p.unit} ${t("stock.packaging-each")}`} value={pack.qty} onChange={(e) => setPack({ ...pack, qty: e.target.value })} />
+        <button className="btn-secondary shrink-0">{t("stock.add-button")}</button>
       </form>
     </section>
   );
@@ -409,6 +424,7 @@ function ProductSettings({ d }: { d: ProductDetail }) {
 // ---------------------------------------------------------------------------
 
 function Expiring({ onOpen }: { onOpen: (id: string) => void }) {
+  const { t } = useLocale();
   const [days, setDays] = useState<number | null>(null);
   const q = useQuery({
     queryKey: ["stock", "inventory", "expiring", days],
@@ -425,9 +441,9 @@ function Expiring({ onOpen }: { onOpen: (id: string) => void }) {
       <Tabs
         value={String(days ?? "default")}
         onChange={(v) => setDays(v === "default" ? null : Number(v))}
-        items={[{ key: "default", label: "الافتراضي" }, { key: "0", label: "النهارده" }, { key: "3", label: "3 أيام" }, { key: "7", label: "أسبوع" }]}
+        items={[{ key: "default", label: t("stock.tab.default") }, { key: "0", label: t("stock.tab.today") }, { key: "3", label: `3 ${t("stock.tab.days-days")}` }, { key: "7", label: t("stock.tab.week") }]}
       />
-      {q.data.rows.length === 0 && <EmptyState icon="🍃" title={`مفيش حاجة هتنتهي لحد ${q.data.until}`} />}
+      {q.data.rows.length === 0 && <EmptyState icon="🍃" title={`${t("stock.expiring-nothing")} لحد ${q.data.until}`} />}
       <ul className="flex flex-col gap-2">
         {q.data.rows.map((r) => (
           <li key={`${r.lotId}:${r.locationCode}`}>
@@ -439,7 +455,7 @@ function Expiring({ onOpen }: { onOpen: (id: string) => void }) {
               <div className="flex flex-col items-end">
                 <span dir="ltr" className="font-extrabold">{fmtQty(r.quantity, r.product.unit)}</span>
                 <span className={`text-xs font-extrabold ${r.expired ? "text-united-danger" : r.daysLeft <= 1 ? "text-united-warn" : "text-united-muted"}`}>
-                  {r.expired ? `منتهي من ${-r.daysLeft} يوم` : r.daysLeft === 0 ? "بينتهي النهارده" : `باقي ${r.daysLeft} يوم`}
+                  {r.expired ? `${t("stock.expired-since")} ${-r.daysLeft} ${t("stock.tab.days-days")}` : r.daysLeft === 0 ? t("stock.expiring-today") : `${t("stock.expiring-left")} ${r.daysLeft} ${t("stock.tab.days-days")}`}
                 </span>
               </div>
             </button>
@@ -458,14 +474,10 @@ type ExceptionDTO = {
   order: { orderNumber: string; customerName: string; deliveryDate: string };
   document: { number: string } | null;
 };
-const EXCEPTION_REASON: Record<ExceptionDTO["reason"], string> = {
-  unmapped: "الصنف مش متربط بدليل الأصناف",
-  unit_mismatch: "الوحدة مش بتتحول لوحدة الصنف",
-  insufficient: "الرصيد المسجل كان أقل من اللي خرج",
-};
 
 function Exceptions() {
   const { can } = usePermissions();
+  const { t } = useLocale();
   const [status, setStatus] = useState<"open" | "resolved" | "voided">("open");
   const q = useQuery({
     queryKey: ["stock", "inventory", "exceptions", status],
@@ -474,11 +486,11 @@ function Exceptions() {
   });
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm font-bold text-united-muted">أوردرات خرجت والمخزون المسجل ماكفاش أو الصنف مش معروف. كل فرق لازم يتفسر: استلام اتسجل متأخر، جرد، أو ربط الصنف.</p>
-      <Tabs value={status} onChange={setStatus} items={[{ key: "open", label: "مفتوحة" }, { key: "resolved", label: "اتحلت" }, { key: "voided", label: "اتلغت" }]} />
+      <p className="text-sm font-bold text-united-muted">{t("stock.variance-explain")}</p>
+      <Tabs value={status} onChange={setStatus} items={[{ key: "open", label: t("stock.variance-open") }, { key: "resolved", label: t("stock.variance-resolved") }, { key: "voided", label: t("stock.variance-voided") }]} />
       {q.isLoading && <LoadingState />}
       {q.isError && <ErrorState message={errorMessage(q.error)} onRetry={() => q.refetch()} />}
-      {q.data && q.data.exceptions.length === 0 && <EmptyState icon="✅" title="مفيش فروقات" />}
+      {q.data && q.data.exceptions.length === 0 && <EmptyState icon="✅" title={t("stock.empty-variance")} />}
       <ul className="flex flex-col gap-2">
         {q.data?.exceptions.map((x) => (
           <ExceptionCard key={x.id} x={x} canResolve={can("stock.adjust") && x.status === "open"} />
@@ -491,19 +503,20 @@ function Exceptions() {
 function ExceptionCard({ x, canResolve }: { x: ExceptionDTO; canResolve: boolean }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const [text, setText] = useState("");
   return (
     <li className="card p-4 flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
         <span className="font-extrabold">{x.productName}</span>
-        <span className="text-xs font-bold text-united-muted">أوردر {x.order.orderNumber} · {x.order.customerName}</span>
+        <span className="text-xs font-bold text-united-muted">{t("stock.exception-ordered")} {x.order.orderNumber} · {x.order.customerName}</span>
       </div>
       <p className="text-sm font-bold text-united-warn">{EXCEPTION_REASON[x.reason]}</p>
       <p className="text-sm font-bold" dir="rtl">
-        خرج <span dir="ltr">{fmtQty(x.requestedQty, x.unit)}</span> · اتصرف من الدفاتر <span dir="ltr">{fmtQty(x.issuedQty, x.unit)}</span>
+        exited <span dir="ltr">{fmtQty(x.requestedQty, x.unit)}</span> · {t("stock.exception-issued-from-books")} <span dir="ltr">{fmtQty(x.issuedQty, x.unit)}</span>
         {x.document ? ` · ${x.document.number}` : ""}
       </p>
-      {x.resolution && <p className="text-sm text-united-muted font-bold">الحل: {x.resolution} {x.resolvedBy ? `— ${x.resolvedBy}` : ""}</p>}
+      {x.resolution && <p className="text-sm text-united-muted font-bold">{t("stock.resolution-solution")}: {x.resolution} {x.resolvedBy ? `— ${x.resolvedBy}` : ""}</p>}
       {canResolve && (
         <form
           className="flex gap-2"
@@ -512,14 +525,14 @@ function ExceptionCard({ x, canResolve }: { x: ExceptionDTO; canResolve: boolean
             try {
               await apiPost(`/api/inventory/exceptions/${x.id}/resolve`, { resolution: text, expected_version: x.version });
               invalidateStockData(qc);
-              toast.show("اتقفل الفرق", "success");
+              toast.show(t("stock.toast-variance-closed"), "success");
             } catch (err) {
-              toast.show(err instanceof ApiClientError ? err.message : "حصل خطأ", "error");
+              toast.show(err instanceof ApiClientError ? err.message : t("stock.toast-error"), "error");
             }
           }}
         >
-          <input className="field" placeholder="إزاي اتحل؟ (مطلوب)" value={text} onChange={(e) => setText(e.target.value)} />
-          <button className="btn-primary shrink-0">قفل</button>
+          <input className="field" placeholder={t("stock.form-how-solved")} value={text} onChange={(e) => setText(e.target.value)} />
+          <button className="btn-primary shrink-0">{t("stock.btn-close")}</button>
         </form>
       )}
     </li>
@@ -532,8 +545,12 @@ type DocumentDTO = {
   id: string; number: string; type: string; status: string; businessDate: string; reason: string | null; createdBy: string; reversalOfId: string | null;
   movements: { id: string; quantity: string; kind: string; location: { code: string }; lot: { lotNumber: string } | null; product: { name: string; unit: string } }[];
 };
-const DOC_TYPE: Record<string, string> = { transfer: "تحويل", adjustment: "تسوية", scrap: "هالك", customer_return: "مرتجع عميل", supplier_return: "مرتجع مورد", issue: "صرف" };
-const DOC_STATUS: Record<string, { label: string; cls: string }> = {
+
+const DOC_TYPE_MAP: Record<string, string> = {
+  transfer: "تحويل", adjustment: "تسوية", scrap: "هالك", customer_return: "مرتجع عميل", supplier_return: "مرتجع مورد", issue: "صرف",
+};
+
+const DOC_STATUS_MAP: Record<string, { label: string; cls: string }> = {
   posted: { label: "متسجل", cls: "bg-united-green/10 text-united-green" },
   pending_approval: { label: "مستني موافقة", cls: "bg-united-warn/10 text-united-warn" },
   rejected: { label: "مرفوض", cls: "bg-united-danger/10 text-united-danger" },
@@ -542,12 +559,13 @@ const DOC_STATUS: Record<string, { label: string; cls: string }> = {
 
 function Documents() {
   const { can } = usePermissions();
+  const { t } = useLocale();
   const [type, setType] = useState("");
   const [highlight, setHighlight] = useState<string | null>(null);
   const [dPage, setDPage] = useState(1);
   const dPageSize = 50;
   useEffect(() => setHighlight(new URLSearchParams(window.location.search).get("doc")), []);
-  const onTypeChange = (t: string) => { setType(t); setDPage(1); };
+  const onTypeChange = (t2: string) => { setType(t2); setDPage(1); };
   const q = useQuery({
     queryKey: ["stock", "inventory", "documents", type, dPage],
     queryFn: () => apiFetch<{ documents: DocumentDTO[]; pagination: { total: number } }>(`/api/inventory/documents?limit=${dPageSize}&offset=${(dPage - 1) * dPageSize}${type ? `&type=${type}` : ""}`),
@@ -555,10 +573,10 @@ function Documents() {
   });
   return (
     <div className="flex flex-col gap-3">
-      <Tabs value={type} onChange={onTypeChange} items={[{ key: "", label: "الكل" }, ...Object.entries(DOC_TYPE).map(([k, v]) => ({ key: k, label: v }))]} />
+      <Tabs value={type} onChange={onTypeChange} items={[{ key: "", label: t("stock.doc-all") }, ...Object.entries(DOC_TYPE_MAP).map(([k, v]) => ({ key: k, label: v }))]} />
       {q.isLoading && <LoadingState />}
       {q.isError && <ErrorState message={errorMessage(q.error)} onRetry={() => q.refetch()} />}
-      {q.data && q.data.documents.length === 0 && <EmptyState icon="🗂️" title="مفيش مستندات" />}
+      {q.data && q.data.documents.length === 0 && <EmptyState icon="🗂️" title={t("stock.empty-documents")} />}
       <ul className="flex flex-col gap-2">
         {q.data?.documents.map((d) => (
           <DocumentCard key={d.id} d={d} highlight={d.id === highlight} canReverse={can("stock.adjust") && d.status === "posted" && d.type !== "issue" && !d.reversalOfId} />
@@ -572,15 +590,16 @@ function Documents() {
 function DocumentCard({ d, highlight, canReverse }: { d: DocumentDTO; highlight: boolean; canReverse: boolean }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const [open, setOpen] = useState(highlight);
   const [reason, setReason] = useState("");
-  const st = DOC_STATUS[d.status] ?? { label: d.status, cls: "" };
+  const st = DOC_STATUS_MAP[d.status] ?? { label: d.status, cls: "" };
   return (
     <li className={`card p-4 flex flex-col gap-2 ${highlight ? "border-2 border-united-green" : ""}`}>
       <button type="button" className="flex items-center justify-between gap-2 text-start" onClick={() => setOpen(!open)}>
         <span className="font-extrabold" dir="ltr">{d.number}</span>
         <span className="flex items-center gap-2">
-          <span className="text-xs font-bold text-united-muted">{DOC_TYPE[d.type] ?? d.type} · {d.businessDate}</span>
+          <span className="text-xs font-bold text-united-muted">{DOC_TYPE_MAP[d.type] ?? d.type} · {d.businessDate}</span>
           <span className={`rounded-full px-2 text-xs font-extrabold ${st.cls}`}>{st.label}</span>
         </span>
       </button>
@@ -594,7 +613,7 @@ function DocumentCard({ d, highlight, canReverse }: { d: DocumentDTO; highlight:
                 <span dir="ltr" className="font-extrabold">{fmtQty(m.quantity, m.product.unit)}</span>
               </li>
             ))}
-            {d.movements.length === 0 && <li className="text-united-muted font-bold">مفيش حركة لسه (مستني موافقة أو مرفوض)</li>}
+            {d.movements.length === 0 && <li className="text-united-muted font-bold">{t("stock.no-movement-yet")}</li>}
           </ul>
           {canReverse && (
             <form
@@ -604,14 +623,14 @@ function DocumentCard({ d, highlight, canReverse }: { d: DocumentDTO; highlight:
                 try {
                   const res = await apiPost<{ document: { number: string } }>(`/api/inventory/documents/${d.id}/reverse`, { reason });
                   invalidateStockData(qc);
-                  toast.show(`اتلغى بـ ${res.document.number}`, "success");
+                  toast.show(`${t("stock.toast-document-reversed")} ${res.document.number}`, "success");
                 } catch (err) {
-                  toast.show(err instanceof ApiClientError ? err.message : "حصل خطأ", "error");
+                  toast.show(err instanceof ApiClientError ? err.message : t("stock.toast-error"), "error");
                 }
               }}
             >
-              <input className="field" placeholder="سبب الإلغاء (مطلوب)" value={reason} onChange={(e) => setReason(e.target.value)} />
-              <button className="btn-danger shrink-0">إلغاء المستند</button>
+              <input className="field" placeholder={t("stock.reverse-reason-placeholder")} value={reason} onChange={(e) => setReason(e.target.value)} />
+              <button className="btn-danger shrink-0">{t("stock.btn-reverse-doc")}</button>
             </form>
           )}
         </>
@@ -623,6 +642,7 @@ function DocumentCard({ d, highlight, canReverse }: { d: DocumentDTO; highlight:
 // ---------------------------------------------------------------------------
 
 function Valuation() {
+  const { t } = useLocale();
   const q = useQuery({
     queryKey: ["stock", "inventory", "valuation"],
     queryFn: () =>
@@ -635,14 +655,19 @@ function Valuation() {
   return (
     <div className="flex flex-col gap-3">
       <div className="card p-4 flex justify-between font-extrabold text-lg">
-        <span>إجمالي قيمة المخزون</span>
+        <span>{t("stock.val-total-title")}</span>
         <span dir="ltr">{fmtMoney(q.data.totalValue)}</span>
       </div>
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-united-muted text-xs">
-              <th className="p-2 text-start">الصنف</th><th className="p-2">الطريقة</th><th className="p-2">الكمية</th><th className="p-2">متوسط التكلفة</th><th className="p-2">القيمة</th><th className="p-2">اتسجل من غير تكلفة</th>
+              <th className="p-2 text-start">{t("stock.val-col-item")}</th>
+              <th className="p-2">{t("stock.val-col-method")}</th>
+              <th className="p-2">{t("stock.val-col-qty")}</th>
+              <th className="p-2">{t("stock.val-col-avg-cost")}</th>
+              <th className="p-2">{t("stock.val-col-total-value")}</th>
+              <th className="p-2">{t("stock.val-col-nocode")}</th>
             </tr>
           </thead>
           <tbody>
@@ -659,7 +684,7 @@ function Valuation() {
           </tbody>
         </table>
       </div>
-      <p className="text-xs font-bold text-united-muted">"اتسجل من غير تكلفة" = كميات اتسجلت قبل تسجيل الأسعار أو من غير سعر؛ دخلت المخزون بقيمة صفر، فمتوسط التكلفة بيكون أقل من الحقيقي لحد ما تخلص.</p>
+      <p className="text-xs font-bold text-united-muted">{t("stock.val-info-uncosted")}</p>
     </div>
   );
 }
@@ -667,6 +692,7 @@ function Valuation() {
 function ReleaseButton({ productId, bucket: b }: { productId: string; bucket: Bucket }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const { can } = usePermissions();
   const [open, setOpen] = useState(false);
   const [qty, setQty] = useState(b.quantity);
@@ -679,7 +705,7 @@ function ReleaseButton({ productId, bucket: b }: { productId: string; bucket: Bu
   if (!open) {
     return (
       <button type="button" className="text-xs font-extrabold text-united-green underline" onClick={() => setOpen(true)}>
-        إفراج
+        {t("stock.release-btn")}
       </button>
     );
   }
@@ -698,11 +724,11 @@ function ReleaseButton({ productId, bucket: b }: { productId: string; bucket: Bu
         reason: reason.trim(),
         inspection_note: note.trim() || undefined,
       });
-      toast.show("تم الإفراج", "success");
+      toast.show(t("stock.toast-released"), "success");
       invalidateStockData(qc);
       setOpen(false);
     } catch (e) {
-      const msg = e instanceof ApiClientError ? e.message : "حصل خطأ";
+      const msg = e instanceof ApiClientError ? e.message : t("stock.toast-error");
       setErr(msg);
       toast.show(msg, "error");
     } finally {
@@ -714,28 +740,28 @@ function ReleaseButton({ productId, bucket: b }: { productId: string; bucket: Bu
     <div className="rounded-xl bg-united-warn/10 border border-united-warn/30 p-3 flex flex-col gap-2 mt-2">
       <div className="grid grid-cols-2 gap-2">
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] font-extrabold text-united-muted">الكمية</span>
+          <span className="text-[11px] font-extrabold text-united-muted">{t("stock.release-qty-label")}</span>
           <input type="number" inputMode="decimal" step="0.001" min={0} value={qty} onChange={(e) => setQty(e.target.value)} className="field text-sm" />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] font-extrabold text-united-muted">إلى</span>
+          <span className="text-[11px] font-extrabold text-united-muted">{t("stock.release-to-label")}</span>
           <select className="field text-sm" value={destId} onChange={(e) => setDestId(e.target.value)}>
-            <option value="">اختار المكان</option>
-            <option value="loc_recv">منطقة الاستلام</option>
-            <option value="loc_disp">منطقة التحميل</option>
-            <option value="loc_cold_1">غرفة تبريد 1</option>
-            <option value="loc_cold_2">غرفة تبريد 2</option>
+            <option value="">{t("stock.release-select-default")}</option>
+            <option value="loc_recv">{t("stock.release-dest-receiving")}</option>
+            <option value="loc_disp">{t("stock.release-dest-loading")}</option>
+            <option value="loc_cold_1">{t("stock.release-dest-cold-1")}</option>
+            <option value="loc_cold_2">{t("stock.release-dest-cold-2")}</option>
           </select>
         </label>
       </div>
-      <input placeholder="سبب الإفراج (إجباري)" value={reason} onChange={(e) => setReason(e.target.value)} className="field text-sm" />
-      <input placeholder="ملاحظات الفحص (اختياري)" value={note} onChange={(e) => setNote(e.target.value)} className="field text-sm" />
+      <input placeholder={t("stock.release-reason-placeholder")} value={reason} onChange={(e) => setReason(e.target.value)} className="field text-sm" />
+      <input placeholder={t("stock.release-notes-placeholder")} value={note} onChange={(e) => setNote(e.target.value)} className="field text-sm" />
       {err && <p className="text-united-danger font-bold text-sm">{err}</p>}
       <div className="flex gap-2">
         <button onClick={submit} disabled={busy || !qty || Number(qty) <= 0 || !destId || !reason.trim()} className="btn-primary flex-1 text-sm">
-          {busy ? "بيتسجل…" : "تأكيد الإفراج"}
+          {busy ? t("stock.saving") : t("stock.btn-confirm-release")}
         </button>
-        <button onClick={() => setOpen(false)} className="btn-secondary text-sm">رجوع</button>
+        <button onClick={() => setOpen(false)} className="btn-secondary text-sm">{t("stock.btn-back")}</button>
       </div>
     </div>
   );

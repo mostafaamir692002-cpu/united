@@ -1,14 +1,20 @@
 import { HOME_BY_ROLE, type Role } from "@/lib/types";
 import type { Permission } from "@/lib/permissions";
+import type { TranslationKey } from "@/lib/locale";
 
 /**
  * The single navigation definition. The header renders from it, and the post-login
  * landing page is chosen from it, so a module can never appear in one place and be
  * missing from the other. Each entry names the permission that both hides the link
  * and — enforced separately, server-side — protects the page behind it.
+ *
+ * `labelKey` is a TranslationKey into the locale dictionary, so the same definition
+ * works for both Arabic and English without a server-side locale context.
  */
 export type NavLink = {
   href: string;
+  labelKey: TranslationKey;
+  /** The Arabic label for fallback / server-side use (e.g. print titles). */
   label: string;
   /** One permission, or several meaning "any of these". */
   permission: Permission | Permission[];
@@ -22,42 +28,42 @@ export type NavLink = {
 };
 
 export type NavGroup = "ops" | "control" | "sales" | "purchasing" | "stock" | "finance" | "admin";
-export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
-  { key: "ops", label: "التشغيل" },
-  { key: "control", label: "المتابعة" },
-  { key: "sales", label: "المبيعات" },
-  { key: "purchasing", label: "المشتريات" },
-  { key: "stock", label: "المخزون" },
-  { key: "finance", label: "الحسابات" },
-  { key: "admin", label: "الإدارة" },
+export const NAV_GROUPS: { key: NavGroup; labelKey: TranslationKey; label: string }[] = [
+  { key: "ops", labelKey: "nav.group.ops", label: "التشغيل" },
+  { key: "control", labelKey: "nav.group.control", label: "المتابعة" },
+  { key: "sales", labelKey: "nav.group.sales", label: "المبيعات" },
+  { key: "purchasing", labelKey: "nav.group.purchasing", label: "المشتريات" },
+  { key: "stock", labelKey: "nav.group.stock", label: "المخزون" },
+  { key: "finance", labelKey: "nav.group.finance", label: "الحسابات" },
+  { key: "admin", labelKey: "nav.group.admin", label: "الإدارة" },
 ];
 
 export const NAV_LINKS: NavLink[] = [
-  { href: "/prep", label: "التجهيز", permission: "orders.prepare", group: "ops", primary: true },
-  { href: "/load", label: "التحميل", permission: "orders.load", group: "ops", primary: true },
-  { href: "/production", label: "إنتاج النهارده", permission: "orders.view", group: "ops", primary: true },
-  { href: "/production/sheet", label: "شيت التجهيز الموحد", permission: "orders.view", group: "ops", primary: true },
-  { href: "/operations", label: "التوزيع", permission: "orders.view", group: "ops", primary: true },
-  { href: "/supervisor", label: "مركز التحكم", permission: "reports.view", group: "control", primary: true },
-  { href: "/supervisor/exceptions", label: "نواقص التجهيز", permission: "reports.view", group: "control", primary: true },
-  { href: "/supervisor/report", label: "تقرير اليوم", permission: "reports.view", group: "control", primary: true },
-  { href: "/supervisor/audit", label: "سجل المراجعة", permission: "audit.view", group: "control", primary: false },
+  { href: "/prep", labelKey: "nav.link.prep", label: "التجهيز", permission: "orders.prepare", group: "ops", primary: true },
+  { href: "/load", labelKey: "nav.link.load", label: "التحميل", permission: "orders.load", group: "ops", primary: true },
+  { href: "/production", labelKey: "nav.link.production", label: "إنتاج النهارده", permission: "orders.view", group: "ops", primary: true },
+  { href: "/production/sheet", labelKey: "nav.link.sheet", label: "شيت التجهيز الموحد", permission: "orders.view", group: "ops", primary: true },
+  { href: "/operations", labelKey: "nav.link.operations", label: "التوزيع", permission: "orders.view", group: "ops", primary: true },
+  { href: "/supervisor", labelKey: "nav.link.supervisor", label: "مركز التحكم", permission: "reports.view", group: "control", primary: true },
+  { href: "/supervisor/exceptions", labelKey: "nav.link.exceptions", label: "نواقص التجهيز", permission: "reports.view", group: "control", primary: true },
+  { href: "/supervisor/report", labelKey: "nav.link.daily-report", label: "تقرير اليوم", permission: "reports.view", group: "control", primary: true },
+  { href: "/supervisor/audit", labelKey: "nav.link.audit-log", label: "سجل المراجعة", permission: "audit.view", group: "control", primary: false },
   // Every permission that can decide some approval type — see lib/core/approvals.ts.
   // The page lists what you may decide AND what you raised, so anyone may open it.
-  { href: "/approvals", label: "الموافقات", permission: ["orders.approve", "stock.approve_adjustments", "sales.credit.manage", "purchasing.orders.approve", "purchasing.bills.approve", "hr.expenses.approve"], group: "control", primary: true, pageOpenToAll: true },
-  { href: "/sales", label: "العملاء", permission: "sales.customers.view", group: "sales", primary: true },
-  { href: "/purchasing", label: "المشتريات", permission: "purchasing.orders.view", group: "purchasing", primary: true },
-  { href: "/accounting", label: "الحسابات", permission: "accounting.view", group: "finance", primary: true },
-  { href: "/eta", label: "الفاتورة الإلكترونية", permission: "accounting.eta.view", group: "finance", primary: true },
-  { href: "/hr", label: "الموظفين والمصروفات", permission: "hr.expenses.submit", group: "admin", primary: true },
-  { href: "/management", label: "تقارير الإدارة", permission: "reports.finance", group: "finance", primary: true },
-  { href: "/management/operations", label: "أداء التشغيل", permission: "reports.view", group: "control", primary: true },
-  { href: "/stock", label: "المخزون", permission: "stock.view", group: "stock", primary: true },
-  { href: "/stock/inventory", label: "إدارة المخزون", permission: "stock.view", group: "stock", primary: true },
-  { href: "/stock/entries", label: "الاستلامات", permission: "stock.receive", group: "stock", primary: true },
-  { href: "/stock/ledger", label: "سجل الحركات", permission: "stock.view", group: "stock", primary: true },
-  { href: "/stock/setup", label: "دليل الأصناف", permission: "stock.view", group: "stock", primary: true },
-  { href: "/admin", label: "الإدارة", permission: "users.view", group: "admin", primary: true },
+  { href: "/approvals", labelKey: "nav.link.approvals", label: "الموافقات", permission: ["orders.approve", "stock.approve_adjustments", "sales.credit.manage", "purchasing.orders.approve", "purchasing.bills.approve", "hr.expenses.approve"], group: "control", primary: true, pageOpenToAll: true },
+  { href: "/sales", labelKey: "nav.link.sales", label: "العملاء", permission: "sales.customers.view", group: "sales", primary: true },
+  { href: "/purchasing", labelKey: "nav.link.purchasing", label: "المشتريات", permission: "purchasing.orders.view", group: "purchasing", primary: true },
+  { href: "/accounting", labelKey: "nav.link.accounting", label: "الحسابات", permission: "accounting.view", group: "finance", primary: true },
+  { href: "/eta", labelKey: "nav.link.eta", label: "الفاتورة الإلكترونية", permission: "accounting.eta.view", group: "finance", primary: true },
+  { href: "/hr", labelKey: "nav.link.hr", label: "الموظفين والمصروفات", permission: "hr.expenses.submit", group: "admin", primary: true },
+  { href: "/management", labelKey: "nav.link.management", label: "تقارير الإدارة", permission: "reports.finance", group: "finance", primary: true },
+  { href: "/management/operations", labelKey: "nav.link.ops-report", label: "أداء التشغيل", permission: "reports.view", group: "control", primary: true },
+  { href: "/stock", labelKey: "nav.link.stock", label: "المخزون", permission: "stock.view", group: "stock", primary: true },
+  { href: "/stock/inventory", labelKey: "nav.link.inventory", label: "إدارة المخزون", permission: "stock.view", group: "stock", primary: true },
+  { href: "/stock/entries", labelKey: "nav.link.entries", label: "الاستلامات", permission: "stock.receive", group: "stock", primary: true },
+  { href: "/stock/ledger", labelKey: "nav.link.ledger", label: "سجل الحركات", permission: "stock.view", group: "stock", primary: true },
+  { href: "/stock/setup", labelKey: "nav.link.setup", label: "دليل الأصناف", permission: "stock.view", group: "stock", primary: true },
+  { href: "/admin", labelKey: "nav.link.admin", label: "الإدارة", permission: "users.view", group: "admin", primary: true },
 ];
 
 /**

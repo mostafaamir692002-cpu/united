@@ -10,6 +10,6 @@ export async function POST(req: NextRequest) {
     const ctx = await requireAuth(req);
     return NextResponse.json({ marked: await markRead(ctx.id, await readJson(req)) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

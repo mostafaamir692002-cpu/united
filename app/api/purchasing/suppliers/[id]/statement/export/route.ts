@@ -21,6 +21,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     ];
     return csvResponse(toCsv(rows), `supplier-statement-${st.supplier.code || st.supplier.id}-${from}-${to}`);
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

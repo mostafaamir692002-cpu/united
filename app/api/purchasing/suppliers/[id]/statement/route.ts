@@ -14,6 +14,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const statement = await supplierStatement(params.id, from, to);
     return NextResponse.json({ statement, payable: (await supplierPayable(prisma, params.id)).toFixed(2) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

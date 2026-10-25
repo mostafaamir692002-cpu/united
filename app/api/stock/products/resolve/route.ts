@@ -35,6 +35,6 @@ export async function POST(req: NextRequest) {
     }
     return jsonFor(viewer, { error: "ابعت name أو names" }, { status: 400 });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

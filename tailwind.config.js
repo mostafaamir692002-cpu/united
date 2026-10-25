@@ -18,6 +18,7 @@ module.exports = {
       },
       fontFamily: {
         arabic: ["Tajawal", "Cairo", "Arial", "system-ui", "sans-serif"],
+        english: ["Inter", "system-ui", "Segoe UI", "Roboto", "sans-serif"],
       },
       boxShadow: {
         card: "0 1px 2px rgba(31,61,36,0.04), 0 1px 12px rgba(31,61,36,0.05)",

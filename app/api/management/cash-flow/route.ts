@@ -12,6 +12,6 @@ export async function GET(req: NextRequest) {
     if (!from || !to) return NextResponse.json({ error: "حدد تاريخ البداية والنهاية" }, { status: 400 });
     return NextResponse.json({ report: await cashFlowReport({ from, to }) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

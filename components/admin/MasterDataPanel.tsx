@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocale } from "@/lib/locale";
 import { apiFetch, apiPatch, apiPost, ApiClientError, errorMessage } from "@/lib/api-client";
 import { LoadingState, ErrorState, EmptyState } from "@/components/States";
 import { useToast } from "@/components/ui/Toast";
@@ -44,6 +45,11 @@ type Field = {
   hint?: string;
 };
 
+const LOCATION_TYPE_LABELS: Record<string, Record<"ar" | "en", string>> = {};
+STORAGE_LOCATION_TYPES.forEach((t) => {
+  LOCATION_TYPE_LABELS[t] = { ar: STORAGE_LOCATION_TYPE_LABEL[t], en: STORAGE_LOCATION_TYPE_LABEL[t] };
+});
+
 export function MasterDataPanel({ canManage }: { canManage: boolean }) {
   const q = useQuery({
     queryKey: ["admin", "master"],
@@ -70,6 +76,7 @@ export function MasterDataPanel({ canManage }: { canManage: boolean }) {
 // ---------------------------------------------------------------------------
 
 function CompanySection({ company, currencies, canManage }: { company: CompanyDTO; currencies: CurrencyDTO[]; canManage: boolean }) {
+  const { t } = useLocale();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const currencyOptions = currencies.filter((c) => c.active && c.code === "EGP").map((c) => ({ value: c.code, label: `${c.code} · ${c.nameAr ?? c.name}` }));
@@ -83,10 +90,10 @@ function CompanySection({ company, currencies, canManage }: { company: CompanyDT
           </h2>
           <Facts
             items={[
-              ["الاسم القانوني", company.legalName],
-              ["التسجيل الضريبي", company.taxRegistrationNumber],
-              ["السجل التجاري", company.commercialRegistration],
-              ["العملة الأساسية", company.baseCurrencyCode],
+              [t("admin.company.fact-legal"), company.legalName],
+              [t("admin.company.fact-tax-reg"), company.taxRegistrationNumber],
+              [t("admin.company.fact-commercial-reg"), company.commercialRegistration],
+              [t("admin.company.fact-currency"), company.baseCurrencyCode],
             ]}
           />
         </div>
@@ -94,7 +101,7 @@ function CompanySection({ company, currencies, canManage }: { company: CompanyDT
           <ActiveBadge active={company.active} />
           {canManage && (
             <button type="button" className="btn-secondary text-sm" onClick={() => setEditing((x) => !x)}>
-              تعديل
+              {t("admin.company.btn-edit")}
             </button>
           )}
         </div>
@@ -104,15 +111,15 @@ function CompanySection({ company, currencies, canManage }: { company: CompanyDT
           entity="companies"
           row={company}
           fields={[
-            { key: "legal_name", label: "الاسم القانوني", required: true },
-            { key: "name_ar", label: "الاسم بالعربي" },
-            { key: "trade_name", label: "الاسم التجاري" },
-            { key: "tax_registration_number", label: "رقم التسجيل الضريبي", ltr: true },
-            { key: "commercial_registration", label: "رقم السجل التجاري", ltr: true },
-            { key: "base_currency_code", label: "العملة الأساسية", kind: "select", options: currencyOptions },
-            { key: "phone", label: "التليفون", ltr: true },
-            { key: "email", label: "الإيميل", ltr: true },
-            { key: "address", label: "العنوان" },
+            { key: "legal_name", label: t("admin.company.field-legal-name"), required: true },
+            { key: "name_ar", label: t("admin.company.field-name-ar") },
+            { key: "trade_name", label: t("admin.company.field-trade-name") },
+            { key: "tax_registration_number", label: t("admin.company.field-tax-reg-no"), ltr: true },
+            { key: "commercial_registration", label: t("admin.company.field-commercial-reg-no"), ltr: true },
+            { key: "base_currency_code", label: t("admin.company.field-base-currency"), kind: "select", options: currencyOptions },
+            { key: "phone", label: t("admin.company.field-phone"), ltr: true },
+            { key: "email", label: t("admin.company.field-email"), ltr: true },
+            { key: "address", label: t("admin.company.field-address") },
           ]}
           initial={{
             legal_name: company.legalName,
@@ -130,7 +137,7 @@ function CompanySection({ company, currencies, canManage }: { company: CompanyDT
       )}
 
       <div className="mt-4 flex flex-col gap-3">
-        {company.branches.length === 0 && <EmptyState icon="🏢" title="مفيش فروع" />}
+        {company.branches.length === 0 && <EmptyState icon="🏢" title={t("admin.branch.empty")} />}
         {company.branches.map((b) => (
           <BranchBlock key={b.id} branch={b} canManage={canManage} />
         ))}
@@ -141,18 +148,18 @@ function CompanySection({ company, currencies, canManage }: { company: CompanyDT
             <EntityForm
               entity="branches"
               fields={[
-                { key: "code", label: "كود الفرع", ltr: true, createOnly: true, required: true, hint: "مثال: ALEX" },
-                { key: "name", label: "الاسم", required: true },
-                { key: "name_ar", label: "الاسم بالعربي" },
-                { key: "address", label: "العنوان" },
-                { key: "phone", label: "التليفون", ltr: true },
+                { key: "code", label: t("admin.branch.form-code"), ltr: true, createOnly: true, required: true, hint: t("admin.branch.form-code-hint") },
+                { key: "name", label: t("admin.branch.form-name"), required: true },
+                { key: "name_ar", label: t("admin.branch.form-name-ar") },
+                { key: "address", label: t("admin.branch.form-address") },
+                { key: "phone", label: t("admin.branch.form-phone"), ltr: true },
               ]}
               fixed={{ company_id: company.id }}
               onDone={() => setAdding(false)}
             />
           ) : (
             <button type="button" className="btn-secondary text-sm" onClick={() => setAdding(true)} disabled={!company.active}>
-              + فرع
+              {t("admin.branch.add-btn")}
             </button>
           )}
         </div>
@@ -162,6 +169,7 @@ function CompanySection({ company, currencies, canManage }: { company: CompanyDT
 }
 
 function BranchBlock({ branch, canManage }: { branch: BranchDTO; canManage: boolean }) {
+  const { t } = useLocale();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   return (
@@ -179,10 +187,10 @@ function BranchBlock({ branch, canManage }: { branch: BranchDTO; canManage: bool
           entity="branches"
           row={branch}
           fields={[
-            { key: "name", label: "الاسم", required: true },
-            { key: "name_ar", label: "الاسم بالعربي" },
-            { key: "address", label: "العنوان" },
-            { key: "phone", label: "التليفون", ltr: true },
+            { key: "name", label: t("admin.branch.form-name"), required: true },
+            { key: "name_ar", label: t("admin.branch.form-name-ar") },
+            { key: "address", label: t("admin.branch.form-address") },
+            { key: "phone", label: t("admin.branch.form-phone"), ltr: true },
           ]}
           initial={{ name: branch.name, name_ar: branch.nameAr, address: branch.address, phone: branch.phone }}
           onDone={() => setEditing(false)}
@@ -196,13 +204,23 @@ function BranchBlock({ branch, canManage }: { branch: BranchDTO; canManage: bool
           (adding ? (
             <EntityForm
               entity="warehouses"
-              fields={WAREHOUSE_FIELDS_CREATE}
+              fields={(() => {
+                const tFn = t;
+                return [
+                  { key: "code", label: tFn("admin.warehouse.form-code"), ltr: true, createOnly: true, required: true, hint: tFn("admin.warehouse.form-code-hint") },
+                  { key: "name", label: tFn("admin.warehouse.form-name"), required: true },
+                  { key: "name_ar", label: tFn("admin.warehouse.form-name-ar") },
+                  { key: "area_m2", label: tFn("admin.warehouse.form-area"), kind: "number" },
+                  { key: "daily_capacity_kg", label: tFn("admin.warehouse.form-daily-capacity"), kind: "number" },
+                  { key: "address", label: tFn("admin.warehouse.form-address") },
+                ];
+              })()}
               fixed={{ branch_id: branch.id }}
               onDone={() => setAdding(false)}
             />
           ) : (
             <button type="button" className="btn-secondary text-sm self-start" onClick={() => setAdding(true)} disabled={!branch.active}>
-              + مخزن
+              {t("admin.warehouse.add-btn")}
             </button>
           ))}
       </div>
@@ -210,16 +228,8 @@ function BranchBlock({ branch, canManage }: { branch: BranchDTO; canManage: bool
   );
 }
 
-const WAREHOUSE_FIELDS_CREATE: Field[] = [
-  { key: "code", label: "كود المخزن", ltr: true, createOnly: true, required: true, hint: "مثال: WH-2" },
-  { key: "name", label: "الاسم", required: true },
-  { key: "name_ar", label: "الاسم بالعربي" },
-  { key: "area_m2", label: "المساحة (م²)", kind: "number" },
-  { key: "daily_capacity_kg", label: "الطاقة اليومية (كجم)", kind: "number" },
-  { key: "address", label: "العنوان" },
-];
-
 function WarehouseBlock({ warehouse, canManage }: { warehouse: WarehouseDTO; canManage: boolean }) {
+  const { t } = useLocale();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const roots = warehouse.locations.filter((l) => !l.parentId);
@@ -236,15 +246,21 @@ function WarehouseBlock({ warehouse, canManage }: { warehouse: WarehouseDTO; can
       />
       <Facts
         items={[
-          ["المساحة", warehouse.areaM2 && `${fmt(warehouse.areaM2)} م²`],
-          ["الطاقة اليومية", warehouse.dailyCapacityKg && `${fmtKg(warehouse.dailyCapacityKg)}`],
+          [t("admin.warehouse-fact-area"), warehouse.areaM2 && `${fmt(warehouse.areaM2)} م²`],
+          [t("admin.warehouse-fact-daily-capacity"), warehouse.dailyCapacityKg && `${fmtKg(warehouse.dailyCapacityKg)}`],
         ]}
       />
       {editing && (
         <EntityForm
           entity="warehouses"
           row={warehouse}
-          fields={WAREHOUSE_FIELDS_CREATE.filter((f) => !f.createOnly)}
+          fields={[
+            { key: "name", label: t("admin.warehouse.form-name"), required: true },
+            { key: "name_ar", label: t("admin.warehouse.form-name-ar") },
+            { key: "area_m2", label: t("admin.warehouse.form-area"), kind: "number" },
+            { key: "daily_capacity_kg", label: t("admin.warehouse.form-daily-capacity"), kind: "number" },
+            { key: "address", label: t("admin.warehouse.form-address") },
+          ]}
           initial={{
             name: warehouse.name,
             name_ar: warehouse.nameAr,
@@ -265,13 +281,13 @@ function WarehouseBlock({ warehouse, canManage }: { warehouse: WarehouseDTO; can
           {adding ? (
             <EntityForm
               entity="locations"
-              fields={locationFields(warehouse.locations, true)}
+              fields={locationFields(warehouse.locations, t, true)}
               fixed={{ warehouse_id: warehouse.id }}
               onDone={() => setAdding(false)}
             />
           ) : (
             <button type="button" className="btn-secondary text-sm" onClick={() => setAdding(true)} disabled={!warehouse.active}>
-              + مكان تخزين
+              {t("admin.location.add-btn")}
             </button>
           )}
         </div>
@@ -280,45 +296,46 @@ function WarehouseBlock({ warehouse, canManage }: { warehouse: WarehouseDTO; can
   );
 }
 
-function locationFields(siblings: StorageLocationDTO[], creating: boolean, selfId?: string): Field[] {
+function locationFields(siblings: StorageLocationDTO[], t: ReturnType<typeof useLocale>["t"], creating: boolean, selfId?: string): Field[] {
   return [
-    ...(creating ? [{ key: "code", label: "كود المكان", ltr: true, createOnly: true, required: true, hint: "مثال: COLD-3" } as Field] : []),
-    { key: "name", label: "الاسم", required: true },
-    { key: "name_ar", label: "الاسم بالعربي" },
+    ...((creating ? [{ key: "code", label: t("admin.location.form-code"), ltr: true, createOnly: true, required: true, hint: t("admin.location.form-code-hint") }] as Field[] : []) as Field[]),
+    { key: "name", label: t("admin.location.form-name"), required: true },
+    { key: "name_ar", label: t("admin.location.form-name-ar") },
     {
       key: "type",
-      label: "النوع",
+      label: t("admin.location.form-type"),
       kind: "select",
       required: true,
-      options: STORAGE_LOCATION_TYPES.map((t) => ({ value: t, label: STORAGE_LOCATION_TYPE_LABEL[t] })),
+      options: STORAGE_LOCATION_TYPES.map((tType) => ({ value: tType, label: t(STORAGE_LOCATION_TYPE_LABEL[tType]) })),
     },
     {
       key: "parent_id",
-      label: "جوه مكان",
+      label: t("admin.location.form-parent"),
       kind: "select",
       options: [
-        { value: "", label: "— مكان رئيسي —" },
+        { value: "", label: t("admin.location.parent-main") },
         ...siblings.filter((l) => l.active && l.id !== selfId).map((l) => ({ value: l.id, label: `${l.code} · ${l.nameAr ?? l.name}` })),
       ],
     },
-    { key: "capacity_kg", label: "السعة (كجم)", kind: "number" },
-    { key: "temp_min_c", label: "أقل حرارة (°م)", kind: "number" },
-    { key: "temp_max_c", label: "أعلى حرارة (°م)", kind: "number" },
+    { key: "capacity_kg", label: t("admin.location.form-capacity"), kind: "number" },
+    { key: "temp_min_c", label: t("admin.location.form-temp-min"), kind: "number" },
+    { key: "temp_max_c", label: t("admin.location.form-temp-max"), kind: "number" },
   ];
 }
 
 function LocationNode({ location, all, canManage, depth }: { location: StorageLocationDTO; all: StorageLocationDTO[]; canManage: boolean; depth: number }) {
+  const { t } = useLocale();
   const [editing, setEditing] = useState(false);
   const children = all.filter((l) => l.parentId === location.id);
   // Spelled out rather than "2 ↔ 6": an arrow between numbers has no reliable
   // reading direction inside right-to-left text.
   const band =
     location.tempMinC != null && location.tempMaxC != null
-      ? `من ${location.tempMinC} إلى ${location.tempMaxC} °م`
+      ? t("admin.location.temp-range", { min: String(location.tempMinC), max: String(location.tempMaxC) })
       : location.tempMinC != null
-      ? `من ${location.tempMinC} °م`
+      ? t("admin.location.temp-min-only", { min: String(location.tempMinC) })
       : location.tempMaxC != null
-      ? `حتى ${location.tempMaxC} °م`
+      ? t("admin.location.temp-max-only", { max: String(location.tempMaxC) })
       : null;
   return (
     <li style={{ marginInlineStart: depth * 16 }}>
@@ -334,16 +351,16 @@ function LocationNode({ location, all, canManage, depth }: { location: StorageLo
         />
         <Facts
           items={[
-            ["النوع", STORAGE_LOCATION_TYPE_LABEL[location.type as StorageLocationType] ?? location.type],
-            ["السعة", location.capacityKg && fmtKg(location.capacityKg)],
-            ["الحرارة", band],
+            [t("admin.location-fact-type"), STORAGE_LOCATION_TYPE_LABEL[location.type as StorageLocationType] ?? location.type],
+            [t("admin.location-fact-capacity"), location.capacityKg && fmtKg(location.capacityKg)],
+            [t("admin.location-fact-temp"), band],
           ]}
         />
         {editing && (
           <EntityForm
             entity="locations"
             row={location}
-            fields={locationFields(all, false, location.id)}
+            fields={locationFields(all, t, false, location.id)}
             initial={{
               name: location.name,
               name_ar: location.nameAr,
@@ -373,23 +390,23 @@ function LocationNode({ location, all, canManage, depth }: { location: StorageLo
 // ---------------------------------------------------------------------------
 
 function UomSection({ uoms, canManage }: { uoms: UomDTO[]; canManage: boolean }) {
+  const { t } = useLocale();
   const [adding, setAdding] = useState(false);
   const refByCategory = new Map(uoms.filter((u) => u.isReference).map((u) => [u.category, u.code]));
   return (
     <section className="card p-4">
-      <h2 className="text-lg font-extrabold text-united-dark">وحدات القياس</h2>
+      <h2 className="text-lg font-extrabold text-united-dark">{t("admin.section.uom")}</h2>
       <p className="text-xs font-bold text-united-muted mb-3">
-        وحدات الوزن والحجم والعدد بتتحول بمعامل ثابت. وحدات التعبئة (برنيكة، كرتونة…) تحويلها بيتحدد لكل صنف — مش هنا.
-        الكود والنوع والمعامل مش بيتغيروا بعد الإنشاء.
+        {t("admin.section.uom-desc")}
       </p>
       <div className="overflow-x-auto -mx-4 px-4">
         <table className="w-full text-sm min-w-[560px]">
           <thead>
             <tr className="text-united-muted text-xs">
-              <th className="text-right p-2">الوحدة</th>
-              <th className="text-right p-2">النوع</th>
-              <th className="text-right p-2">التحويل</th>
-              <th className="text-right p-2">خانات عشرية</th>
+              <th className="text-right p-2">{t("admin.table.col.unit")}</th>
+              <th className="text-right p-2">{t("admin.table.col.type")}</th>
+              <th className="text-right p-2">{t("admin.table.col.conversion")}</th>
+              <th className="text-right p-2">{t("admin.table.col.decimals")}</th>
               <th className="p-2" />
             </tr>
           </thead>
@@ -406,25 +423,25 @@ function UomSection({ uoms, canManage }: { uoms: UomDTO[]; canManage: boolean })
             <EntityForm
               entity="uoms"
               fields={[
-                { key: "code", label: "الكود", ltr: true, createOnly: true, required: true, hint: "مثال: SACK" },
-                { key: "name", label: "الاسم", required: true },
-                { key: "name_ar", label: "الاسم بالعربي" },
+                { key: "code", label: t("admin.uom.form-code"), ltr: true, createOnly: true, required: true, hint: t("admin.uom.form-code-hint") },
+                { key: "name", label: t("admin.uom.form-name-en"), required: true },
+                { key: "name_ar", label: t("admin.uom.form-name-ar") },
                 {
                   key: "category",
-                  label: "النوع",
+                  label: t("admin.uom.form-category"),
                   kind: "select",
                   required: true,
                   createOnly: true,
                   options: UOM_CATEGORIES.map((c) => ({ value: c, label: UOM_CATEGORY_LABEL[c] })),
                 },
-                { key: "ratio_to_reference", label: "كام وحدة مرجعية (فاضي للتعبئة)", kind: "number", createOnly: true },
-                { key: "precision", label: "خانات عشرية", kind: "number" },
+                { key: "ratio_to_reference", label: t("admin.uom.form-ratio"), kind: "number", createOnly: true },
+                { key: "precision", label: t("admin.uom.form-precision"), kind: "number" },
               ]}
               onDone={() => setAdding(false)}
             />
           ) : (
             <button type="button" className="btn-secondary text-sm" onClick={() => setAdding(true)}>
-              + وحدة
+              {t("admin.uom.add-btn")}
             </button>
           )}
         </div>
@@ -434,13 +451,14 @@ function UomSection({ uoms, canManage }: { uoms: UomDTO[]; canManage: boolean })
 }
 
 function UomRow({ uom, reference, canManage }: { uom: UomDTO; reference?: string; canManage: boolean }) {
+  const { t } = useLocale();
   const [editing, setEditing] = useState(false);
   return (
     <>
       <tr className={`border-t border-united-border ${uom.active ? "" : "opacity-50"}`}>
         <td className="p-2">
           <span className="font-bold text-united-dark">{uom.nameAr ?? uom.name}</span> <Code>{uom.code}</Code>
-          {uom.isReference && <span className="ms-1 text-[10px] font-extrabold text-united-green">مرجعية</span>}
+          {uom.isReference && <span className="ms-1 text-[10px] font-extrabold text-united-green">{t("admin.uom.reference-badge")}</span>}
         </td>
         <td className="p-2 font-bold text-united-muted">{UOM_CATEGORY_LABEL[uom.category as UomCategory] ?? uom.category}</td>
         <td className="p-2">
@@ -451,7 +469,7 @@ function UomRow({ uom, reference, canManage }: { uom: UomDTO; reference?: string
               1 {uom.code} = {uom.ratioToReference} {reference}
             </bdi>
           ) : uom.category === "package" ? (
-            <span className="text-xs font-bold text-united-muted">حسب الصنف</span>
+            <span className="text-xs font-bold text-united-muted">{t("admin.uom.empty-conversion")}</span>
           ) : (
             "—"
           )}
@@ -461,7 +479,7 @@ function UomRow({ uom, reference, canManage }: { uom: UomDTO; reference?: string
           {canManage && (
             <div className="flex gap-1 justify-end">
               <button type="button" className="btn-secondary !min-h-0 py-1.5 px-3 text-xs" onClick={() => setEditing((x) => !x)}>
-                تعديل
+                {t("admin.uom.edit-label")}
               </button>
               {!uom.isReference && <ToggleActive entity="uoms" id={uom.id} active={uom.active} version={uom.version} />}
             </div>
@@ -475,9 +493,9 @@ function UomRow({ uom, reference, canManage }: { uom: UomDTO; reference?: string
               entity="uoms"
               row={uom}
               fields={[
-                { key: "name", label: "الاسم", required: true },
-                { key: "name_ar", label: "الاسم بالعربي" },
-                { key: "precision", label: "خانات عشرية", kind: "number" },
+                { key: "name", label: t("admin.uom.form-name-en"), required: true },
+                { key: "name_ar", label: t("admin.uom.form-name-ar") },
+                { key: "precision", label: t("admin.uom.form-precision"), kind: "number" },
               ]}
               initial={{ name: uom.name, name_ar: uom.nameAr, precision: String(uom.precision) }}
               onDone={() => setEditing(false)}
@@ -490,10 +508,11 @@ function UomRow({ uom, reference, canManage }: { uom: UomDTO; reference?: string
 }
 
 function CurrencySection({ currencies, canManage }: { currencies: CurrencyDTO[]; canManage: boolean }) {
+  const { t } = useLocale();
   return (
     <section className="card p-4">
-      <h2 className="text-lg font-extrabold text-united-dark mb-3">العملات</h2>
-      <p className="text-xs font-bold text-united-muted mb-2">دفاتر النظام بالجنيه المصري فقط. العملات الأخرى المعروضة بيانات مرجعية قديمة ولا يمكن استخدامها في الحركات.</p>
+      <h2 className="text-lg font-extrabold text-united-dark mb-3">{t("admin.section.currencies")}</h2>
+      <p className="text-xs font-bold text-united-muted mb-2">{t("admin.section.currencies-desc")}</p>
       <ul className="flex flex-col divide-y divide-united-border">
         {currencies.map((c) => (
           <CurrencyRow key={c.code} currency={c} canManage={canManage && c.code === "EGP"} />
@@ -504,6 +523,7 @@ function CurrencySection({ currencies, canManage }: { currencies: CurrencyDTO[];
 }
 
 function CurrencyRow({ currency, canManage }: { currency: CurrencyDTO; canManage: boolean }) {
+  const { t } = useLocale();
   const [editing, setEditing] = useState(false);
   return (
     <li className="py-2.5">
@@ -521,10 +541,10 @@ function CurrencyRow({ currency, canManage }: { currency: CurrencyDTO; canManage
           entity="currencies"
           row={{ id: currency.code, version: currency.version }}
           fields={[
-            { key: "name", label: "الاسم", required: true },
-            { key: "name_ar", label: "الاسم بالعربي" },
-            { key: "symbol", label: "الرمز" },
-            { key: "decimal_places", label: "خانات عشرية", kind: "number" },
+            { key: "name", label: t("admin.currency.form-name"), required: true },
+            { key: "name_ar", label: t("admin.currency.form-name-ar") },
+            { key: "symbol", label: t("admin.currency.form-symbol") },
+            { key: "decimal_places", label: t("admin.currency.form-decimal"), kind: "number" },
           ]}
           initial={{ name: currency.name, name_ar: currency.nameAr, symbol: currency.symbol, decimal_places: String(currency.decimalPlaces) }}
           onDone={() => setEditing(false)}
@@ -555,6 +575,7 @@ function RowHeader({
   toggle: { entity: Entity; id: string; active: boolean; version: number };
   small?: boolean;
 }) {
+  const { t } = useLocale();
   return (
     <div className="flex items-center justify-between gap-2 flex-wrap">
       <span className={`font-extrabold text-united-dark ${small ? "text-sm" : ""} ${active ? "" : "opacity-50"}`}>
@@ -565,7 +586,7 @@ function RowHeader({
         {canManage && (
           <>
             <button type="button" className="btn-secondary !min-h-0 py-1.5 px-3 text-xs" onClick={onEdit}>
-              تعديل
+              {t("admin.btn-edit")}
             </button>
             <ToggleActive {...toggle} />
           </>
@@ -578,6 +599,7 @@ function RowHeader({
 function ToggleActive({ entity, id, active, version }: { entity: Entity; id: string; active: boolean; version: number }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const [busy, setBusy] = useState(false);
   async function flip() {
     if (busy) return;
@@ -585,9 +607,9 @@ function ToggleActive({ entity, id, active, version }: { entity: Entity; id: str
     try {
       await apiPatch(`/api/admin/master/${entity}/${encodeURIComponent(id)}`, { active: !active, expected_version: version });
       await qc.invalidateQueries({ queryKey: ["admin", "master"] });
-      toast.show(active ? "اتوقف" : "اتفعّل", "success");
+      toast.show(active ? t("admin.toggle-on") : t("admin.toggle-off"), "success");
     } catch (err) {
-      toast.show(err instanceof ApiClientError ? err.message : "حصل خطأ", "error");
+      toast.show(err instanceof ApiClientError ? err.message : t("admin.toast-error"), "error");
     } finally {
       setBusy(false);
     }
@@ -599,7 +621,7 @@ function ToggleActive({ entity, id, active, version }: { entity: Entity; id: str
       disabled={busy}
       className={`!min-h-0 py-1.5 px-3 text-xs ${active ? "btn-danger" : "btn-secondary"}`}
     >
-      {active ? "إيقاف" : "تفعيل"}
+      {active ? t("admin.badge-inactive") : t("admin.badge-active")}
     </button>
   );
 }
@@ -625,6 +647,7 @@ function EntityForm({
 }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const start = Object.fromEntries(fields.map((f) => [f.key, initial[f.key] == null ? "" : String(initial[f.key])]));
   const [values, setValues] = useState<Record<string, string>>(start);
   const [busy, setBusy] = useState(false);
@@ -662,10 +685,10 @@ function EntityForm({
         await apiPost(`/api/admin/master/${entity}`, body);
       }
       await qc.invalidateQueries({ queryKey: ["admin", "master"] });
-      toast.show(row ? "اتحفظ" : "اتضاف", "success");
+      toast.show(row ? t("admin.toast-save") : t("admin.toast-add"), "success");
       onDone();
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : "حصل خطأ");
+      setError(err instanceof ApiClientError ? err.message : t("admin.toast-error"));
     } finally {
       setBusy(false);
     }
@@ -687,7 +710,7 @@ function EntityForm({
               onChange={(e) => setValues((s) => ({ ...s, [f.key]: e.target.value }))}
             >
               {!f.required && !f.options?.some((o) => o.value === "") && <option value="">—</option>}
-              {f.required && values[f.key] === "" && <option value="">اختار…</option>}
+              {f.required && values[f.key] === "" && <option value="">{t("admin.select-prompt")}</option>}
               {f.options?.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
@@ -708,10 +731,10 @@ function EntityForm({
       {error && <p className="sm:col-span-2 text-sm font-bold text-united-danger">{error}</p>}
       <div className="sm:col-span-2 flex gap-2">
         <button type="submit" className="btn-primary" disabled={busy}>
-          {row ? "حفظ" : "إضافة"}
+          {row ? t("admin.btn-save") : t("admin.btn-add")}
         </button>
         <button type="button" className="btn-secondary" onClick={onDone} disabled={busy}>
-          إلغاء
+          {t("admin.btn-cancel")}
         </button>
       </div>
     </form>
@@ -719,13 +742,14 @@ function EntityForm({
 }
 
 function ActiveBadge({ active }: { active: boolean }) {
+  const { t } = useLocale();
   return (
     <span
       className={`text-[11px] font-extrabold px-2 py-0.5 rounded-full ${
         active ? "bg-united-green/10 text-united-green" : "bg-united-dark/5 text-united-muted"
       }`}
     >
-      {active ? "نشط" : "موقوف"}
+      {active ? t("admin.badge-active") : t("admin.badge-inactive")}
     </span>
   );
 }

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     );
     return jsonFor(actor, result, { status: 201 });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -38,6 +38,6 @@ export async function DELETE(req: NextRequest) {
       )
     );
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

@@ -10,6 +10,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const ctx = await requirePermission(req, "sales.customers.manage");
     return NextResponse.json({ contact: await saveContact(params.id, params.contactId, await readJson(req), serviceActorFromContext(ctx)) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

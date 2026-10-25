@@ -10,7 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const viewer = await requireStockActor(req, "stock.view");
     return jsonFor(viewer, { intake: await getIntake(params.id) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -33,6 +33,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     );
     return jsonFor(actor, { intake });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

@@ -10,6 +10,6 @@ export async function GET(req: NextRequest) {
     const viewer = await requireStockActor(req, "stock.view");
     return jsonFor(viewer, await orderProductCoverage());
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

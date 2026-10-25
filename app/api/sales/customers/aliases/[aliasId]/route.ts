@@ -9,6 +9,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { aliasId: 
     const ctx = await requirePermission(req, "sales.customers.manage");
     return NextResponse.json(await removeCustomerAlias(params.aliasId, serviceActorFromContext(ctx)));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

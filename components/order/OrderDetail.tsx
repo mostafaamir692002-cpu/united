@@ -29,16 +29,19 @@ import { invalidateOrderData, invalidateDerivedOrderData } from "@/lib/queryInva
 import { applyOrderToCache, applyOrderItemToCache, cachedOrderFromLists } from "@/lib/orderCache";
 import { OrderDetailSkeleton } from "@/components/order/OrderDetailSkeleton";
 import { useOperationalSettings } from "@/lib/use-operational-settings";
+import { useLocale } from "@/lib/locale";
 
-const SOURCE_LABEL: Record<string, string> = {
-  n8n: "🤖 وصل أوتوماتيك من n8n",
-  hermes: "🤖 وصل عبر Hermes",
-  manual: "✍️ أوردر يدوي",
-  system: "⚙️ النظام",
-  user: "✍️ يدوي",
+// Map order source → translation key
+const SOURCE_TKEY: Record<string, string> = {
+  n8n: "orders.source.n8n",
+  hermes: "orders.source.hermes",
+  manual: "orders.source.manual",
+  system: "orders.source.system",
+  user: "orders.source.user",
 };
 
 export function OrderDetail({ orderId }: { orderId: string }) {
+  const { t } = useLocale();
   const ops = useOperationalSettings();
   const router = useRouter();
   const qc = useQueryClient();
@@ -109,7 +112,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
       invalidateDerivedOrderData(qc, orderId);
       if (successMsg) toast.show(successMsg, "success");
     } catch (err) {
-      const msg = err instanceof ApiClientError ? err.message : "حصل خطأ، حاول تاني";
+      const msg = err instanceof ApiClientError ? err.message : t("orders.error.generic");
       setError(msg);
       toast.show(msg, "error");
       // The cache may now disagree with the server (a 409 means someone else moved
@@ -131,7 +134,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   // stale-but-valid data under an error banner rather than blanking the screen — this
   // is the one place a preparer/loader is actively tapping through item by item, so a
   // brief Wi-Fi blip must not make the action buttons disappear mid-task.
-  if (!order) return <ErrorState message="مش قادرين نفتح الأوردر دلوقتي" onRetry={() => refetch()} />;
+  if (!order) return <ErrorState message={t("orders.error.open_failed")} onRetry={() => refetch()} />;
 
   // Same landing rule as the header: derived from what this account can reach, so
   // "back" never lands on a page it is about to be refused from.
@@ -168,7 +171,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   async function saveEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!editForm.reason.trim()) {
-      setError("لازم تكتب سبب التعديل");
+      setError(t("orders.edit.required_reason"));
       return;
     }
     await run(
@@ -183,7 +186,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
           reason: editForm.reason,
           expected_version: order!.version,
         }),
-      "اتحفظ التعديل"
+      t("orders.edit.save_success")
     );
     setEditing(false);
   }
@@ -198,7 +201,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
           reason: overrideReason,
           expected_version: order!.version,
         }),
-      "اتغيرت الحالة"
+      t("orders.status.changed")
     );
     setOverrideTo("");
     setOverrideReason("");
@@ -214,14 +217,14 @@ export function OrderDetail({ orderId }: { orderId: string }) {
     // supervisor is the one looking at it.
     stickyAction = (
       <ReasonAction
-        label="🔴 اعتماد الفرق — الأوردر محتاج اعتمادك"
-        confirmLabel="اعتماد الفرق"
+        label={t("orders.approve_team")}
+        confirmLabel={t("orders.approve_confirm")}
         className="btn-dark w-full text-xl !bg-united-danger"
         onConfirm={(reason) =>
           run(
             "approve",
             () => apiPost(`/api/orders/${orderId}/approve`, { reason, expected_version: order.version }),
-            "اتعمد الفرق"
+            t("orders.approval.success")
           )
         }
       />
@@ -238,12 +241,12 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                 to: "preparing",
                 expected_version: order.version,
               }),
-            "بدأ التجهيز"
+            t("orders.start.prep.success")
           )
         }
         className="btn-primary w-full text-xl"
       >
-        ابدأ التجهيز
+        {t("orders.start_prep_button")}
       </button>
     );
   } else if (canPrep && order.status === "preparing") {
@@ -260,16 +263,16 @@ export function OrderDetail({ orderId }: { orderId: string }) {
               });
               router.push(backHref);
             },
-            "الأوردر جاهز للتحميل"
+            t("orders.finish.prep.ready_loading")
           )
         }
         className="btn-dark w-full text-xl"
       >
         {order.needsReview
-          ? "محتاج اعتماد المشرف الأول"
+          ? t("orders.needs_supervisor_review")
           : !allPrepared
-          ? `لسه فاضل ${order.items.length - preparedCount} صنف`
-          : "خلصت التجهيز ✓"}
+          ? t("orders.remaining_items", { count: order.items.length - preparedCount })
+          : t("orders.finish_prep_checkmark")}
       </button>
     );
   } else if (canLoad && order.status === "ready_for_loading") {
@@ -284,12 +287,12 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                 to: "loading",
                 expected_version: order.version,
               }),
-            "بدأ التحميل"
+            t("orders.load.started")
           )
         }
         className="btn-primary w-full text-xl"
       >
-        ابدأ التحميل
+        {t("orders.start_load_button")}
       </button>
     );
   } else if (canLoad && order.status === "loading") {
@@ -300,16 +303,16 @@ export function OrderDetail({ orderId }: { orderId: string }) {
           run(
             "finish-load",
             () => apiPost(`/api/orders/${orderId}/status`, { to: "loaded", expected_version: order.version }),
-            "الأوردر تم تحميله"
+            t("orders.loaded")
           )
         }
         className="btn-dark w-full text-xl"
       >
         {order.needsReview
-          ? "محتاج اعتماد المشرف الأول"
+          ? t("orders.needs_supervisor_review")
           : !allLoaded
-          ? `لسه فاضل ${order.items.length - loadedCount} صنف`
-          : "تم التحميل ✓"}
+          ? t("orders.remaining_items", { count: order.items.length - loadedCount })
+          : t("orders.finish_load_checkmark")}
       </button>
     );
   } else if (canLoad && order.status === "loaded") {
@@ -331,7 +334,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
             // print/dispatch sheet is needed for the driver's signature, and once
             // dispatched this order drops off the loader's own board entirely, so
             // this may be the last easy chance to reach it.
-            "العربية خرجت 🚚"
+            t("orders.dispatch.success")
           )
         }
       />
@@ -343,9 +346,10 @@ export function OrderDetail({ orderId }: { orderId: string }) {
       <div className="flex items-center justify-between mb-3">
         <Link
           href={backHref}
+          dir="auto"
           className="inline-flex items-center gap-1 text-united-muted font-bold hover:text-united-dark"
         >
-          <span>→</span> رجوع
+          <span>→</span> {t("orders.back")}
         </Link>
         <LiveIndicator dataUpdatedAt={dataUpdatedAt} isLoading={isLoading} />
       </div>
@@ -353,10 +357,10 @@ export function OrderDetail({ orderId }: { orderId: string }) {
       {isError && (
         <div className="card p-3 mb-3 border-r-4 border-united-warn flex items-center justify-between gap-2">
           <p className="text-sm font-bold text-united-warn">
-            ⚠️ مش قادرين نحدّث البيانات دلوقتي — اللي ظاهر ممكن يكون قديم شوية
+            ⚠️ {t("orders.error.refresh")}
           </p>
           <button onClick={() => refetch()} className="btn-secondary text-xs px-3 shrink-0">
-            حاول تاني
+            {t("orders.action.retry")}
           </button>
         </div>
       )}
@@ -371,31 +375,31 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         <p className="text-sm font-bold text-united-muted mb-2">{STATUS_MEANING[order.status]}</p>
 
         <p className="text-united-green font-bold mb-2">
-          تسليم {deliverySlot(order.deliveryDate, order.deliveryTime)}
+          {t("orders.delivery_slot")} {deliverySlot(order.deliveryDate, order.deliveryTime)}
         </p>
 
         {/* Reference data: identifiers are secondary to the operational facts above. */}
         <dl className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-united-muted mb-3">
           <div className="flex gap-1">
-            <dt>رقم الأوردر:</dt>
+            <dt>{t("orders.reference.number")}</dt>
             <dd dir="ltr" className="font-bold text-united-dark/70">{order.orderNumber}</dd>
           </div>
           <div className="flex gap-1">
-            <dt>مرجع العميل:</dt>
-            <dd dir="ltr" className="font-bold text-united-dark/70">{orDash(order.externalId, "مفيش")}</dd>
+            <dt>{t("orders.reference.external")}</dt>
+            <dd dir="ltr" className="font-bold text-united-dark/70">{orDash(order.externalId, t("orders.empty"))}</dd>
           </div>
           <div className="flex gap-1">
-            <dt>مصدر الأوردر:</dt>
-            <dd className="font-bold text-united-dark/70">{SOURCE_LABEL[order.source] ?? order.source}</dd>
+            <dt>{t("orders.reference.source")}</dt>
+            <dd className="font-bold text-united-dark/70">{SOURCE_TKEY[order.source] ? t(SOURCE_TKEY[order.source] as Parameters<typeof t>[0]) : order.source}</dd>
           </div>
         </dl>
 
         {/* The three numbers that matter, rolled up across every line. */}
         <div className="grid grid-cols-3 gap-2 text-center mb-3">
-          <SummaryFigure label="المطلوب" value={qtyLabel(roll.required)} unit={roll.singleUnit} />
-          <SummaryFigure label="اتجهز" value={qtyLabel(roll.prepared)} unit={roll.singleUnit} tone="green" />
+          <SummaryFigure label={t("orders.label.required")} value={qtyLabel(roll.required)} unit={roll.singleUnit} />
+          <SummaryFigure label={t("orders.label.prepared")} value={qtyLabel(roll.prepared)} unit={roll.singleUnit} tone="green" />
           <SummaryFigure
-            label={stage === "load" || stage === "done" ? "اتحمل" : "فاضل تجهيز"}
+            label={stage === "load" || stage === "done" ? t("orders.load") : t("orders.label.remaining_prep")}
             value={qtyLabel(stage === "load" || stage === "done" ? roll.loaded : roll.remainingToPrepare)}
             unit={roll.singleUnit}
             tone={stage === "load" || stage === "done" ? "green" : roll.remainingToPrepare > 0 ? "warn" : "green"}
@@ -404,7 +408,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
 
         {/* What has to happen next, stated once, at the top. */}
         <div className="rounded-xl bg-united-dark/[0.04] px-4 py-3 mb-3">
-          <div className="text-[11px] font-extrabold text-united-muted">المطلوب دلوقتي</div>
+          <div className="text-[11px] font-extrabold text-united-muted">{t("orders.now")}</div>
           <div
             className={`font-extrabold ${
               action.tone === "blocked" ? "text-united-danger" : "text-united-dark"
@@ -420,16 +424,16 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         {order.notes && <p className="text-united-dark/70 text-sm mb-1">📝 {order.notes}</p>}
         {order.vehicle && (
           <p className="text-united-dark/70 text-sm mb-1">
-            🚚 العربية: {order.vehicle}
-            {order.driverName && ` · السواق: ${order.driverName}`}
-            {order.crateCount != null && ` · ${order.crateCount} برنيكة`}
+            {t("orders.vehicle_label")} {order.vehicle}
+            {order.driverName && ` ${t("orders.driver_label")} ${order.driverName}`}
+            {order.crateCount != null && ` ${t("orders.crates_label", { count: order.crateCount })}`}
           </p>
         )}
 
         <div className="flex flex-col gap-2 mt-3">
-          <ProgressBar label="التجهيز" done={preparedCount} total={order.items.length} />
+          <ProgressBar label={t("orders.prep_bar")} done={preparedCount} total={order.items.length} />
           {showLoadProgress && (
-            <ProgressBar label="التحميل" done={loadedCount} total={order.items.length} tone="orange" />
+            <ProgressBar label={t("orders.load")} done={loadedCount} total={order.items.length} tone="orange" />
           )}
         </div>
 
@@ -441,7 +445,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
               rel="noopener noreferrer"
               className="btn-secondary text-sm px-3 py-2"
             >
-              🖨️ مستند التسليم
+              {t("orders.print.delivery_doc")}
             </a>
           )}
           {canPrep && (
@@ -451,7 +455,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
               rel="noopener noreferrer"
               className="btn-secondary text-sm px-3 py-2"
             >
-              🖨️ شيت التجهيز
+              {t("orders.print.picking")}
             </a>
           )}
           {canLoad && (
@@ -461,7 +465,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
               rel="noopener noreferrer"
               className="btn-secondary text-sm px-3 py-2"
             >
-              🖨️ شيت التحميل/التسليم
+              {t("orders.print.dispatch_sheet")}
             </a>
           )}
         </div>
@@ -479,7 +483,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
 
       {order.needsReview && (
         <p className="bg-red-50 text-united-danger font-bold rounded-xl p-3 mt-3">
-          🔴 محتاج مراجعة المشرف — الفرق كبير ومينفعش الأوردر يكمل من غير اعتماد
+          {t("orders.review_needed")}
         </p>
       )}
 
@@ -488,7 +492,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
       {/* Items */}
       <div className="mt-4">
         <h2 className="font-extrabold text-united-dark mb-2">
-          الأصناف <span className="text-united-muted font-bold">({order.items.length})</span>
+          {t("orders.items_title")} <span className="text-united-muted font-bold">({order.items.length})</span>
         </h2>
         <div className="flex flex-col gap-3">
           {order.items.map((item) => {
@@ -533,11 +537,11 @@ export function OrderDetail({ orderId }: { orderId: string }) {
       {/* Supervisor panel */}
       {isSupervisor && (
         <div className="card p-5 mt-4 flex flex-col gap-3">
-          <h2 className="font-extrabold text-united-dark">إجراءات المشرف</h2>
+          <h2 className="font-extrabold text-united-dark">{t("orders.supervisor_actions")}</h2>
 
           {!editing ? (
             <button onClick={startEditing} className="btn-secondary self-start text-sm">
-              ✏️ تعديل بيانات الأوردر
+              {t("orders.edit_btn")}
             </button>
           ) : (
             <form onSubmit={saveEdit} className="flex flex-col gap-2 bg-united-dark/5 rounded-xl p-3">
@@ -553,9 +557,9 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                 }}
                 className="field"
               >
-                <option value="">اختار العميل من دليل العملاء</option>
+                <option value="">{t("orders.customer.choose")}</option>
                 {customerCards.data?.customers.map((c) => (
-                  <option key={c.id} value={c.id}>{c.code} · {c.nameAr ?? c.name}{!c.active ? " (موقوف)" : ""}</option>
+                  <option key={c.id} value={c.id}>{c.code} · {c.nameAr ?? c.name}{!c.active ? ` ${t("orders.customer.inactive")}` : ""}</option>
                 ))}
               </select>
               <div className="flex flex-wrap gap-2">
@@ -575,21 +579,21 @@ export function OrderDetail({ orderId }: { orderId: string }) {
               <input
                 value={editForm.notes}
                 onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="ملاحظات"
+                placeholder={t("orders.edit.notes_placeholder")}
                 className="field"
               />
               <input
                 value={editForm.reason}
                 onChange={(e) => setEditForm((f) => ({ ...f, reason: e.target.value }))}
-                placeholder="سبب التعديل (مطلوب)"
+                placeholder={t("orders.edit.reason_placeholder")}
                 className="field"
               />
               <div className="flex gap-2">
                 <button disabled={isBusy("edit")} className="btn-primary flex-1">
-                  حفظ
+                  {t("orders.edit.save")}
                 </button>
                 <button type="button" onClick={() => setEditing(false)} className="btn-secondary">
-                  إلغاء
+                  {t("orders.edit.cancel")}
                 </button>
               </div>
             </form>
@@ -600,20 +604,20 @@ export function OrderDetail({ orderId }: { orderId: string }) {
           <div className="flex flex-wrap gap-2">
             {order.status !== "cancelled" && order.status !== "dispatched" && (
               <ReasonAction
-                label="🚫 إلغاء الأوردر"
+                label={t("orders.cancel_btn")}
                 className="btn-danger text-sm px-4 py-2"
                 onConfirm={(reason) =>
                   run(
                     "cancel",
                     () => apiPost(`/api/orders/${orderId}/cancel`, { reason, expected_version: order.version }),
-                    "اتلغى الأوردر"
+                    t("orders.loaded")
                   )
                 }
               />
             )}
             {(order.status === "cancelled" || order.status === "loaded" || order.status === "dispatched") && (
               <ReasonAction
-                label="🔓 إعادة فتح (رجّعه للتجهيز)"
+                label={t("orders.reopen_btn")}
                 className="btn-secondary text-sm px-4 py-2"
                 onConfirm={(reason) =>
                   run(
@@ -624,7 +628,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                         reason,
                         expected_version: order.version,
                       }),
-                    "اتفتح الأوردر تاني"
+                    t("orders.reopened")
                   )
                 }
               />
@@ -634,7 +638,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
 
           <details className="border-t border-united-border pt-3">
             <summary className="text-sm font-bold text-united-muted cursor-pointer">
-              تغيير الحالة يدويًا (override)
+              {t("orders.override_header")}
             </summary>
             <div className="flex flex-col gap-2 mt-2">
               <select
@@ -642,7 +646,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                 onChange={(e) => setOverrideTo(e.target.value as OrderStatus)}
                 className="field"
               >
-                <option value="">اختار حالة</option>
+                <option value="">{t("orders.override_choose_status")}</option>
                 {ORDER_STATUSES.map((s) => (
                   <option key={s} value={s}>
                     {STATUS_LABEL[s]}
@@ -652,7 +656,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
               <input
                 value={overrideReason}
                 onChange={(e) => setOverrideReason(e.target.value)}
-                placeholder="السبب (مطلوب)"
+                placeholder={t("orders.override_reason_placeholder")}
                 className="field"
               />
               <button
@@ -660,7 +664,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                 onClick={submitOverride}
                 className="btn-dark"
               >
-                تنفيذ
+                {t("orders.override_execute")}
               </button>
             </div>
           </details>
@@ -668,13 +672,13 @@ export function OrderDetail({ orderId }: { orderId: string }) {
       )}
 
       <div className="card p-5 mt-4">
-        <h2 className="font-extrabold mb-2 text-united-dark">المستندات</h2>
+        <h2 className="font-extrabold mb-2 text-united-dark">{t("orders.documents")}</h2>
         <OrderPricingPanel orderId={orderId} />
         <AttachmentsPanel entityType="order" entityId={orderId} canManage={isSupervisor} />
       </div>
 
       <div className="card p-5 mt-4">
-        <h2 className="font-extrabold mb-2 text-united-dark">سجل الأوردر</h2>
+        <h2 className="font-extrabold mb-2 text-united-dark">{t("orders.timeline")}</h2>
         <Timeline orderId={orderId} />
       </div>
 

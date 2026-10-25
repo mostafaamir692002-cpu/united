@@ -10,7 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const order = await getOrder(params.id);
     return NextResponse.json({ order });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -35,6 +35,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     );
     return NextResponse.json({ order });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

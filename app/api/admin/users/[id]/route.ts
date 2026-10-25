@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     await requirePermission(req, "users.view");
     return NextResponse.json(await getUserPermissionDetail(params.id));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -49,6 +49,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       user: { id: user.id, name: user.name, username: user.username, role: user.role, active: user.active, version: user.version },
     });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

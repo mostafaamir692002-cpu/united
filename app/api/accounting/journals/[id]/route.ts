@@ -8,6 +8,6 @@ export async function GET(req: NextRequest, { params }: { params: Record<string,
     await requirePermission(req, "accounting.view");
     return NextResponse.json({ journal: await getJournal(params.id) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

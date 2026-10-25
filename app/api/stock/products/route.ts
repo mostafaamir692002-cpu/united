@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const includeInactive = new URL(req.url).searchParams.get("all") === "1";
     return jsonFor(viewer, { products: await listProducts({ includeInactive }) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -32,6 +32,6 @@ export async function POST(req: NextRequest) {
     );
     return jsonFor(actor, { product }, { status: 201 });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

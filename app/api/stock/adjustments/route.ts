@@ -22,6 +22,6 @@ export async function POST(req: NextRequest) {
     // 202: accepted, but nothing has moved yet — it waits for approval.
     return jsonFor(actor, result, { status: result.pendingApproval ? 202 : 201 });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

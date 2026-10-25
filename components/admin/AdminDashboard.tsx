@@ -13,12 +13,14 @@ import { MasterDataPanel } from "@/components/admin/MasterDataPanel";
 import { IntegrationsPanel } from "@/components/admin/IntegrationsPanel";
 import { StatTile } from "@/components/stock/StatTile";
 import { DataImportPanel } from "@/components/admin/DataImportPanel";
+import { useLocale } from "@/lib/locale";
 
 type Tab = "users" | "matrix" | "overview" | "settings" | "master" | "integrations" | "import";
 
 export function AdminDashboard() {
   const [tab, setTab] = useState<Tab>("users");
   const { can } = usePermissions();
+  const { t } = useLocale();
   const importAllowed = {
     customers: can("sales.customers.manage"),
     customer_groups: can("sales.customers.manage"),
@@ -47,50 +49,48 @@ export function AdminDashboard() {
 
   return (
     <div className="p-4 max-w-5xl mx-auto pb-10 flex flex-col gap-4">
-      <h1 className="text-2xl font-extrabold text-united-dark">إدارة النظام</h1>
+      <h1 className="text-2xl font-extrabold text-united-dark">{t("admin.title.system")}</h1>
 
       {overviewQ.data && (
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <StatTile label="كل المستخدمين" value={String(overviewQ.data.overview.totalUsers)} />
-          <StatTile label="نشط" value={String(overviewQ.data.overview.activeUsers)} tone="good" />
+          <StatTile label={t("admin.stats.all-users")} value={String(overviewQ.data.overview.totalUsers)} />
+          <StatTile label={t("admin.stats.active")} value={String(overviewQ.data.overview.activeUsers)} tone="good" />
           <StatTile
-            label="موقوف"
+            label={t("admin.stats.suspended")}
             value={String(overviewQ.data.overview.disabledUsers)}
             tone={overviewQ.data.overview.disabledUsers > 0 ? "warn" : "muted"}
           />
           <StatTile
-            label="مديري النظام النشطين"
+            label={t("admin.stats.super-admins")}
             value={String(overviewQ.data.overview.activeSuperAdmins)}
             tone={overviewQ.data.overview.activeSuperAdmins <= 1 ? "warn" : "good"}
-            sub={overviewQ.data.overview.activeSuperAdmins <= 1 ? "آخر مدير — محمي من الإيقاف" : undefined}
+            sub={overviewQ.data.overview.activeSuperAdmins <= 1 ? t("admin.stats.last-admin-protected") : undefined}
           />
         </section>
       )}
 
       {overviewQ.data && !overviewQ.data.matrix.catalogueInSync && (
         <div className="card p-4 border-r-4 border-united-warn">
-          <p className="font-extrabold text-united-warn">⚠️ جدول الصلاحيات في قاعدة البيانات مش مطابق للكود</p>
-          <p className="text-sm font-bold text-united-muted mt-1">
-            شغّل <code dir="ltr">npm run db:sync-permissions</code> علشان يترجع مطابق.
-          </p>
+          <p className="font-extrabold text-united-warn">{t("admin.warning.permissions-mismatch-title")}</p>
+          <p className="text-sm font-bold text-united-muted mt-1" dangerouslySetInnerHTML={{ __html: t("admin.warning.permissions-mismatch-body") }} />
         </div>
       )}
 
       {/* Scrolls sideways inside itself on a phone, so the page never does. */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
-        <TabButton active={tab === "users"} onClick={() => setTab("users")} label="المستخدمين" />
-        <TabButton active={tab === "matrix"} onClick={() => setTab("matrix")} label="الأدوار والصلاحيات" />
-        <TabButton active={tab === "overview"} onClick={() => setTab("overview")} label="نظرة عامة على الوصول" />
+        <TabButton active={tab === "users"} onClick={() => setTab("users")} label={t("admin.tab.users")} />
+        <TabButton active={tab === "matrix"} onClick={() => setTab("matrix")} label={t("admin.tab.roles-permissions")} />
+        <TabButton active={tab === "overview"} onClick={() => setTab("overview")} label={t("admin.tab.access-overview")} />
         {can("core.masterdata.view") && (
-          <TabButton active={tab === "master"} onClick={() => setTab("master")} label="الشركة والمخازن والوحدات" />
+          <TabButton active={tab === "master"} onClick={() => setTab("master")} label={t("admin.tab.company-stores")} />
         )}
         {can("integrations.manage") && (
-          <TabButton active={tab === "integrations"} onClick={() => setTab("integrations")} label="التكاملات" />
+          <TabButton active={tab === "integrations"} onClick={() => setTab("integrations")} label={t("admin.tab.integrations")} />
         )}
         {can("settings.manage") && (
-          <TabButton active={tab === "settings"} onClick={() => setTab("settings")} label="إعدادات التشغيل" />
+          <TabButton active={tab === "settings"} onClick={() => setTab("settings")} label={t("admin.tab.operational-settings")} />
         )}
-        {canImport && <TabButton active={tab === "import"} onClick={() => setTab("import")} label="تحميل بيانات البداية" />}
+        {canImport && <TabButton active={tab === "import"} onClick={() => setTab("import")} label={t("admin.tab.initial-data-load")} />}
       </div>
 
       {tab === "settings" && can("settings.manage") && <SettingsPanel />}
@@ -143,24 +143,23 @@ function TabButton({ active, onClick, label }: { active: boolean; onClick: () =>
 function PermissionMatrix({ data }: { data: AdminOverview }) {
   const { permissions, roles } = data.matrix;
   const groups = [...new Set(permissions.map((p) => p.group))];
+  const { t } = useLocale();
 
   return (
     <section className="card p-4">
-      <h2 className="text-lg font-extrabold text-united-dark mb-1">مصفوفة الأدوار والصلاحيات</h2>
-      <p className="text-xs font-bold text-united-muted mb-3">
-        الأدوار متعرّفة في الكود ومتزامنة مع قاعدة البيانات — مش قابلة للتعديل من هنا. الاستثناءات الفردية بتتعمل من صفحة المستخدم.
-      </p>
+      <h2 className="text-lg font-extrabold text-united-dark mb-1">{t("admin.matrix.title")}</h2>
+      <p className="text-xs font-bold text-united-muted mb-3" dangerouslySetInnerHTML={{ __html: t("admin.matrix.description") }} />
       {/* Wide tables scroll inside their own container so the page never scrolls sideways. */}
       <div className="overflow-x-auto -mx-4 px-4">
         <table className="w-full text-sm border-collapse min-w-[640px]">
           <thead>
             <tr>
-              <th className="text-right p-2 font-extrabold text-united-muted sticky right-0 bg-white">الصلاحية</th>
+              <th className="text-right p-2 font-extrabold text-united-muted sticky right-0 bg-white">{t("admin.matrix.col.permission")}</th>
               {roles.map((r) => (
                 <th key={r.role} className="p-2 font-extrabold text-united-dark whitespace-nowrap">
                   <div>{ROLE_LABEL[r.role]}</div>
                   <div className="text-[10px] font-bold text-united-muted">
-                    {r.activeUsers} نشط{r.disabledUsers > 0 ? ` · ${r.disabledUsers} موقوف` : ""}
+                    {r.activeUsers} {t("admin.matrix.col.active")}{r.disabledUsers > 0 ? ` · ${r.disabledUsers} ${t("admin.matrix.col.suspended")}` : ""}
                   </div>
                 </th>
               ))}
@@ -187,11 +186,11 @@ function PermissionMatrix({ data }: { data: AdminOverview }) {
                       {roles.map((r) => (
                         <td key={r.role} className="p-2 text-center">
                           {r.permissions.includes(p.key) ? (
-                            <span className="text-united-green font-extrabold" title="مسموح">
+                            <span className="text-united-green font-extrabold" title={t("admin.matrix.allowed")}>
                               ✓
                             </span>
                           ) : (
-                            <span className="text-united-dark/20" title="غير مسموح">
+                            <span className="text-united-dark/20" title={t("admin.matrix.denied")}>
                               —
                             </span>
                           )}
@@ -209,12 +208,14 @@ function PermissionMatrix({ data }: { data: AdminOverview }) {
 }
 
 function SystemOverview({ data, canSeeAudit }: { data: AdminOverview; canSeeAudit: boolean }) {
+  const { t } = useLocale();
+
   return (
     <div className="flex flex-col gap-4">
       <section className="card p-4">
-        <h2 className="text-lg font-extrabold text-united-dark mb-3">الاستثناءات الفردية السارية</h2>
+        <h2 className="text-lg font-extrabold text-united-dark mb-3">{t("admin.exceptions.title")}</h2>
         {data.overview.overrides.length === 0 ? (
-          <EmptyState icon="⚖️" title="مفيش استثناءات — كل المستخدمين على صلاحيات أدوارهم" />
+          <EmptyState icon="⚖️" title={t("admin.exceptions.empty")} />
         ) : (
           <ul className="flex flex-col divide-y divide-united-border">
             {data.overview.overrides.map((o) => (
@@ -230,13 +231,13 @@ function SystemOverview({ data, canSeeAudit }: { data: AdminOverview; canSeeAudi
                         : "bg-united-danger/10 text-united-danger"
                     }`}
                   >
-                    {o.effect === "grant" ? "ممنوحة" : "مسحوبة"}
+                    {o.effect === "grant" ? t("admin.exceptions.granted") : t("admin.exceptions.revoked")}
                   </span>
                 </div>
                 <div className="text-xs font-bold text-united-muted mt-0.5">
-                  {o.permissionLabel} · <code dir="ltr">{o.permissionKey}</code> · بواسطة {o.grantedBy}
+                  {o.permissionLabel} · <code dir="ltr">{o.permissionKey}</code> · {t("admin.by-label")} {o.grantedBy}
                 </div>
-                {o.reason && <p className="text-xs font-bold text-united-dark/70 mt-0.5">السبب: {o.reason}</p>}
+                {o.reason && <p className="text-xs font-bold text-united-dark/70 mt-0.5">{t("admin.reason")}: {o.reason}</p>}
               </li>
             ))}
           </ul>
@@ -245,9 +246,9 @@ function SystemOverview({ data, canSeeAudit }: { data: AdminOverview; canSeeAudi
 
       {canSeeAudit && (
         <section className="card p-4">
-          <h2 className="text-lg font-extrabold text-united-dark mb-3">سجل التغييرات الأمنية</h2>
+          <h2 className="text-lg font-extrabold text-united-dark mb-3">{t("admin.audit.title")}</h2>
           {data.audit.length === 0 ? (
-            <EmptyState icon="🛡️" title="مفيش تغييرات أمنية مسجلة" />
+            <EmptyState icon="🛡️" title={t("admin.audit.empty")} />
           ) : (
             <ul className="flex flex-col divide-y divide-united-border">
               {data.audit.map((l) => (
@@ -261,7 +262,7 @@ function SystemOverview({ data, canSeeAudit }: { data: AdminOverview; canSeeAudi
                     </span>
                   </div>
                   <div className="text-xs font-bold text-united-muted">
-                    بواسطة {l.userName}
+                    {t("admin.by-label")} {l.userName}
                     {l.fieldChanged && <> · {l.fieldChanged}</>}
                     {l.oldValue && l.newValue && (
                       <>
@@ -276,7 +277,7 @@ function SystemOverview({ data, canSeeAudit }: { data: AdminOverview; canSeeAudi
                       </>
                     )}
                   </div>
-                  {l.reason && <p className="text-xs font-bold text-united-dark/70">السبب: {l.reason}</p>}
+                  {l.reason && <p className="text-xs font-bold text-united-dark/70">{t("admin.reason")}: {l.reason}</p>}
                 </li>
               ))}
             </ul>

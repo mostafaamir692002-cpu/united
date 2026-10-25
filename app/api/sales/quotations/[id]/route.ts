@@ -10,7 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     await requirePermission(req, "sales.quotations.view");
     return NextResponse.json({ quotation: await getQuotation(params.id) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }
 
@@ -19,6 +19,6 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const ctx = await requirePermission(req, "sales.quotations.manage");
     return NextResponse.json({ quotation: await updateQuotation(params.id, await readJson(req), serviceActorFromContext(ctx)) });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

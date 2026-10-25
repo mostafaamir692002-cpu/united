@@ -9,6 +9,6 @@ export async function GET(req: NextRequest) {
     await requirePermission(req, "accounting.view");
     return NextResponse.json({ integrity: await integrityReport() });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

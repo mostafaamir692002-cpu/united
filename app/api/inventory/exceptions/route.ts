@@ -12,6 +12,6 @@ export async function GET(req: NextRequest) {
       exceptions: await listIssueExceptions({ status: sp.get("status") ?? undefined, orderId: sp.get("order_id") ?? undefined }),
     });
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

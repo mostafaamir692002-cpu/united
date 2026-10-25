@@ -12,8 +12,11 @@ import { MovementRow } from "@/components/stock/MovementRow";
 import { todayLocalISO } from "@/lib/localDate";
 import { fmtKg, fmtYield, YIELD_TONE_CLASS, yieldTone } from "@/lib/stockPresentation";
 import type { StockDashboardDTO } from "@/lib/stock-client-types";
+import { useLocale } from "@/lib/locale";
 
 export function StockDashboard() {
+  const { t } = useLocale();
+
   // The tablet's own calendar day, not the server's — a shift that starts before
   // midnight UTC must still file its receipts under the day the operator is living in.
   const today = todayLocalISO();
@@ -27,15 +30,15 @@ export function StockDashboard() {
   return (
     <div className="p-4 max-w-3xl mx-auto pb-10 flex flex-col gap-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold text-united-dark">مخزون النهارده</h1>
+        <h1 className="text-2xl font-extrabold text-united-dark">{t("stock.page-title")}</h1>
         <LiveIndicator dataUpdatedAt={dataUpdatedAt} isLoading={isLoading} />
       </div>
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
         {[
-          { href: "/stock/entries", label: "الاستلامات" },
-          { href: "/stock/ledger", label: "سجل الحركات" },
-          { href: "/stock/setup", label: "الموردين والأصناف" },
+          { href: "/stock/entries", label: t("stock.nav-intake-list") },
+          { href: "/stock/ledger", label: t("stock.nav-ledger") },
+          { href: "/stock/setup", label: t("stock.nav-suppliers-products") },
         ].map((l) => (
           <Link
             key={l.href}
@@ -53,14 +56,14 @@ export function StockDashboard() {
       {data && (
         <>
           <section className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <StatTile label="مستلم النهارده" value={fmtKg(data.today.receivedKg)} unit="كجم" sub={`${data.today.intakeCount} استلام`} />
-            <StatTile label="صافي صالح" value={fmtKg(data.today.goodKg)} unit="كجم" tone="good" />
-            <StatTile label="فرز / مرفوض" value={fmtKg(data.today.rejectedKg)} unit="كجم" tone={data.today.rejectedKg > 0 ? "warn" : "muted"} />
+            <StatTile label={t("stock.stat-today-received")} value={fmtKg(data.today.receivedKg)} unit={t("stock.unit-kg")} sub={`${data.today.intakeCount} ${t("stock.stat-intake-count")}`} />
+            <StatTile label={t("stock.stat-net-good")} value={fmtKg(data.today.goodKg)} unit={t("stock.unit-kg")} tone="good" />
+            <StatTile label={t("stock.stat-sort-rejected")} value={fmtKg(data.today.rejectedKg)} unit={t("stock.unit-kg")} tone={data.today.rejectedKg > 0 ? "warn" : "muted"} />
             <StatTile
-              label="نسبة التصافي"
+              label={t("stock.stat-yield-pct")}
               value={fmtYield(data.today.yieldPct)}
               tone={({ good: "good", warn: "warn", bad: "bad", none: "muted" } as const)[yieldTone(data.today.yieldPct)]}
-              sub={data.today.crates > 0 ? `${data.today.crates} قفص` : undefined}
+              sub={data.today.crates > 0 ? `${data.today.crates} ${t("stock.stat-crates")}` : undefined}
             />
           </section>
 
@@ -68,20 +71,20 @@ export function StockDashboard() {
 
           <section className="card p-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-extrabold text-united-dark">الرصيد الحالي</h2>
+              <h2 className="text-lg font-extrabold text-united-dark">{t("stock.current-balance-title")}</h2>
               <span dir="ltr" className="text-lg font-extrabold text-united-green">
-                {fmtKg(data.totalStockKg)} كجم
+                {fmtKg(data.totalStockKg)} {t("stock.unit-kg")}
               </span>
             </div>
             {data.currentStock.length === 0 ? (
-              <EmptyState icon="📦" title="مفيش رصيد مسجل لحد دلوقتي" />
+              <EmptyState icon="📦" title={t("stock.empty-no-stock-recorded")} />
             ) : (
               <ul className="flex flex-col divide-y divide-united-border">
                 {data.currentStock.map((s) => (
                   <li key={s.productId} className="flex items-center justify-between py-2.5">
                     <span className="font-bold text-united-dark">
                       {s.productName}
-                      {!s.active && <span className="text-xs font-bold text-united-muted mr-2">(موقوف)</span>}
+                      {!s.active && <span className="text-xs font-bold text-united-muted mr-2">{t("stock.suspended-badge")}</span>}
                     </span>
                     <span dir="ltr" className={`font-extrabold ${s.balanceKg > 0 ? "text-united-dark" : "text-united-muted"}`}>
                       {fmtKg(s.balanceKg)} {s.unit}
@@ -91,23 +94,23 @@ export function StockDashboard() {
               </ul>
             )}
             <p className="text-[11px] font-bold text-united-muted mt-3">
-              الرصيد محسوب من سجل الحركات نفسه — مفيش رقم مخزون متخزّن يتظبط بالإيد.
+              {t("stock.balance-explanation")}
             </p>
           </section>
 
           {data.todayByProduct.length > 0 && (
             <section className="card p-4">
-              <h2 className="text-lg font-extrabold text-united-dark mb-3">أصناف النهارده</h2>
+              <h2 className="text-lg font-extrabold text-united-dark mb-3">{t("stock.products-today-title")}</h2>
               <ul className="flex flex-col gap-3">
                 {data.todayByProduct.map((p) => (
                   <li key={p.productId}>
                     <div className="flex items-center justify-between text-sm font-bold mb-1">
                       <span className="text-united-dark">{p.productName}</span>
                       <span dir="ltr" className="text-united-muted">
-                        {fmtKg(p.goodKg)} / {fmtKg(p.receivedKg)} كجم
+                        {fmtKg(p.goodKg)} / {fmtKg(p.receivedKg)} {t("stock.unit-kg")}
                       </span>
                     </div>
-                    <YieldMeter pct={p.yieldPct} label={`${p.intakeCount} استلام`} />
+                    <YieldMeter pct={p.yieldPct} label={`${p.intakeCount} ${t("stock.stat-intake-count")}`} />
                   </li>
                 ))}
               </ul>
@@ -115,17 +118,17 @@ export function StockDashboard() {
           )}
 
           <section className="grid sm:grid-cols-2 gap-3">
-            <PeriodCard title="آخر ٧ أيام" totals={data.week} />
-            <PeriodCard title="الشهر ده" totals={data.month} />
+            <PeriodCard title={t("stock.period-last-7days")} totals={data.week} />
+            <PeriodCard title={t("stock.period-this-month")} totals={data.month} />
           </section>
 
           <section className="card p-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-extrabold text-united-dark">أداء الموردين</h2>
-              <span className="text-xs font-bold text-united-muted">الشهر ده</span>
+              <h2 className="text-lg font-extrabold text-united-dark">{t("stock.supplier-perf-title")}</h2>
+              <span className="text-xs font-bold text-united-muted">{t("stock.period-this-month")}</span>
             </div>
             {data.supplierPerformance.length === 0 ? (
-              <EmptyState icon="🚚" title="مفيش توريدات مسجلة الشهر ده" />
+              <EmptyState icon="🚚" title={t("stock.empty-no-supplies-month")} />
             ) : (
               <ul className="flex flex-col divide-y divide-united-border">
                 {data.supplierPerformance.map((s) => (
@@ -137,28 +140,28 @@ export function StockDashboard() {
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-xs font-bold text-united-muted" dir="ltr">
-                      <span>{s.intakeCount} توريد</span>
-                      <span>· {fmtKg(s.receivedKg)} كجم مستلم</span>
-                      <span>· {fmtKg(s.rejectedKg)} كجم مرفوض</span>
+                      <span>{s.intakeCount} {t("stock.supplier-delivery-unit")}</span>
+                      <span>· {fmtKg(s.receivedKg)} {t("stock.supplier-received-unit")}</span>
+                      <span>· {fmtKg(s.rejectedKg)} {t("stock.supplier-rejected-unit")}</span>
                     </div>
                   </li>
                 ))}
               </ul>
             )}
             <p className="text-[11px] font-bold text-united-muted mt-3">
-              الأرقام دي من التوريدات المسجلة فعلاً بس — مفيش تقدير ولا ترتيب مصنوع.
+              {t("stock.supplier-perf-note")}
             </p>
           </section>
 
           <section className="card p-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-extrabold text-united-dark">آخر الحركات</h2>
+              <h2 className="text-lg font-extrabold text-united-dark">{t("stock.last-movements-title")}</h2>
               <Link href="/stock/ledger" className="text-sm font-extrabold text-united-green">
-                السجل كامل ←
+                {t("stock.full-ledger-link")}
               </Link>
             </div>
             {data.recentMovements.length === 0 ? (
-              <EmptyState icon="🧾" title="مفيش حركات لسه" />
+              <EmptyState icon="🧾" title={t("stock.empty-no-movements-yet")} />
             ) : (
               <ul className="flex flex-col divide-y divide-united-border">
                 {data.recentMovements.slice(0, 8).map((m) => (
@@ -174,16 +177,17 @@ export function StockDashboard() {
 }
 
 function PeriodCard({ title, totals }: { title: string; totals: StockDashboardDTO["week"] }) {
+  const { t } = useLocale();
   return (
     <div className="card p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h3 className="font-extrabold text-united-dark">{title}</h3>
-        <span className="text-xs font-bold text-united-muted">{totals.intakeCount} استلام</span>
+        <span className="text-xs font-bold text-united-muted">{totals.intakeCount} {t("stock.stat-intake-count")}</span>
       </div>
       <div className="grid grid-cols-3 gap-2 text-center">
-        <Metric label="مستلم" value={fmtKg(totals.receivedKg)} />
-        <Metric label="صالح" value={fmtKg(totals.goodKg)} tone="text-united-green" />
-        <Metric label="مرفوض" value={fmtKg(totals.rejectedKg)} tone={totals.rejectedKg > 0 ? "text-united-warn" : "text-united-muted"} />
+        <Metric label={t("stock.stat-label-received")} value={fmtKg(totals.receivedKg)} />
+        <Metric label={t("stock.stat-label-good")} value={fmtKg(totals.goodKg)} tone="text-united-green" />
+        <Metric label={t("stock.stat-label-rejected")} value={fmtKg(totals.rejectedKg)} tone={totals.rejectedKg > 0 ? "text-united-warn" : "text-united-muted"} />
       </div>
       <YieldMeter pct={totals.yieldPct} />
     </div>

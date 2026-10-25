@@ -11,6 +11,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const date = new URL(req.url).searchParams.get("date");
     return NextResponse.json(await productSupplierPrices(params.id, date && isValidISODate(date) ? date : undefined));
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

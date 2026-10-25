@@ -9,6 +9,6 @@ export async function GET(req: NextRequest) {
     await requirePermission(req, "core.masterdata.view");
     return NextResponse.json(await getMasterData());
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

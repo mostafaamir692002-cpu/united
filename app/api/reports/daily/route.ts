@@ -8,6 +8,6 @@ export async function GET(req: NextRequest) {
     await requireOrderActor(req, "reports.view");
     return NextResponse.json(await dailyOperationsSummary());
   } catch (err) {
-    return handleApiError(err);
+    return handleApiError(err, req);
   }
 }

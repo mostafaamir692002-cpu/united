@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/Toast";
 import { usePermissions } from "@/lib/use-session";
 import { todayLocalISO } from "@/lib/localDate";
 import { Field, Tabs, fmtMoney, fmtQty } from "@/components/stock/inventory/shared";
+import { useLocale } from "@/lib/locale";
 
 /**
  * Supplier bills and payables (finance). A bill is booked from the supplier's invoice
@@ -20,6 +21,7 @@ import { Field, Tabs, fmtMoney, fmtQty } from "@/components/stock/inventory/shar
 
 const fail = (toast: ReturnType<typeof useToast>, err: unknown) => toast.show(err instanceof ApiClientError ? err.message : "حصل خطأ", "error");
 
+// Module-level label map — Arabic defaults; components override locally via t().
 export const BILL_STATUS: Record<string, { label: string; cls: string }> = {
   draft: { label: "مسودة", cls: "bg-united-dark/5" },
   pending_approval: { label: "مستنية اعتماد", cls: "bg-united-warn/10 text-united-warn" },
@@ -38,6 +40,8 @@ type BillLine = { id: string; lineNo: number; intakeId: string; receiptNumber: s
 type Bill = Omit<BillRow, "lineCount"> & { currencyCode: string; notes: string | null; cancelReason: string | null; expectedNet: string; net: string; taxTotal: string; debited: string; approvalId: string | null; createdBy: string; postedBy: string | null; approvedBy: string | null; version: number; lines: BillLine[]; debitNotes: { id: string; number: string; issueDate: string; reason: string; total: string; createdBy: string }[] };
 type Billable = { intakeId: string; receiptNumber: string; receivedDate: string; product: { id: string; name: string; unit: string }; poNumber: string | null; goodQty: string; expectedUnitPrice: string | null; priceSource: string | null; expectedNet: string | null; taxCode: string; taxRate: string };
 
+const emptyT = () => "";
+
 export function BillsView({ initialBillId }: { initialBillId?: string | null }) {
   const [view, setView] = useState<"bills" | "payables">("bills");
   const [billId, setBillId] = useState<string | null>(initialBillId ?? null);
@@ -52,6 +56,7 @@ export function BillsView({ initialBillId }: { initialBillId?: string | null }) 
 
 function Bills({ onOpen }: { onOpen: (id: string) => void }) {
   const { can } = usePermissions();
+  const { t } = useLocale();
   const [status, setStatus] = useState("");
   const [creating, setCreating] = useState(false);
   const q = useQuery({ queryKey: ["purchasing", "bills", status], queryFn: () => apiFetch<{ bills: BillRow[] }>(`/api/purchasing/bills${status ? `?status=${status}` : ""}`) });
@@ -59,24 +64,24 @@ function Bills({ onOpen }: { onOpen: (id: string) => void }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-2 items-center">
-        <div className="flex-1"><Tabs value={status} onChange={setStatus} items={[{ key: "", label: "الكل" }, { key: "draft", label: "مسودات" }, { key: "pending_approval", label: "مستنية اعتماد" }, { key: "posted", label: "مترحّلة" }]} /></div>
-        {can("purchasing.bills.manage") && <button type="button" className="btn-primary shrink-0" onClick={() => setCreating(true)}>+ فاتورة مورد</button>}
+        <div className="flex-1"><Tabs value={status} onChange={setStatus} items={[{ key: "", label: t("purchasing.bill.filter.all") }, { key: "draft", label: t("purchasing.bill.filter.drafts") }, { key: "pending_approval", label: t("purchasing.bill.filter.pending_approval") }, { key: "posted", label: t("purchasing.bill.filter.posted") }]} /></div>
+        {can("purchasing.bills.manage") && <button type="button" className="btn-primary shrink-0" onClick={() => setCreating(true)}>{t("purchasing.bill.new_supplier")}</button>}
       </div>
       {q.isLoading && <LoadingState />}
       {q.isError && <ErrorState message={errorMessage(q.error)} onRetry={() => q.refetch()} />}
-      {q.data && q.data.bills.length === 0 && <EmptyState icon="🧾" title="مفيش فواتير موردين" />}
+      {q.data && q.data.bills.length === 0 && <EmptyState icon="🧾" title={t("purchasing.bill.empty")} />}
       <ul className="flex flex-col gap-2">
         {q.data?.bills.map((b) => (
           <li key={b.id}>
             <button type="button" className="card p-3 w-full text-start flex justify-between gap-2" onClick={() => onOpen(b.id)}>
               <div>
                 <div className="font-extrabold"><span dir="ltr">{b.number}</span> · {b.supplier.name}</div>
-                <div className="text-xs font-bold text-united-muted">فاتورة المورد <span dir="ltr">{b.supplierInvoiceNo}</span> · {b.billDate} · استحقاق {b.dueDate} · <span className={MATCH[b.matchStatus]?.cls}>{MATCH[b.matchStatus]?.label}</span></div>
+                <div className="text-xs font-bold text-united-muted">{t("purchasing.bill.supplier_invoice_label")} <span dir="ltr">{b.supplierInvoiceNo}</span> · {b.billDate} · {t("purchasing.bill.due_date")} {b.dueDate} · <span className={MATCH[b.matchStatus]?.cls}>{MATCH[b.matchStatus]?.label}</span></div>
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
                 <span className={`rounded-full px-2 text-xs font-extrabold ${BILL_STATUS[b.status]?.cls}`}>{BILL_STATUS[b.status]?.label}</span>
                 <span dir="ltr" className="font-extrabold">{fmtMoney(b.total)}</span>
-                {b.open !== null && b.open !== b.total && <span className="text-xs font-bold text-united-muted">باقي <span dir="ltr">{fmtMoney(b.open)}</span></span>}
+                {b.open !== null && b.open !== b.total && <span className="text-xs font-bold text-united-muted">{t("purchasing.bill.remaining")} <span dir="ltr">{fmtMoney(b.open)}</span></span>}
               </div>
             </button>
           </li>
@@ -90,6 +95,7 @@ function Bills({ onOpen }: { onOpen: (id: string) => void }) {
 function NewBill({ onDone, bill }: { onDone: (id?: string) => void; bill?: Bill }) {
   const toast = useToast();
   const qc = useQueryClient();
+  const { t } = useLocale();
   const suppliers = useQuery({ queryKey: ["purchasing", "suppliers"], queryFn: () => apiFetch<{ suppliers: { id: string; code: string; name: string }[] }>("/api/purchasing/suppliers") });
   const [supplierId, setSupplierId] = useState(bill?.supplier.id ?? "");
   const [invoiceNo, setInvoiceNo] = useState(bill?.supplierInvoiceNo ?? "");
@@ -137,23 +143,23 @@ function NewBill({ onDone, bill }: { onDone: (id?: string) => void; bill?: Bill 
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex justify-between items-center"><h2 className="text-xl font-extrabold">{bill ? `تعديل ${bill.number}` : "فاتورة مورد جديدة"}</h2><button type="button" className="btn-secondary" onClick={() => onDone()}>رجوع</button></div>
+      <div className="flex justify-between items-center"><h2 className="text-xl font-extrabold">{bill ? t("purchasing.bill.title.edit", { number: bill.number }) : t("purchasing.bill.title.new")}</h2><button type="button" className="btn-secondary" onClick={() => onDone()}>{t("ui.back")}</button></div>
       <section className="card p-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <Field label="المورد">
+        <Field label={t("purchasing.bill.field.supplier")}>
           <select className="field font-bold" value={supplierId} disabled={!!bill} onChange={(e) => { setSupplierId(e.target.value); setPicked({}); }}>
-            <option value="">— اختار —</option>
+            <option value="">{t("purchasing.bill.field.select_supplier")}</option>
             {suppliers.data?.suppliers.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}
           </select>
         </Field>
-        <Field label="رقم فاتورة المورد"><input className="field" dir="ltr" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} /></Field>
-        <Field label="تاريخ الفاتورة"><input className="field" type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} /></Field>
-        <Field label="ملاحظات"><input className="field" value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+        <Field label={t("purchasing.bill.field.invoice_no")}><input className="field" dir="ltr" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} /></Field>
+        <Field label={t("purchasing.bill.field.bill_date")}><input className="field" type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} /></Field>
+        <Field label={t("purchasing.bill.field.notes")}><input className="field" value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       </section>
       {supplierId && (
         <section className="card p-4 flex flex-col gap-2">
-          <h3 className="font-extrabold">الاستلامات اللي في الفاتورة</h3>
+          <h3 className="font-extrabold">{t("purchasing.bill.receipts_header")}</h3>
           {billable.isLoading && <LoadingState />}
-          {rows.length === 0 && !billable.isLoading && <p className="text-sm font-bold text-united-muted">مفيش استلامات من المورد ده من غير فاتورة.</p>}
+          {rows.length === 0 && !billable.isLoading && <p className="text-sm font-bold text-united-muted">{t("purchasing.bill.no_receipts_empty")}</p>}
           <ul className="flex flex-col divide-y divide-united-dark/5">
             {rows.map((r) => {
               const k = keyOf(r);
@@ -165,19 +171,19 @@ function NewBill({ onDone, bill }: { onDone: (id?: string) => void; bill?: Bill 
                   <input type="checkbox" className="w-6 h-6" checked={on} onChange={() => setPicked((p) => { const n = { ...p }; if (on) delete n[k]; else n[k] = r.expectedUnitPrice ?? ""; return n; })} aria-label={r.receiptNumber} />
                   <div className="text-sm">
                     <div className="font-extrabold">{r.product.name} · <span dir="ltr">{fmtQty(r.goodQty, r.product.unit)}</span></div>
-                    <div className="text-xs font-bold text-united-muted"><span dir="ltr">{r.receiptNumber}</span> · {r.receivedDate}{r.poNumber ? <> · <span dir="ltr">{r.poNumber}</span></> : ""} · المتفق عليه {r.expectedUnitPrice ? <span dir="ltr">{r.expectedUnitPrice}</span> : "—"}</div>
-                    {diff !== null && Math.abs(diff) >= 0.005 && <div className={`text-xs font-extrabold ${diff > 0 ? "text-united-danger" : "text-united-green"}`}>فرق <span dir="ltr">{fmtMoney(diff)}</span></div>}
+                    <div className="text-xs font-bold text-united-muted"><span dir="ltr">{r.receiptNumber}</span> · {r.receivedDate}{r.poNumber ? <> · <span dir="ltr">{r.poNumber}</span></> : ""} · {t("purchasing.bill.agreed_price")} {r.expectedUnitPrice ? <span dir="ltr">{r.expectedUnitPrice}</span> : "—"}</div>
+                    {diff !== null && Math.abs(diff) >= 0.005 && <div className={`text-xs font-extrabold ${diff > 0 ? "text-united-danger" : "text-united-green"}`}>{t("purchasing.bill.variance")} <span dir="ltr">{fmtMoney(diff)}</span></div>}
                   </div>
-                  {on && <input className="field w-28" dir="ltr" inputMode="decimal" aria-label={`سعر ${r.receiptNumber}`} placeholder="السعر" value={picked[k]} onChange={(e) => setPicked({ ...picked, [k]: e.target.value })} />}
+                  {on && <input className="field w-28" dir="ltr" inputMode="decimal" aria-label={`${t("purchasing.bill.price_placeholder")} ${r.receiptNumber}`} placeholder={t("purchasing.bill.price_placeholder")} value={picked[k]} onChange={(e) => setPicked({ ...picked, [k]: e.target.value })} />}
                 </li>
               );
             })}
           </ul>
           <div className="flex justify-between font-extrabold border-t border-united-dark/10 pt-2">
-            <span>قبل الضريبة: <span dir="ltr">{fmtMoney(billedNet)}</span></span>
-            <span className="text-united-muted">المتفق عليه: <span dir="ltr">{fmtMoney(expectedNet)}</span></span>
+            <span>{t("purchasing.bill.before_tax")}: <span dir="ltr">{fmtMoney(billedNet)}</span></span>
+            <span className="text-united-muted">{t("purchasing.bill.agreed_price")}: <span dir="ltr">{fmtMoney(expectedNet)}</span></span>
           </div>
-          <button type="button" className="btn-primary" disabled={busy || !invoiceNo.trim() || lines.length === 0} onClick={save}>{busy ? "بيتسجل..." : bill ? "حفظ التعديل" : "سجّل الفاتورة (مسودة)"}</button>
+          <button type="button" className="btn-primary" disabled={busy || !invoiceNo.trim() || lines.length === 0} onClick={save}>{busy ? t("purchasing.bill.saving") : bill ? t("purchasing.bill.save_edit") : t("purchasing.bill.save_draft")}</button>
         </section>
       )}
     </div>
@@ -186,6 +192,7 @@ function NewBill({ onDone, bill }: { onDone: (id?: string) => void; bill?: Bill 
 
 function BillDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const { can } = usePermissions();
+  const { t } = useLocale();
   const qc = useQueryClient();
   const toast = useToast();
   const [reason, setReason] = useState("");
@@ -207,7 +214,7 @@ function BillDetail({ id, onClose }: { id: string; onClose: () => void }) {
       if (path === "debit-notes") setDnKey(newClientKey());
       setReason("");
       setDebit({});
-      if (path === "post") toast.show(res.bill.status === "posted" ? "الفاتورة اترحّلت" : "الفاتورة فيها فرق — اتبعتت للاعتماد", res.bill.status === "posted" ? "success" : "error");
+      if (path === "post") toast.show(res.bill.status === "posted" ? t("purchasing.bill.success_posted") : t("purchasing.bill.success_variance"), res.bill.status === "posted" ? "success" : "error");
       refresh();
     } catch (err) {
       fail(toast, err);
@@ -219,55 +226,55 @@ function BillDetail({ id, onClose }: { id: string; onClose: () => void }) {
       <div className="flex justify-between items-center gap-2">
         <div>
           <h2 className="text-xl font-extrabold" dir="ltr">{b.number}</h2>
-          <p className="text-sm font-bold text-united-muted">{b.supplier.code} · {b.supplier.name} · فاتورة المورد <span dir="ltr">{b.supplierInvoiceNo}</span> · {b.billDate} · استحقاق {b.dueDate}</p>
+          <p className="text-sm font-bold text-united-muted">{b.supplier.code} · {b.supplier.name} · {t("purchasing.bill.supplier_invoice_label")} <span dir="ltr">{b.supplierInvoiceNo}</span> · {b.billDate} · {t("purchasing.bill.due_date")} {b.dueDate}</p>
         </div>
-        <button type="button" className="btn-secondary" onClick={onClose}>رجوع</button>
+        <button type="button" className="btn-secondary" onClick={onClose}>{t("ui.back")}</button>
       </div>
       <div className="flex flex-wrap gap-2 items-center">
         <span className={`rounded-full px-3 py-1 text-sm font-extrabold ${BILL_STATUS[b.status]?.cls}`}>{BILL_STATUS[b.status]?.label}</span>
-        <span className={`text-sm font-extrabold ${MATCH[b.matchStatus]?.cls}`}>{MATCH[b.matchStatus]?.label}{Number(b.variance) ? <> · فرق <span dir="ltr">{fmtMoney(b.variance)}</span></> : null}</span>
-        {b.approvalId && <Link href={`/approvals?id=${b.approvalId}`} className="text-sm font-extrabold text-united-green underline">طلب الاعتماد</Link>}
+        <span className={`text-sm font-extrabold ${MATCH[b.matchStatus]?.cls}`}>{MATCH[b.matchStatus]?.label}{Number(b.variance) ? <> · {t("purchasing.bill.variance")} <span dir="ltr">{fmtMoney(b.variance)}</span></> : null}</span>
+        {b.approvalId && <Link href={`/approvals?id=${b.approvalId}`} className="text-sm font-extrabold text-united-green underline">{t("orders.approval")}</Link>}
       </div>
       <section className="card p-4 flex flex-col divide-y divide-united-dark/5">
         {b.lines.map((l) => (
           <div key={l.id} className="py-2 flex flex-col gap-1">
             <div className="flex justify-between text-sm font-extrabold gap-2"><span>{l.description}</span><span dir="ltr">{fmtMoney(l.total)}</span></div>
             <div className="flex flex-wrap justify-between gap-2 text-xs font-bold text-united-muted">
-              <span>مستلم سليم <span dir="ltr">{fmtQty(l.receivedQty, l.uomCode)}</span> · مفوتر <span dir="ltr">{fmtQty(l.quantity, l.uomCode)} × {l.unitPrice}</span> · المتفق عليه <span dir="ltr">{l.expectedUnitPrice ?? "—"}</span></span>
-              {l.lineVariance !== null && Number(l.lineVariance) !== 0 && <span className={Number(l.lineVariance) > 0 ? "text-united-danger" : "text-united-green"}>فرق <span dir="ltr">{fmtMoney(l.lineVariance)}</span></span>}
-              {Number(l.debitedQty) > 0 && <span>اتخصم <span dir="ltr">{fmtQty(l.debitedQty, l.uomCode)}</span></span>}
+              <span>{t("purchasing.bill.received_label")} <span dir="ltr">{fmtQty(l.receivedQty, l.uomCode)}</span> · {t("purchasing.bill.invoiced_label")} <span dir="ltr">{fmtQty(l.quantity, l.uomCode)} × {l.unitPrice}</span> · {t("purchasing.bill.agreed_price")} <span dir="ltr">{l.expectedUnitPrice ?? "—"}</span></span>
+              {l.lineVariance !== null && Number(l.lineVariance) !== 0 && <span className={Number(l.lineVariance) > 0 ? "text-united-danger" : "text-united-green"}>{t("purchasing.bill.variance")} <span dir="ltr">{fmtMoney(l.lineVariance)}</span></span>}
+              {Number(l.debitedQty) > 0 && <span>{t("purchasing.bill.debited_label")} <span dir="ltr">{fmtQty(l.debitedQty, l.uomCode)}</span></span>}
             </div>
             {manage && b.status === "posted" && Number(l.debitedQty) < Number(l.quantity) && (
-              <input className="field w-40 self-end" dir="ltr" inputMode="decimal" placeholder="كمية للخصم" aria-label={`خصم ${l.lineNo}`} value={debit[l.id] ?? ""} onChange={(e) => setDebit({ ...debit, [l.id]: e.target.value })} />
+              <input className="field w-40 self-end" dir="ltr" inputMode="decimal" placeholder={`${t("purchasing.bill.variance")} ${l.lineNo}`} aria-label={`خصم ${l.lineNo}`} value={debit[l.id] ?? ""} onChange={(e) => setDebit({ ...debit, [l.id]: e.target.value })} />
             )}
           </div>
         ))}
         <div className="pt-2 flex flex-col gap-1 text-sm font-extrabold">
-          <div className="flex justify-between"><span>قبل الضريبة</span><span dir="ltr">{fmtMoney(b.net)}</span></div>
-          <div className="flex justify-between text-united-muted"><span>المتفق عليه</span><span dir="ltr">{fmtMoney(b.expectedNet)}</span></div>
-          <div className="flex justify-between"><span>الضريبة</span><span dir="ltr">{fmtMoney(b.taxTotal)}</span></div>
-          <div className="flex justify-between text-lg"><span>الإجمالي</span><span dir="ltr">{fmtMoney(b.total)}</span></div>
-          {b.open !== null && <div className="flex justify-between text-united-green"><span>المستحق للمورد</span><span dir="ltr">{fmtMoney(b.open)}</span></div>}
+          <div className="flex justify-between"><span>{t("purchasing.bill.before_tax")}</span><span dir="ltr">{fmtMoney(b.net)}</span></div>
+          <div className="flex justify-between text-united-muted"><span>{t("purchasing.bill.agreed_price")}</span><span dir="ltr">{fmtMoney(b.expectedNet)}</span></div>
+          <div className="flex justify-between"><span>{t("purchasing.bill.tax")}</span><span dir="ltr">{fmtMoney(b.taxTotal)}</span></div>
+          <div className="flex justify-between text-lg"><span>{t("purchasing.bill.total")}</span><span dir="ltr">{fmtMoney(b.total)}</span></div>
+          {b.open !== null && <div className="flex justify-between text-united-green"><span>{t("purchasing.bill.amount_due_to_supplier")}</span><span dir="ltr">{fmtMoney(b.open)}</span></div>}
         </div>
       </section>
       {b.debitNotes.length > 0 && (
         <section className="card p-4 flex flex-col gap-1 text-sm font-bold">
-          <h3 className="font-extrabold">إشعارات مدينة</h3>
+          <h3 className="font-extrabold">{t("purchasing.bill.debit_notes_heading")}</h3>
           {b.debitNotes.map((dn) => <div key={dn.id} className="flex justify-between"><span><span dir="ltr">{dn.number}</span> · {dn.issueDate} · {dn.reason}</span><span dir="ltr">{fmtMoney(dn.total)}</span></div>)}
         </section>
       )}
-      <p className="text-xs font-bold text-united-muted">سجّلها: {b.createdBy}{b.postedBy ? ` · رحّلها: ${b.postedBy}` : ""}{b.approvedBy ? ` · اعتمد الفرق: ${b.approvedBy}` : ""}{b.cancelReason ? ` · سبب الإلغاء: ${b.cancelReason}` : ""}</p>
+      <p className="text-xs font-bold text-united-muted">{b.createdBy}{b.postedBy ? ` · ${t("operations.performed_by_prefix")} ${b.postedBy}` : ""}{b.approvedBy ? ` · ${b.approvedBy}` : ""}{b.cancelReason ? ` · ${b.cancelReason}` : ""}</p>
       {manage && b.status !== "cancelled" && (
         <section className="card p-4 flex flex-wrap gap-2">
-          {b.status === "draft" && <button type="button" className="btn-primary" onClick={() => act("post")}>ترحيل</button>}
-          {b.status === "draft" && <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>تعديل</button>}
-          <input className="field flex-1 min-w-48" placeholder={b.status === "posted" ? "سبب الإشعار المدين" : "سبب الإلغاء"} value={reason} onChange={(e) => setReason(e.target.value)} />
-          {b.status !== "posted" && <button type="button" className="btn-danger" onClick={() => act("cancel", { reason })}>إلغاء الفاتورة</button>}
+          {b.status === "draft" && <button type="button" className="btn-primary" onClick={() => act("post")}>{t("purchasing.bill.post_action")}</button>}
+          {b.status === "draft" && <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>{t("ui.edit")}</button>}
+          <input className="field flex-1 min-w-48" placeholder={b.status === "posted" ? t("purchasing.bill.debit_reason_placeholder") : t("purchasing.bill.cancel_reason_placeholder")} value={reason} onChange={(e) => setReason(e.target.value)} />
+          {b.status !== "posted" && <button type="button" className="btn-danger" onClick={() => act("cancel", { reason })}>{t("purchasing.bill.cancel_bill_btn")}</button>}
           {b.status === "posted" && b.open !== "0.00" && (
             <>
-              <label className="flex items-center gap-2 text-sm font-bold w-full"><input type="checkbox" className="w-5 h-5" checked={returnGoods} onChange={(e) => setReturnGoods(e.target.checked)} /> البضاعة هترجع للمورد — اخصمها من المخزن</label>
-              <button type="button" className="btn-secondary" disabled={debitLines.length === 0} onClick={() => act("debit-notes", { reason, lines: debitLines, return_goods: returnGoods })}>إشعار مدين بالكميات</button>
-              <button type="button" className="btn-danger" onClick={() => act("debit-notes", { reason, full: true, return_goods: returnGoods })}>إشعار مدين بالباقي كله</button>
+              <label className="flex items-center gap-2 text-sm font-bold w-full"><input type="checkbox" className="w-5 h-5" checked={returnGoods} onChange={(e) => setReturnGoods(e.target.checked)} />{t("purchasing.bill.return_goods_checkbox")}</label>
+              <button type="button" className="btn-secondary" disabled={debitLines.length === 0} onClick={() => act("debit-notes", { reason, lines: debitLines, return_goods: returnGoods })}>{t("purchasing.bill.debit_qty_btn")}</button>
+              <button type="button" className="btn-danger" onClick={() => act("debit-notes", { reason, full: true, return_goods: returnGoods })}>{t("purchasing.bill.debit_full_btn")}</button>
             </>
           )}
         </section>
@@ -284,18 +291,19 @@ type AgingRow = { supplier: { id: string; code: string; name: string }; total: s
 const BUCKETS: [keyof Omit<AgingRow, "supplier">, string][] = [["current", "لسه"], ["d1_30", "1–30"], ["d31_60", "31–60"], ["d61_90", "61–90"], ["d90_plus", "+90"], ["total", "الإجمالي"]];
 
 function Payables() {
+  const { t } = useLocale();
   const [supplier, setSupplier] = useState<{ id: string; name: string } | null>(null);
   const q = useQuery({ queryKey: ["purchasing", "ap-aging"], queryFn: () => apiFetch<{ aging: { asOf: string; rows: AgingRow[]; totals: Omit<AgingRow, "supplier"> } }>("/api/purchasing/reports/ap-aging") });
   if (supplier) return <Statement supplier={supplier} onClose={() => setSupplier(null)} />;
   if (q.isLoading) return <LoadingState />;
   if (q.isError || !q.data) return <ErrorState message={errorMessage(q.error)} onRetry={() => q.refetch()} />;
   const a = q.data.aging;
-  if (a.rows.length === 0) return <EmptyState icon="✅" title="مفيش مستحقات مفتوحة للموردين" />;
+  if (a.rows.length === 0) return <EmptyState icon="✅" title={t("purchasing.bill.no_payables_empty")} />;
   return (
     <section className="card p-3 overflow-x-auto">
-      <p className="text-xs font-bold text-united-muted mb-2">أعمار الدائنين حتى {a.asOf} (بالأيام بعد الاستحقاق) — المدفوعات بتتسجل في مرحلة الحسابات</p>
+      <p className="text-xs font-bold text-united-muted mb-2">{t("purchasing.bill.ap_aging_intro")}{a.asOf} ({t("purchasing.bill.col.date")} بعد الاستحقاق) — المدفوعات بتتسجل في مرحلة الحسابات</p>
       <table className="w-full text-sm">
-        <thead><tr className="text-xs text-united-muted text-start"><th className="text-start p-1">المورد</th>{BUCKETS.map(([k, l]) => <th key={k} className="p-1 text-end">{l}</th>)}</tr></thead>
+        <thead><tr className="text-xs text-united-muted text-start"><th className="text-start p-1">{t("purchasing.suppliers")}</th>{BUCKETS.map(([k, l]) => <th key={k} className="p-1 text-end">{l}</th>)}</tr></thead>
         <tbody>
           {a.rows.map((r) => (
             <tr key={r.supplier.id} className="border-t border-united-dark/5">
@@ -303,7 +311,7 @@ function Payables() {
               {BUCKETS.map(([k]) => <td key={k} dir="ltr" className={`p-1 text-end font-bold ${k === "total" ? "font-extrabold" : ""} ${k.startsWith("d") && Number(r[k]) > 0 ? "text-united-danger" : ""}`}>{Number(r[k]) ? Number(r[k]).toLocaleString("en-US", { minimumFractionDigits: 2 }) : "—"}</td>)}
             </tr>
           ))}
-          <tr className="border-t-2 border-united-dark/20 font-extrabold"><td className="p-1">الإجمالي</td>{BUCKETS.map(([k]) => <td key={k} dir="ltr" className="p-1 text-end">{Number(a.totals[k]).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>)}</tr>
+          <tr className="border-t-2 border-united-dark/20 font-extrabold"><td className="p-1">{t("purchasing.bill.total_bucket")}</td>{BUCKETS.map(([k]) => <td key={k} dir="ltr" className="p-1 text-end">{Number(a.totals[k]).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>)}</tr>
         </tbody>
       </table>
     </section>
@@ -311,6 +319,7 @@ function Payables() {
 }
 
 function Statement({ supplier, onClose }: { supplier: { id: string; name: string }; onClose: () => void }) {
+  const { t } = useLocale();
   const [from, setFrom] = useState(`${todayLocalISO().slice(0, 4)}-01-01`);
   const [to, setTo] = useState(todayLocalISO());
   const q = useQuery({
@@ -319,16 +328,16 @@ function Statement({ supplier, onClose }: { supplier: { id: string; name: string
   });
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex justify-between items-center"><h2 className="text-xl font-extrabold">كشف حساب {supplier.name}</h2><button type="button" className="btn-secondary" onClick={onClose}>رجوع</button></div>
+      <div className="flex justify-between items-center"><h2 className="text-xl font-extrabold">{t("purchasing.bill.statement_title", { name: supplier.name })}</h2><button type="button" className="btn-secondary" onClick={onClose}>{t("ui.back")}</button></div>
       <div className="flex gap-2"><input type="date" className="field" value={from} onChange={(e) => setFrom(e.target.value)} /><input type="date" className="field" value={to} onChange={(e) => setTo(e.target.value)} /></div>
       {q.isLoading && <LoadingState />}
       {q.isError && <ErrorState message={errorMessage(q.error)} onRetry={() => q.refetch()} />}
       {q.data && (
         <section className="card p-3 overflow-x-auto">
           <table className="w-full text-sm">
-            <thead><tr className="text-xs text-united-muted"><th className="p-1 text-start">التاريخ</th><th className="p-1 text-start">المستند</th><th className="p-1 text-end">له (فاتورة)</th><th className="p-1 text-end">عليه (إشعار)</th><th className="p-1 text-end">الرصيد</th></tr></thead>
+            <thead><tr className="text-xs text-united-muted"><th className="p-1 text-start">{t("purchasing.bill.col.date")}</th><th className="p-1 text-start">{t("purchasing.bill.col.document")}</th><th className="p-1 text-end">{t("purchasing.bill.col.credit")}</th><th className="p-1 text-end">{t("purchasing.bill.col.debit")}</th><th className="p-1 text-end">{t("purchasing.bill.col.balance")}</th></tr></thead>
             <tbody>
-              <tr className="font-bold text-united-muted"><td className="p-1" colSpan={4}>رصيد أول المدة</td><td className="p-1 text-end" dir="ltr">{q.data.statement.opening}</td></tr>
+              <tr className="font-bold text-united-muted"><td className="p-1" colSpan={4}>{t("purchasing.bill.opening_balance")}</td><td className="p-1 text-end" dir="ltr">{q.data.statement.opening}</td></tr>
               {q.data.statement.rows.map((r) => (
                 <tr key={r.id} className="border-t border-united-dark/5 font-bold">
                   <td className="p-1">{r.date}</td>
@@ -338,7 +347,7 @@ function Statement({ supplier, onClose }: { supplier: { id: string; name: string
                   <td className="p-1 text-end font-extrabold" dir="ltr">{r.balance}</td>
                 </tr>
               ))}
-              <tr className="border-t-2 border-united-dark/20 font-extrabold"><td className="p-1" colSpan={4}>المستحق للمورد</td><td className="p-1 text-end" dir="ltr">{q.data.statement.closing}</td></tr>
+              <tr className="border-t-2 border-united-dark/20 font-extrabold"><td className="p-1" colSpan={4}>{t("purchasing.bill.amount_due_to_supplier")}</td><td className="p-1 text-end" dir="ltr">{q.data.statement.closing}</td></tr>
             </tbody>
           </table>
         </section>
