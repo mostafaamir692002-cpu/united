@@ -9,18 +9,20 @@ import { EmptyState, ErrorState } from "@/components/States";
 import { LiveIndicator } from "@/components/ui/LiveIndicator";
 import { buildTimeline, timeLabel, SOURCE_LABEL } from "@/lib/auditLabels";
 import { CardSkeleton } from "@/components/Skeleton";
+import { useLocale } from "@/lib/locale";
 
 type DecisionFilter = "all" | "approvals" | "overrides" | "cancel_reopen" | "edits";
 
-const DECISION_FILTERS: { key: DecisionFilter; label: string; actions?: string[] }[] = [
-  { key: "all", label: "الكل" },
-  { key: "approvals", label: "👨‍💼 اعتماد الفرق", actions: ["shortage_approved"] },
-  { key: "overrides", label: "⚡ تجاوزات يدوية", actions: ["status_override"] },
-  { key: "cancel_reopen", label: "🚫 إلغاء / إعادة فتح", actions: ["order_cancelled", "order_reopened"] },
-  { key: "edits", label: "✏️ تعديلات", actions: ["order_edited", "required_quantity_edited"] },
+const DECISION_FILTER_KEYS: { key: DecisionFilter; dictKey: string; actions?: string[] }[] = [
+  { key: "all", dictKey: "audit.filter.all" },
+  { key: "approvals", dictKey: "audit.filter.approvals", actions: ["shortage_approved"] },
+  { key: "overrides", dictKey: "audit.filter.overrides", actions: ["status_override"] },
+  { key: "cancel_reopen", dictKey: "audit.filter.cancel_reopen", actions: ["order_cancelled", "order_reopened"] },
+  { key: "edits", dictKey: "audit.filter.edits", actions: ["order_edited", "required_quantity_edited"] },
 ];
 
 export function AuditLogView() {
+  const { t } = useLocale();
   const [search, setSearch] = useState("");
   const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>("all");
   const [entityFilter, setEntityFilter] = useState("all");
@@ -39,7 +41,7 @@ export function AuditLogView() {
     refetchInterval: 5000,
   });
 
-  const activeFilter = DECISION_FILTERS.find((f) => f.key === decisionFilter)!;
+  const activeFilter = DECISION_FILTER_KEYS.find((f) => f.key === decisionFilter)!;
   const needle = search.trim().toLowerCase();
   const logs = (data?.logs ?? [])
     .filter((l) => !activeFilter.actions || activeFilter.actions.includes(l.action))
@@ -55,23 +57,23 @@ export function AuditLogView() {
   return (
     <div className="p-4 max-w-2xl mx-auto pb-10">
       <Link href="/supervisor" className="inline-flex items-center gap-1 text-united-muted font-bold mb-3">
-        <span>→</span> رجوع للوحة المشرف
+        <span>→</span>{t("audit.back-supervisor")}
       </Link>
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-2xl font-extrabold text-united-dark">سجل المراجعة الكامل</h1>
+        <h1 className="text-2xl font-extrabold text-united-dark">{t("audit.page-title")}</h1>
         <LiveIndicator dataUpdatedAt={dataUpdatedAt} isLoading={isLoading} />
       </div>
-      <p className="text-united-muted text-sm mb-4">كل حدث تشغيلي: مين عمل إيه، إمتى، ومنين.</p>
+      <p className="text-united-muted text-sm mb-4">{t("audit.subtitle")}</p>
 
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="دوّر باسم المستخدم أو العميل أو رقم الأوردر..."
+        placeholder={t("audit.search-placeholder")}
         className="field mb-3"
       />
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4 pb-1">
-        {DECISION_FILTERS.map((f) => (
+        {DECISION_FILTER_KEYS.map((f) => (
           <button
             key={f.key}
             onClick={() => setDecisionFilter(f.key)}
@@ -81,7 +83,7 @@ export function AuditLogView() {
                 : "bg-white text-united-dark border border-united-border"
             }`}
           >
-            {f.label}
+            {t(f.dictKey)}
           </button>
         ))}
       </div>
@@ -92,7 +94,7 @@ export function AuditLogView() {
           onChange={(e) => setEntityFilter(e.target.value)}
           className="field text-sm"
         >
-          <option value="all">كل أنواع الحركات</option>
+          <option value="all">{t("audit.entity-label")}</option>
           <option value="sales_invoice">الفاتورة</option>
           <option value="credit_note">الإشعار الدائن</option>
           <option value="supplier_bill">فاتورة مورد</option>
@@ -115,7 +117,7 @@ export function AuditLogView() {
           type="date"
           value={from}
           onChange={(e) => setFrom(e.target.value)}
-          placeholder="من تاريخ"
+          placeholder={t("audit.from-date-placeholder")}
           className="field text-sm"
           style={{ maxWidth: 140 }}
         />
@@ -123,7 +125,7 @@ export function AuditLogView() {
           type="date"
           value={to}
           onChange={(e) => setTo(e.target.value)}
-          placeholder="إلى تاريخ"
+          placeholder={t("audit.to-date-placeholder")}
           className="field text-sm"
           style={{ maxWidth: 140 }}
         />
@@ -140,7 +142,7 @@ export function AuditLogView() {
       {!isLoading && !isError && logs.length === 0 && (
         <EmptyState
           icon="🗒️"
-          title={search || decisionFilter !== "all" ? "مفيش نتايج مطابقة" : "لسه مفيش حركة مسجلة"}
+          title={search || decisionFilter !== "all" ? t("audit.empty-search") : t("audit.empty-none")}
         />
       )}
 
@@ -167,14 +169,14 @@ export function AuditLogView() {
                 <span>{icon}</span> {headline}
               </p>
               {detail && <p className="text-sm font-bold text-united-dark/70">{detail}</p>}
-              {l.reason && <p className="text-sm text-united-muted">السبب: {l.reason}</p>}
+              {l.reason && <p className="text-sm text-united-muted">{t("audit.reason-prefix")} {l.reason}</p>}
               <div className="flex items-center justify-between mt-2">
                 <span className="text-xs font-bold text-united-muted bg-united-dark/5 px-2 py-0.5 rounded-full">
                   {SOURCE_LABEL[l.source] ?? l.source}
                 </span>
                 {l.orderId && (
                   <Link href={`/orders/${l.orderId}`} className="text-xs font-bold text-united-green">
-                    عرض الأوردر ←
+                    t("audit.view-order-link")
                   </Link>
                 )}
               </div>

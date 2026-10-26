@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "@/lib/locale";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, errorMessage } from "@/lib/api-client";
 import { LoadingState, ErrorState } from "@/components/States";
@@ -22,6 +23,7 @@ type Tab = "products" | "coverage" | "suppliers";
  * line no stock decision can ever be based on.
  */
 export function ProductMasterView() {
+  const { t } = useLocale();
   const [tab, setTab] = useState<Tab>("products");
   const { can } = usePermissions();
   const canManage = can("stock.manage_products");
@@ -41,39 +43,39 @@ export function ProductMasterView() {
   return (
     <div className="p-4 max-w-4xl mx-auto pb-10 flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-extrabold text-united-dark">دليل الأصناف</h1>
+        <h1 className="text-2xl font-extrabold text-united-dark">{t("master.title")}</h1>
         <p className="text-sm font-bold text-united-muted mt-0.5">
-          كل صنف له اسم واحد رسمي. الربط بيتم بالاسم المطابق بالظبط — مفيش تخمين.
+          {t("master.description")}
         </p>
       </div>
 
       {summary && (
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <StatTile label="أصناف الدليل" value={String(products.length)} sub={`${products.filter((p) => p.active).length} شغّال`} />
-          <StatTile label="أسماء في الأوردرات" value={String(summary.distinctNames)} />
-          <StatTile label="مربوطة" value={String(summary.mapped)} tone={summary.mapped > 0 ? "good" : "muted"} />
+          <StatTile label={t("master.stat-tile-products")} value={String(products.length)} sub={`${products.filter((p) => p.active).length} ${t("master.stat-active")}`} />
+          <StatTile label={t("master.stat-order-names")} value={String(summary.distinctNames)} />
+          <StatTile label={t("master-stat-connected")} value={String(summary.mapped)} tone={summary.mapped > 0 ? "good" : "muted"} />
           <StatTile
-            label="غير مربوطة"
+            label={t("master-stat-disconnected")}
             value={String(summary.unmapped)}
             tone={summary.unmapped > 0 ? "warn" : "good"}
-            sub={summary.ambiguous > 0 ? `${summary.ambiguous} ملتبسة` : undefined}
+            sub={summary.ambiguous > 0 ? `${summary.ambiguous} ${t("master.stat-ambiguous")}` : undefined}
           />
         </section>
       )}
 
       <div className="flex gap-2">
-        <TabButton active={tab === "products"} onClick={() => setTab("products")} label="الأصناف" />
+        <TabButton active={tab === "products"} onClick={() => setTab("products")} label={t("master.tab-products")} />
         <TabButton
           active={tab === "coverage"}
           onClick={() => setTab("coverage")}
-          label={`الربط${summary && summary.unmapped > 0 ? ` (${summary.unmapped})` : ""}`}
+          label={summary && summary.unmapped > 0 ? `${t("master.tab-coverage")} (${summary.unmapped})` : t("master.tab-coverage")}
         />
-        <TabButton active={tab === "suppliers"} onClick={() => setTab("suppliers")} label="الموردين" />
+        <TabButton active={tab === "suppliers"} onClick={() => setTab("suppliers")} label={t("master.tab-suppliers")} />
       </div>
 
       {tab === "products" && (
         <>
-          {productsQ.isLoading && <LoadingState label="بيحمّل الأصناف..." />}
+          {productsQ.isLoading && <LoadingState label={t("master.loading-products")} />}
           {productsQ.isError && <ErrorState message={errorMessage(productsQ.error)} onRetry={() => productsQ.refetch()} />}
           {productsQ.data && <ProductsPanel products={products} canManage={canManage} />}
         </>
@@ -81,7 +83,7 @@ export function ProductMasterView() {
 
       {tab === "coverage" && (
         <>
-          {coverageQ.isLoading && <LoadingState label="بيحسب الربط..." />}
+          {coverageQ.isLoading && <LoadingState label={t("master.loading-coverage")} />}
           {coverageQ.isError && <ErrorState message={errorMessage(coverageQ.error)} onRetry={() => coverageQ.refetch()} />}
           {coverageQ.data && (
             <CoveragePanel coverage={coverageQ.data} products={products} canManage={canManage} />

@@ -342,7 +342,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   }
 
   return (
-    <div className="p-4 max-w-2xl mx-auto pb-32">
+    <div className="page-container max-w-2xl">
       <div className="flex items-center justify-between mb-3">
         <Link
           href={backHref}

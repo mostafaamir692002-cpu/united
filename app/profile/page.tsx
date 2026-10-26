@@ -78,8 +78,8 @@ export default function ProfilePage() {
     : (ROLE_DESC_EN[user.role] ?? "");
 
   return (
-    <main className="min-h-screen p-4 flex flex-col items-center" style={{ direction: dir }}>
-      <div className="w-full max-w-2xl flex flex-col gap-3">
+    <main className="min-h-screen flex flex-col items-center page-container" style={{ direction: dir }}>
+      <div className="w-full max-w-2xl flex flex-col gap-4">
         <header className="card p-4 flex items-center justify-between">
           <h1 className="text-2xl font-extrabold text-united-dark">{t("ui.profile.title")}</h1>
           <Link href="/" className="btn-secondary text-sm font-bold">{t("ui.profile.back-home")}</Link>

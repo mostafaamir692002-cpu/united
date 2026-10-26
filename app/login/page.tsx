@@ -45,12 +45,12 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-6">
-      <form onSubmit={onSubmit} className="card p-8 w-full max-w-sm flex flex-col gap-4 shadow-card-hover">
-        <div className="flex flex-col items-center gap-2 mb-2">
-          <Image src="/logo-united.png" alt="UNITED" width={80} height={80} className="rounded-xl" />
-          <h1 className="text-2xl font-extrabold text-united-dark">UNITED</h1>
-          <p className="text-united-green font-bold">{t("ui.login.subtitle")}</p>
+    <main className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-b from-united-bg to-white">
+      <form onSubmit={onSubmit} className="card p-8 w-full max-w-sm flex flex-col gap-5 shadow-card-hover border-united-border/60">
+        <div className="flex flex-col items-center gap-3 mb-1">
+          <Image src="/logo-united.png" alt="UNITED" width={72} height={72} className="rounded-2xl" />
+          <h1 className="text-2xl font-extrabold text-united-dark tracking-tight">UNITED</h1>
+          <p className="text-sm font-bold text-united-green">{t("ui.login.subtitle")}</p>
         </div>
 
         <label className="flex flex-col gap-1">
@@ -77,14 +77,23 @@ export default function LoginPage() {
           />
         </label>
 
-        {error && <p className="text-united-danger font-bold text-center">{error}</p>}
+        {error && (
+          <div className="bg-united-danger/10 text-united-danger font-bold text-sm text-center rounded-xl px-4 py-3">
+            {error}
+          </div>
+        )}
 
         <button
           type="submit"
           disabled={loading}
-          className="btn-primary text-xl"
+          className="btn-primary text-lg"
         >
-          {loading ? `${t("ui.login.logging-in")} ⏳` : t("ui.login.button")}
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              {t("ui.login.logging-in")}
+            </span>
+          ) : t("ui.login.button")}
         </button>
       </form>
     </main>

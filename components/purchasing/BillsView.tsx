@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { newClientKey } from "@/lib/clientKey";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -19,9 +19,10 @@ import { useLocale } from "@/lib/locale";
  * aging, and a supplier's statement from there.
  */
 
-const fail = (toast: ReturnType<typeof useToast>, err: unknown) => toast.show(err instanceof ApiClientError ? err.message : "حصل خطأ", "error");
+const fail = (toast: ReturnType<typeof useToast>, err: unknown, t: (key: string) => string) => toast.show(err instanceof ApiClientError ? err.message : t("sales.invoice.error-generic"), "error");
 
 // Module-level label map — Arabic defaults; components override locally via t().
+// Kept for backward compat (e.g. BillDetail references BILL_STATUS); component-local t() versions are preferred.
 export const BILL_STATUS: Record<string, { label: string; cls: string }> = {
   draft: { label: "مسودة", cls: "bg-united-dark/5" },
   pending_approval: { label: "مستنية اعتماد", cls: "bg-united-warn/10 text-united-warn" },
@@ -43,12 +44,13 @@ type Billable = { intakeId: string; receiptNumber: string; receivedDate: string;
 const emptyT = () => "";
 
 export function BillsView({ initialBillId }: { initialBillId?: string | null }) {
+  const { t } = useLocale();
   const [view, setView] = useState<"bills" | "payables">("bills");
   const [billId, setBillId] = useState<string | null>(initialBillId ?? null);
   if (billId) return <BillDetail id={billId} onClose={() => setBillId(null)} />;
   return (
     <div className="flex flex-col gap-3">
-      <Tabs value={view} onChange={setView} items={[{ key: "bills", label: "الفواتير" }, { key: "payables", label: "أرصدة الموردين" }]} />
+      <Tabs value={view} onChange={setView} items={[{ key: "bills", label: t("purchasing.bill.tabs.bills") }, { key: "payables", label: t("purchasing.bill.tabs.payables") }]} />
       {view === "bills" ? <Bills onOpen={setBillId} /> : <Payables />}
     </div>
   );
@@ -135,7 +137,7 @@ function NewBill({ onDone, bill }: { onDone: (id?: string) => void; bill?: Bill 
       toast.show(`${res.bill.number} · ${MATCH[res.bill.matchStatus]?.label}`, res.bill.matchStatus === "variance" || res.bill.matchStatus === "unpriced" ? "error" : "success");
       onDone(res.bill.id);
     } catch (err) {
-      fail(toast, err);
+      fail(toast, err, t);
     } finally {
       setBusy(false);
     }
@@ -217,7 +219,7 @@ function BillDetail({ id, onClose }: { id: string; onClose: () => void }) {
       if (path === "post") toast.show(res.bill.status === "posted" ? t("purchasing.bill.success_posted") : t("purchasing.bill.success_variance"), res.bill.status === "posted" ? "success" : "error");
       refresh();
     } catch (err) {
-      fail(toast, err);
+      fail(toast, err, t);
     }
   };
   const debitLines = Object.entries(debit).filter(([, v]) => v.trim() !== "").map(([bill_line_id, quantity]) => ({ bill_line_id, quantity }));
@@ -288,10 +290,11 @@ function BillDetail({ id, onClose }: { id: string; onClose: () => void }) {
 // ---------------------------------------------------------------------------
 
 type AgingRow = { supplier: { id: string; code: string; name: string }; total: string; current: string; d1_30: string; d31_60: string; d61_90: string; d90_plus: string };
-const BUCKETS: [keyof Omit<AgingRow, "supplier">, string][] = [["current", "لسه"], ["d1_30", "1–30"], ["d31_60", "31–60"], ["d61_90", "61–90"], ["d90_plus", "+90"], ["total", "الإجمالي"]];
+const BUCKETS_DEFAULT = [["current", ""], ["d1_30", "1–30"], ["d31_60", "31–60"], ["d61_90", "61–90"], ["d90_plus", "+90"], ["total", ""]];
 
 function Payables() {
   const { t } = useLocale();
+  const buckets = useMemo(() => BUCKETS_DEFAULT.map(([k, _]) => [k, k === "current" ? t("purchasing.bill.current_bucket") : k === "total" ? t("purchasing.bill.total_bucket") : _] as [keyof Omit<AgingRow, "supplier">, string]), [t]);
   const [supplier, setSupplier] = useState<{ id: string; name: string } | null>(null);
   const q = useQuery({ queryKey: ["purchasing", "ap-aging"], queryFn: () => apiFetch<{ aging: { asOf: string; rows: AgingRow[]; totals: Omit<AgingRow, "supplier"> } }>("/api/purchasing/reports/ap-aging") });
   if (supplier) return <Statement supplier={supplier} onClose={() => setSupplier(null)} />;
@@ -303,15 +306,15 @@ function Payables() {
     <section className="card p-3 overflow-x-auto">
       <p className="text-xs font-bold text-united-muted mb-2">{t("purchasing.bill.ap_aging_intro")}{a.asOf} ({t("purchasing.bill.col.date")} بعد الاستحقاق) — المدفوعات بتتسجل في مرحلة الحسابات</p>
       <table className="w-full text-sm">
-        <thead><tr className="text-xs text-united-muted text-start"><th className="text-start p-1">{t("purchasing.suppliers")}</th>{BUCKETS.map(([k, l]) => <th key={k} className="p-1 text-end">{l}</th>)}</tr></thead>
+        <thead><tr className="text-xs text-united-muted text-start"><th className="text-start p-1">{t("purchasing.suppliers")}</th>{buckets.map(([k, l]) => <th key={k} className="p-1 text-end">{l}</th>)}</tr></thead>
         <tbody>
           {a.rows.map((r) => (
             <tr key={r.supplier.id} className="border-t border-united-dark/5">
               <td className="p-1"><button type="button" className="font-extrabold text-united-green underline text-start" onClick={() => setSupplier(r.supplier)}>{r.supplier.name}</button></td>
-              {BUCKETS.map(([k]) => <td key={k} dir="ltr" className={`p-1 text-end font-bold ${k === "total" ? "font-extrabold" : ""} ${k.startsWith("d") && Number(r[k]) > 0 ? "text-united-danger" : ""}`}>{Number(r[k]) ? Number(r[k]).toLocaleString("en-US", { minimumFractionDigits: 2 }) : "—"}</td>)}
+              {buckets.map(([k]) => <td key={k} dir="ltr" className={`p-1 text-end font-bold ${k === "total" ? "font-extrabold" : ""} ${k.startsWith("d") && Number(r[k]) > 0 ? "text-united-danger" : ""}`}>{Number(r[k]) ? Number(r[k]).toLocaleString("en-US", { minimumFractionDigits: 2 }) : "—"}</td>)}
             </tr>
           ))}
-          <tr className="border-t-2 border-united-dark/20 font-extrabold"><td className="p-1">{t("purchasing.bill.total_bucket")}</td>{BUCKETS.map(([k]) => <td key={k} dir="ltr" className="p-1 text-end">{Number(a.totals[k]).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>)}</tr>
+          <tr className="border-t-2 border-united-dark/20 font-extrabold"><td className="p-1">{t("purchasing.bill.total_bucket")}</td>{buckets.map(([k]) => <td key={k} dir="ltr" className="p-1 text-end">{Number(a.totals[k]).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>)}</tr>
         </tbody>
       </table>
     </section>

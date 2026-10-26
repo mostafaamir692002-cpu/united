@@ -243,7 +243,7 @@ export function QuickIntakeForm({ date }: { date: string }) {
                 onClick={() => pickPoLine(l)}
                 className={`tap-target px-4 rounded-xl font-extrabold text-sm text-start ${poLineId === l.lineId ? "bg-united-green text-white" : "bg-united-dark/5 text-united-dark"}`}
               >
-                {l.poNumber} · {l.product.name} · باقي <span dir="ltr">{fmtKg(Number(l.remaining))}</span> {l.product.unit}
+                {l.poNumber} · {l.product.name} · {t("stock.remaining")} <span dir="ltr">{fmtKg(Number(l.remaining))}</span> {l.product.unit}
               </button>
             ))}
           </div>

@@ -20,23 +20,23 @@ export function PrintHeader({
   qrSvg: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b-4 border-united-dark pb-4 mb-4 print-break-inside-avoid">
+    <div className="flex items-start justify-between gap-4 border-b-2 border-united-dark pb-4 mb-4 print-break-inside-avoid">
       <div className="flex items-start gap-3">
-        <Image src="/logo-united.png" alt="UNITED" width={56} height={56} className="rounded" />
+        <Image src="/logo-united.png" alt="UNITED" width={48} height={48} className="rounded" />
         <div>
-          <div className="font-extrabold text-xl text-united-dark leading-tight">UNITED</div>
-          <div className="text-xs text-united-dark/60">Fruits &amp; Vegetables</div>
-          <div className="mt-2 font-extrabold text-lg text-united-dark">{titleAr}</div>
-          <div className="text-xs text-united-dark/50">{titleEn}</div>
+          <div className="font-extrabold text-lg text-united-dark leading-tight">UNITED</div>
+          <div className="text-[10px] text-united-dark/50">Fruits &amp; Vegetables</div>
+          <div className="mt-1.5 font-extrabold text-base text-united-dark">{titleAr}</div>
+          <div className="text-[10px] text-united-dark/50">{titleEn}</div>
         </div>
       </div>
 
-      <div className="text-left shrink-0" dir="ltr">
+      <div className="text-center shrink-0" dir="ltr">
         <div dangerouslySetInnerHTML={{ __html: qrSvg }} />
-        <div className="text-[10px] text-united-dark/50 mt-1 text-center">{orderNumber}</div>
+        <div className="text-[9px] text-united-dark/50 mt-1">{orderNumber}</div>
       </div>
 
-      <div className="text-sm text-united-dark min-w-[180px]" dir="rtl">
+      <div className="text-xs text-united-dark min-w-[180px] space-y-0.5" dir="rtl">
         <div className="flex justify-between gap-3">
           <span className="text-united-dark/50">رقم الأوردر</span>
           <span className="font-extrabold">{orderNumber}</span>

@@ -20,21 +20,22 @@ import {
 import type { OrderStatus } from "@/lib/types";
 import { useNewOrderAlert, useAttentionAlert, useStalledAlert } from "@/lib/liveAlerts";
 import { useOperationalSettings } from "@/lib/use-operational-settings";
+import { useLocale } from "@/lib/locale";
 
 type QuickFilter = "all" | "attention" | "waiting" | "stalled" | "cancelled";
 
-const QUICK_FILTERS: { key: QuickFilter; label: string }[] = [
-  { key: "all", label: "الكل" },
-  { key: "attention", label: "🔴 فيه مشاكل" },
-  { key: "waiting", label: "⏳ مستنية حد يبدأ فيها" },
-  { key: "stalled", label: "⏸️ متوقفة من فترة" },
-  { key: "cancelled", label: "ملغي" },
+const QUICK_FILTER_KEYS: { key: QuickFilter; dictKey: string; emoji: string }[] = [
+  { key: "all", dictKey: "supervisor.quick.all", emoji: "" },
+  { key: "attention", dictKey: "supervisor.quick.attention", emoji: "🔴" },
+  { key: "waiting", dictKey: "supervisor.quick.waiting", emoji: "⏳" },
+  { key: "stalled", dictKey: "supervisor.quick.stalled", emoji: "⏸️" },
+  { key: "cancelled", dictKey: "supervisor.quick.cancelled", emoji: "" },
 ];
 
-const SORTS = [
-  { key: "priority", label: "الأهم الأول" },
-  { key: "delivery", label: "معاد التسليم" },
-  { key: "newest", label: "الأحدث" },
+const SORT_KEYS = [
+  { key: "priority", dictKey: "supervisor.sort.priority" },
+  { key: "delivery", dictKey: "supervisor.sort.delivery" },
+  { key: "newest", dictKey: "supervisor.sort.newest" },
 ] as const;
 
 function matchesSearch(o: OrderDTO, q: string) {
@@ -48,11 +49,14 @@ function matchesSearch(o: OrderDTO, q: string) {
 }
 
 export function SupervisorBoard() {
+  const { t, locale } = useLocale();
   const ops = useOperationalSettings();
+  const sortDict: Record<string, string> = {};
+  SORT_KEYS.forEach((sk) => { sortDict[sk.key] = t(sk.dictKey); });
   const [statusFilter, setStatusFilter] = useState<OrderStatus | null>(null);
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<(typeof SORTS)[number]["key"]>("priority");
+  const [sort, setSort] = useState<(typeof SORT_KEYS)[number]["key"]>("priority");
   const [showCreate, setShowCreate] = useState(false);
 
   const { data, isLoading, isError, error, refetch, dataUpdatedAt } = useQuery({
@@ -110,18 +114,18 @@ export function SupervisorBoard() {
   }, [all, statusFilter, quickFilter, search, sort, needsAttention, waiting, stalled, ops]);
 
   return (
-    <div className="p-4 max-w-5xl mx-auto pb-10">
-      <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-extrabold text-united-dark">مركز التحكم</h1>
+    <div className="page-container">
+      <div className="page-header">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="page-title">{t("supervisor.page-title")}</h1>
           <LiveIndicator dataUpdatedAt={dataUpdatedAt} isLoading={isLoading} />
         </div>
-        <div className="flex gap-2">
-          <Link href="/supervisor/audit" className="btn-secondary text-sm">
-            سجل المراجعة
+        <div className="flex gap-2 shrink-0">
+          <Link href="/supervisor/audit" className="btn-ghost btn-sm">
+            {t("supervisor.btn.audit-log")}
           </Link>
-          <button onClick={() => setShowCreate((s) => !s)} className="btn-primary text-sm">
-            {showCreate ? "إلغاء" : "+ أوردر يدوي"}
+          <button onClick={() => setShowCreate((s) => !s)} className="btn-primary btn-sm">
+            {showCreate ? t("supervisor.btn.cancel") : t("supervisor.btn.manual-order")}
           </button>
         </div>
       </div>
@@ -152,49 +156,49 @@ export function SupervisorBoard() {
         </div>
       )}
 
-      <div className="mt-5 flex flex-col sm:flex-row gap-2">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="دوّر باسم العميل أو رقم الأوردر..."
-          className="field flex-1"
-        />
+      <div className="toolbar">
+        <div className="relative flex-1">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("supervisor.search-placeholder")}
+            className="field field-sm pl-9"
+          />
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-united-muted text-sm">🔍</span>
+        </div>
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as typeof sort)}
-          className="field sm:w-48"
+          className="field field-sm sm:w-44"
         >
-          {SORTS.map((s) => (
+          <option value="">{t("supervisor.sort-label")}</option>
+          {SORT_KEYS.map((s) => (
             <option key={s.key} value={s.key}>
-              ترتيب: {s.label}
+              {sortDict[s.key]}
             </option>
           ))}
         </select>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto no-scrollbar mt-3 pb-1">
-        {QUICK_FILTERS.map((f) => (
+      <div className="filter-bar">
+        {QUICK_FILTER_KEYS.map((fk) => {
+          const count = fk.key === "attention" ? needsAttention.length : fk.key === "stalled" ? stalled.length : 0;
+          const isActive = quickFilter === fk.key && !statusFilter;
+          return (
           <button
-            key={f.key}
+            key={fk.key}
             onClick={() => {
-              setQuickFilter(f.key);
+              setQuickFilter(fk.key);
               setStatusFilter(null);
             }}
-            className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition ${
-              quickFilter === f.key && !statusFilter
-                ? "bg-united-dark text-white"
-                : "bg-white text-united-dark border border-united-border"
-            }`}
+            className={isActive ? "filter-pill-active" : "filter-pill-inactive"}
           >
-            {f.key === "attention"
-              ? `🔴 فيه مشاكل (${needsAttention.length})`
-              : f.key === "stalled"
-              ? `⏸️ متوقفة من فترة (${stalled.length})`
-              : f.label}
+            {count > 0 ? `${fk.emoji} ${t(fk.dictKey)} (${count})` : t(fk.dictKey)}
           </button>
-        ))}
-        <span className="px-4 py-2 text-sm font-bold text-united-muted whitespace-nowrap">
-          {activeCount} أوردر شغال دلوقتي
+        );
+        })}
+        <span className="px-3 py-2 text-sm font-bold text-united-muted whitespace-nowrap border-r border-united-border">
+          {activeCount} {t("supervisor.active-orders")}
         </span>
       </div>
 
@@ -206,14 +210,14 @@ export function SupervisorBoard() {
             icon="📭"
             title={
               search
-                ? "مفيش أوردرات مطابقة للبحث ده"
+                ? t("supervisor.empty-search")
                 : quickFilter === "attention"
-                ? "مفيش أوردرات محتاجة تدخل دلوقتي 👍"
+                ? t("supervisor.empty-attention")
                 : quickFilter === "waiting"
-                ? "مفيش أوردرات مستنية بدري 👍"
+                ? t("supervisor.empty-waiting")
                 : quickFilter === "stalled"
-                ? "مفيش أوردرات متوقفة 👍"
-                : "مفيش أوردرات في الفلتر ده"
+                ? t("supervisor.empty-stalled")
+                : t("supervisor.empty-filter")
             }
           />
         )}

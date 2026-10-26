@@ -67,8 +67,8 @@ export function InventoryView() {
   ];
 
   return (
-    <div className="p-4 max-w-5xl mx-auto pb-10 flex flex-col gap-4">
-      <h1 className="text-2xl font-extrabold text-united-dark">{t("stock.inventory")}</h1>
+    <div className="page-container">
+      <h1 className="page-title">{t("stock.inventory")}</h1>
       <Tabs value={tab} onChange={setTab} items={tabs} />
       {productId ? (
         <ProductPanel productId={productId} onClose={() => setProductId(null)} />
@@ -549,6 +549,9 @@ type DocumentDTO = {
 const DOC_TYPE_MAP: Record<string, string> = {
   transfer: "تحويل", adjustment: "تسوية", scrap: "هالك", customer_return: "مرتجع عميل", supplier_return: "مرتجع مورد", issue: "صرف",
 };
+const DOC_TYPE_MAP_EN: Record<string, string> = {
+  transfer: "Transfer", adjustment: "Adjustment", scrap: "Scrap", customer_return: "Customer Return", supplier_return: "Supplier Return", issue: "Issue",
+};
 
 const DOC_STATUS_MAP: Record<string, { label: string; cls: string }> = {
   posted: { label: "متسجل", cls: "bg-united-green/10 text-united-green" },
@@ -556,16 +559,23 @@ const DOC_STATUS_MAP: Record<string, { label: string; cls: string }> = {
   rejected: { label: "مرفوض", cls: "bg-united-danger/10 text-united-danger" },
   reversed: { label: "اتلغى", cls: "bg-united-dark/5 text-united-muted" },
 };
+const DOC_STATUS_MAP_EN: Record<string, { label: string; cls: string }> = {
+  posted: { label: "Posted", cls: "bg-united-green/10 text-united-green" },
+  pending_approval: { label: "Pending Approval", cls: "bg-united-warn/10 text-united-warn" },
+  rejected: { label: "Rejected", cls: "bg-united-danger/10 text-united-danger" },
+  reversed: { label: "Reversed", cls: "bg-united-dark/5 text-united-muted" },
+};
 
 function Documents() {
   const { can } = usePermissions();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [type, setType] = useState("");
   const [highlight, setHighlight] = useState<string | null>(null);
   const [dPage, setDPage] = useState(1);
   const dPageSize = 50;
   useEffect(() => setHighlight(new URLSearchParams(window.location.search).get("doc")), []);
   const onTypeChange = (t2: string) => { setType(t2); setDPage(1); };
+  const dm = locale === "en" ? DOC_TYPE_MAP_EN : DOC_TYPE_MAP;
   const q = useQuery({
     queryKey: ["stock", "inventory", "documents", type, dPage],
     queryFn: () => apiFetch<{ documents: DocumentDTO[]; pagination: { total: number } }>(`/api/inventory/documents?limit=${dPageSize}&offset=${(dPage - 1) * dPageSize}${type ? `&type=${type}` : ""}`),
@@ -573,7 +583,7 @@ function Documents() {
   });
   return (
     <div className="flex flex-col gap-3">
-      <Tabs value={type} onChange={onTypeChange} items={[{ key: "", label: t("stock.doc-all") }, ...Object.entries(DOC_TYPE_MAP).map(([k, v]) => ({ key: k, label: v }))]} />
+      <Tabs value={type} onChange={onTypeChange} items={[{ key: "", label: t("stock.doc-all") }, ...Object.entries(dm).map(([k, v]) => ({ key: k, label: v }))]} />
       {q.isLoading && <LoadingState />}
       {q.isError && <ErrorState message={errorMessage(q.error)} onRetry={() => q.refetch()} />}
       {q.data && q.data.documents.length === 0 && <EmptyState icon="🗂️" title={t("stock.empty-documents")} />}
@@ -590,16 +600,17 @@ function Documents() {
 function DocumentCard({ d, highlight, canReverse }: { d: DocumentDTO; highlight: boolean; canReverse: boolean }) {
   const qc = useQueryClient();
   const toast = useToast();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [open, setOpen] = useState(highlight);
   const [reason, setReason] = useState("");
-  const st = DOC_STATUS_MAP[d.status] ?? { label: d.status, cls: "" };
+  const dtm = locale === "en" ? DOC_TYPE_MAP_EN : DOC_TYPE_MAP;
+  const st = (locale === "en" ? DOC_STATUS_MAP_EN : DOC_STATUS_MAP)[d.status] ?? { label: d.status, cls: "" };
   return (
     <li className={`card p-4 flex flex-col gap-2 ${highlight ? "border-2 border-united-green" : ""}`}>
       <button type="button" className="flex items-center justify-between gap-2 text-start" onClick={() => setOpen(!open)}>
         <span className="font-extrabold" dir="ltr">{d.number}</span>
         <span className="flex items-center gap-2">
-          <span className="text-xs font-bold text-united-muted">{DOC_TYPE_MAP[d.type] ?? d.type} · {d.businessDate}</span>
+          <span className="text-xs font-bold text-united-muted">{dtm[d.type] ?? d.type} · {d.businessDate}</span>
           <span className={`rounded-full px-2 text-xs font-extrabold ${st.cls}`}>{st.label}</span>
         </span>
       </button>

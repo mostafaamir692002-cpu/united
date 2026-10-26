@@ -74,9 +74,10 @@ function useSubmit() {
   return { busy, error, setError, run, toast };
 }
 
-function QtyInput({ value, onChange, label = "الكمية" }: { value: string; onChange: (v: string) => void; label?: string }) {
+function QtyInput({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
+  const { t } = useLocale();
   return (
-    <Field label={label}>
+    <Field label={label ?? t("stock.qty")}>
       <input inputMode="decimal" dir="ltr" className="field text-2xl font-extrabold text-center" value={value} onChange={(e) => onChange(e.target.value.replace(",", "."))} />
     </Field>
   );

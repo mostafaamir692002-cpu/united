@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiClientError, errorMessage } from "@/lib/api-client";
 import { useToast } from "@/components/ui/Toast";
 import { ATTACHMENT_CATEGORIES, ATTACHMENT_CATEGORY_LABEL, type AttachmentCategory } from "@/lib/core/attachment-entities";
+import { useLocale } from "@/lib/locale/useLocale";
 
 type AttachmentDTO = {
   id: string;
@@ -25,6 +26,7 @@ const size = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)}
  * server; `canManage` only decides whether the buttons are shown.
  */
 export function AttachmentsPanel({ entityType, entityId, canManage }: { entityType: string; entityId: string; canManage: boolean }) {
+  const { t } = useLocale();
   const qc = useQueryClient();
   const toast = useToast();
   const input = useRef<HTMLInputElement>(null);
@@ -59,11 +61,11 @@ export function AttachmentsPanel({ entityType, entityId, canManage }: { entityTy
           : undefined,
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new ApiClientError(data.error ?? `خطأ (${res.status})`);
-      toast.show(data.duplicate ? "الملف ده مرفوع بالفعل" : "اترفع الملف", "success");
+      if (!res.ok) throw new ApiClientError(t("ui.attachment-error-status", { status: res.status }));
+      toast.show(data.duplicate ? t("ui.attachment-duplicate") : t("ui.attachment-uploaded"), "success");
       await qc.invalidateQueries({ queryKey: key });
     } catch (err) {
-      toast.show(err instanceof ApiClientError ? err.message : "حصل خطأ في الرفع", "error");
+      toast.show(err instanceof ApiClientError ? err.message : t("ui.attachment-upload-error"), "error");
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";
@@ -71,21 +73,21 @@ export function AttachmentsPanel({ entityType, entityId, canManage }: { entityTy
   }
 
   async function remove(a: AttachmentDTO) {
-    const reason = window.prompt(`سبب حذف "${a.fileName}"؟`);
+    const reason = window.prompt(t("ui.attachment-delete-prompt", { name: a.fileName }));
     if (!reason?.trim()) return;
     try {
       await apiFetch(`/api/attachments/${a.id}`, { method: "DELETE", body: JSON.stringify({ reason }) });
       await qc.invalidateQueries({ queryKey: key });
     } catch (err) {
-      toast.show(err instanceof ApiClientError ? err.message : "حصل خطأ", "error");
+      toast.show(err instanceof ApiClientError ? err.message : t("ui.error"), "error");
     }
   }
 
   const items = q.data?.attachments ?? [];
   return (
     <div>
-      {q.isError && <p className="text-sm font-bold text-united-danger">{errorMessage(q.error) ?? "مش قادرين نجيب المرفقات"}</p>}
-      {items.length === 0 && !q.isLoading && <p className="text-sm font-bold text-united-muted">مفيش مرفقات</p>}
+      {q.isError && <p className="text-sm font-bold text-united-danger">{errorMessage(q.error) ?? t("ui.attachment-fetch-error")}</p>}
+      {items.length === 0 && !q.isLoading && <p className="text-sm font-bold text-united-muted">{t("ui.attachment-empty")}</p>}
       <ul className="flex flex-col divide-y divide-united-border">
         {items.map((a) => (
           <li key={a.id} className="py-2 flex items-center justify-between gap-2">
@@ -102,7 +104,7 @@ export function AttachmentsPanel({ entityType, entityId, canManage }: { entityTy
             </a>
             {canManage && (
               <button type="button" onClick={() => remove(a)} className="btn-danger !min-h-0 py-1.5 px-3 text-xs">
-                حذف
+                {t("ui.attachment-delete-btn")}
               </button>
             )}
           </li>
@@ -125,7 +127,7 @@ export function AttachmentsPanel({ entityType, entityId, canManage }: { entityTy
             onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
           />
           <button type="button" className="btn-secondary" disabled={busy} onClick={() => input.current?.click()}>
-            {busy ? "جاري الرفع…" : "📎 رفع ملف"}
+            {busy ? t("ui.attachment-uploading") : t("ui.attachment-upload-btn")}
           </button>
         </div>
       )}

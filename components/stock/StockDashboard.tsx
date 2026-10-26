@@ -28,13 +28,13 @@ export function StockDashboard() {
   });
 
   return (
-    <div className="p-4 max-w-3xl mx-auto pb-10 flex flex-col gap-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold text-united-dark">{t("stock.page-title")}</h1>
+    <div className="page-container max-w-3xl">
+      <div className="page-header">
+        <h1 className="page-title">{t("stock.page-title")}</h1>
         <LiveIndicator dataUpdatedAt={dataUpdatedAt} isLoading={isLoading} />
       </div>
 
-      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
+      <div className="flex gap-2 overflow-x-auto no-scrollbar">
         {[
           { href: "/stock/entries", label: t("stock.nav-intake-list") },
           { href: "/stock/ledger", label: t("stock.nav-ledger") },
@@ -55,7 +55,7 @@ export function StockDashboard() {
 
       {data && (
         <>
-          <section className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <section className="kpi-grid">
             <StatTile label={t("stock.stat-today-received")} value={fmtKg(data.today.receivedKg)} unit={t("stock.unit-kg")} sub={`${data.today.intakeCount} ${t("stock.stat-intake-count")}`} />
             <StatTile label={t("stock.stat-net-good")} value={fmtKg(data.today.goodKg)} unit={t("stock.unit-kg")} tone="good" />
             <StatTile label={t("stock.stat-sort-rejected")} value={fmtKg(data.today.rejectedKg)} unit={t("stock.unit-kg")} tone={data.today.rejectedKg > 0 ? "warn" : "muted"} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "@/lib/locale";
 
 /** The truck-leaving confirmation — requires driver name, vehicle number, and crate
  * count before it will actually fire, since a dispatched order with a blank manifest
@@ -12,6 +13,7 @@ export function DispatchButton({
   busy?: boolean;
   onConfirm: (info: { vehicle: string; driverName: string; crateCount: number }) => Promise<void>;
 }) {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [vehicle, setVehicle] = useState("");
   const [driverName, setDriverName] = useState("");
@@ -20,7 +22,7 @@ export function DispatchButton({
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} className="btn-dark w-full text-xl">
-        العربية جاهزة للخروج 🚚
+        {t("orders.dispatch_btn.label")}
       </button>
     );
   }
@@ -29,17 +31,17 @@ export function DispatchButton({
 
   return (
     <div className="card p-5 flex flex-col gap-3">
-      <h2 className="font-extrabold text-united-dark">بيانات الخروج</h2>
+      <h2 className="font-extrabold text-united-dark">{t("orders.dispatch_btn.title")}</h2>
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-bold text-united-muted">اسم السواق</span>
+        <span className="text-sm font-bold text-united-muted">{t("orders.dispatch_btn.driver_label")}</span>
         <input value={driverName} onChange={(e) => setDriverName(e.target.value)} className="field" autoFocus />
       </label>
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-bold text-united-muted">رقم/اسم العربية</span>
+        <span className="text-sm font-bold text-united-muted">{t("orders.dispatch_btn.vehicle_label")}</span>
         <input value={vehicle} onChange={(e) => setVehicle(e.target.value)} className="field" />
       </label>
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-bold text-united-muted">عدد البرنيكة</span>
+        <span className="text-sm font-bold text-united-muted">{t("orders.dispatch_btn.crates_label")}</span>
         <input
           type="number"
           inputMode="numeric"
@@ -57,10 +59,10 @@ export function DispatchButton({
           }}
           className="btn-primary flex-1 text-lg"
         >
-          تأكيد الخروج
+          {t("orders.dispatch_btn.confirm_btn")}
         </button>
         <button onClick={() => setOpen(false)} className="btn-secondary px-5">
-          إلغاء
+          {t("ui.cancel")}
         </button>
       </div>
     </div>

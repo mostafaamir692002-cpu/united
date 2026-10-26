@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { OrderItemDTO } from "@/lib/client-types";
 import { QuantityInput } from "@/components/QuantityInput";
 import { qty as qtyLabel } from "@/lib/format";
+import { useLocale } from "@/lib/locale";
 
 type Mode = "display" | "prepare" | "load";
 
@@ -20,6 +21,7 @@ export function ItemRow({
   busy?: boolean;
   supervisorEdit?: { onSave: (qty: number, reason: string) => Promise<void> };
 }) {
+  const { t } = useLocale();
   const startValue =
     mode === "load"
       ? item.loadedQuantity ?? item.preparedQuantity ?? item.requiredQuantity
@@ -82,6 +84,35 @@ export function ItemRow({
     item.loadedQuantity !== item.preparedQuantity &&
     item.loadedQuantity >= item.requiredQuantity;
 
+  // Figure component that uses t() for its label
+  function Figure({
+    labelKey,
+    value,
+    unit,
+    tone = "neutral",
+  }: {
+    labelKey: Parameters<typeof t>[0];
+    value: string;
+    unit: string;
+    tone?: "neutral" | "done" | "pending" | "short";
+  }) {
+    const toneClass = {
+      neutral: "text-united-dark",
+      done: "text-united-green",
+      pending: "text-united-dark/40",
+      short: "text-united-danger",
+    }[tone];
+    return (
+      <div>
+        <div className="text-[11px] text-united-muted mb-0.5">{t(labelKey)}</div>
+        <div dir="ltr" className={`font-extrabold text-lg sm:text-xl ${toneClass}`}>
+          {value}
+          {value !== "—" && <span className="text-[10px] font-bold text-united-dark/40"> {unit}</span>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`card p-4 sm:p-5 border-2 ${short ? "!border-united-danger/30" : "!border-united-border"}`}>
       <div className="flex items-center justify-between mb-3">
@@ -96,24 +127,23 @@ export function ItemRow({
       {/* Required / prepared / loaded / remaining — every figure carries its unit, and
           "remaining" is shown rather than left for the operator to subtract. */}
       <div className="grid grid-cols-4 gap-2 text-center mb-3">
-        <Figure label="المطلوب" value={qtyLabel(item.requiredQuantity)} unit={item.unit} />
+        <Figure labelKey={mode === "load" ? "orders.item.remaining.loading" : "orders.item.remaining.prep"} value={qtyLabel(remaining)} unit={item.unit} tone={remaining > 0 ? "short" : "done"} />
         <Figure
-          label="اتجهز"
-          value={qtyLabel(item.preparedQuantity)}
-          unit={item.unit}
-          tone={item.preparationStatus === "done" ? "done" : "pending"}
-        />
-        <Figure
-          label="اتحمل"
+          labelKey="orders.item.loaded"
           value={qtyLabel(item.loadedQuantity)}
           unit={item.unit}
           tone={item.loadingStatus === "done" ? "done" : "pending"}
         />
         <Figure
-          label={mode === "load" ? "فاضل تحميل" : "فاضل تجهيز"}
-          value={qtyLabel(remaining)}
+          labelKey="orders.item.prepared"
+          value={qtyLabel(item.preparedQuantity)}
           unit={item.unit}
-          tone={remaining > 0 ? "short" : "done"}
+          tone={item.preparationStatus === "done" ? "done" : "pending"}
+        />
+        <Figure
+          labelKey="orders.item.required"
+          value={qtyLabel(item.requiredQuantity)}
+          unit={item.unit}
         />
       </div>
 
@@ -133,30 +163,33 @@ export function ItemRow({
               className={`px-6 text-lg btn-primary ${isOutlier && !outlierConfirmed ? "!bg-united-warn" : ""}`}
             >
               {busy
-                ? "بيتسجل…"
+                ? t("orders.item.confirm_recording")
                 : isOutlier && !outlierConfirmed
-                ? "⚠️ متأكد من الكمية؟"
+                ? t("orders.item.outlier_confirm")
                 : mode === "prepare"
-                ? "✓ اتجهز"
-                : "✓ اتحمل"}
+                ? t("orders.item.done_prep")
+                : t("orders.item.done_load")}
             </button>
           </div>
           {/* Inline prepared-vs-ordered comparison — updates immediately on every keystroke. */}
           <div className="flex items-center gap-2 mt-2 text-sm font-bold">
-            <span className="text-united-muted">المطلوب:</span>
+            <span className="text-united-muted">{t("orders.item.req_label")}</span>
             <span dir="ltr" className="text-united-dark">{qtyLabel(item.requiredQuantity)} {item.unit}</span>
-            <span className="text-united-muted">| التجهيز:</span>
+            <span className="text-united-muted">{t("orders.item.prep_label")}</span>
             <span dir="ltr" className={qty > item.requiredQuantity ? "text-united-warn" : "text-united-green"}>{qtyLabel(qty)} {item.unit}</span>
           </div>
           {qty > item.requiredQuantity && (
             <p className="text-united-danger font-bold text-sm mt-1">
-              ⚠️ الكمية المعدة ({qtyLabel(qty)}) أكتر من المطلوب ({qtyLabel(item.requiredQuantity)})
+              {t("orders.item.excess_warning", { qty: qtyLabel(qty), required: qtyLabel(item.requiredQuantity) })}
             </p>
           )}
           {isOutlier && (
             <p className="text-united-warn font-bold text-sm mt-2">
-              الكمية دي بعيدة عن المطلوب (<span dir="ltr">{qtyLabel(item.requiredQuantity)} {item.unit}</span>) —{" "}
-              {outlierConfirmed ? "دوس التأكيد تاني عشان تتسجل." : "اضغط تاني لو متأكد."}
+              {t("orders.item.outlier_warning", {
+                required: qtyLabel(item.requiredQuantity),
+                unit: item.unit,
+                msg: outlierConfirmed ? t("orders.item.outlier_confirmed_msg") : t("orders.item.outlier_pending_msg"),
+              })}
             </p>
           )}
         </div>
@@ -164,15 +197,11 @@ export function ItemRow({
 
       {short && (
         <p className="text-united-danger font-bold mt-2">
-          ⚠️ ناقص{" "}
-          <span dir="ltr">
-            {qtyLabel(item.requiredQuantity - (mode === "load" ? item.loadedQuantity! : item.preparedQuantity!))} {item.unit}
-          </span>{" "}
-          عن المطلوب
+          ⚠️ {t("orders.item.shortage_text", { qty: qtyLabel(item.requiredQuantity - (mode === "load" ? item.loadedQuantity! : item.preparedQuantity!)), unit: item.unit })}
         </p>
       )}
       {!short && mismatch && (
-        <p className="text-united-warn font-bold mt-2">⚠️ الكمية مختلفة عن اللي اتجهزت</p>
+        <p className="text-united-warn font-bold mt-2">{t("orders.item.mismatch_warning")}</p>
       )}
 
       {supervisorEdit && (
@@ -182,7 +211,7 @@ export function ItemRow({
               onClick={() => setEditingRequired(true)}
               className="text-sm font-bold text-united-muted underline"
             >
-              عدّل الكمية المطلوبة
+              {t("orders.item.edit_required_btn")}
             </button>
           ) : (
             <div className="flex flex-col gap-2">
@@ -194,7 +223,7 @@ export function ItemRow({
                   className="field w-24 text-center"
                 />
                 <input
-                  placeholder="السبب..."
+                  placeholder={t("orders.item.reason_placeholder")}
                   value={reqReason}
                   onChange={(e) => setReqReason(e.target.value)}
                   className="field flex-1"
@@ -210,46 +239,16 @@ export function ItemRow({
                   }}
                   className="btn-primary flex-1"
                 >
-                  حفظ
+                  {t("ui.save")}
                 </button>
                 <button onClick={() => setEditingRequired(false)} className="btn-secondary">
-                  إلغاء
+                  {t("ui.cancel")}
                 </button>
               </div>
             </div>
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-/** One labelled figure in the item's quantity grid. dir="ltr" on the number keeps the
- * value and its unit from being visually reordered inside the RTL page. */
-function Figure({
-  label,
-  value,
-  unit,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string;
-  unit: string;
-  tone?: "neutral" | "done" | "pending" | "short";
-}) {
-  const toneClass = {
-    neutral: "text-united-dark",
-    done: "text-united-green",
-    pending: "text-united-dark/40",
-    short: "text-united-danger",
-  }[tone];
-  return (
-    <div>
-      <div className="text-[11px] text-united-muted mb-0.5">{label}</div>
-      <div dir="ltr" className={`font-extrabold text-lg sm:text-xl ${toneClass}`}>
-        {value}
-        {value !== "—" && <span className="text-[10px] font-bold text-united-dark/40"> {unit}</span>}
-      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "@/lib/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, apiPatch, apiPost, ApiClientError, errorMessage } from "@/lib/api-client";
 import { LoadingState, EmptyState, ErrorState } from "@/components/States";
@@ -13,6 +14,7 @@ import type { SupplierDTO } from "@/lib/stock-client-types";
 export function SuppliersPanel({ canManage }: { canManage: boolean }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useLocale();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -32,11 +34,11 @@ export function SuppliersPanel({ canManage }: { canManage: boolean }) {
     try {
       await apiPost("/api/stock/suppliers", { name, phone: phone || undefined });
       await invalidateStockData(qc);
-      toast.show("اتضاف المورد", "success");
+      toast.show(t("suppliers.toast-added"), "success");
       setName("");
       setPhone("");
     } catch (err) {
-      const msg = err instanceof ApiClientError ? err.message : "حصل خطأ";
+      const msg = err instanceof ApiClientError ? err.message : t("ui.error");
       setError(msg);
       toast.show(msg, "error");
     } finally {
@@ -51,7 +53,7 @@ export function SuppliersPanel({ canManage }: { canManage: boolean }) {
       await apiPatch(`/api/stock/suppliers/${s.id}`, { active: !s.active, expected_version: s.version });
       await invalidateStockData(qc);
     } catch (err) {
-      toast.show(err instanceof ApiClientError ? err.message : "حصل خطأ", "error");
+      toast.show(err instanceof ApiClientError ? err.message : t("ui.error"), "error");
     } finally {
       setTogglingId(null);
     }
@@ -60,19 +62,19 @@ export function SuppliersPanel({ canManage }: { canManage: boolean }) {
   return (
     <>
       {canManage && <form onSubmit={add} className="card p-4 flex flex-col gap-3">
-        <h2 className="font-extrabold text-united-dark">إضافة مورد</h2>
+        <h2 className="font-extrabold text-united-dark">{t("suppliers.form-title")}</h2>
         {error && <p className="text-united-danger font-bold text-sm">{error}</p>}
-        <input placeholder="اسم المورد" value={name} onChange={(e) => setName(e.target.value)} className="field" />
-        <input placeholder="تليفون (اختياري)" value={phone} onChange={(e) => setPhone(e.target.value)} className="field" inputMode="tel" />
+        <input placeholder={t("suppliers.name-field")} value={name} onChange={(e) => setName(e.target.value)} className="field" />
+        <input placeholder={t("suppliers.phone-field")} value={phone} onChange={(e) => setPhone(e.target.value)} className="field" inputMode="tel" />
         <button type="submit" disabled={busy || !name.trim()} className="btn-primary text-sm">
-          إضافة
+          {t("suppliers.btn-add")}
         </button>
       </form>}
 
       <section className="card p-4">
         {isLoading && <LoadingState />}
         {isError && <ErrorState message={errorMessage(queryError)} onRetry={() => refetch()} />}
-        {!isLoading && (data?.suppliers.length ?? 0) === 0 && <EmptyState icon="🚚" title="مفيش موردين لسه" />}
+        {!isLoading && (data?.suppliers.length ?? 0) === 0 && <EmptyState icon="🚚" title={t("suppliers.empty")} />}
         <ul className="flex flex-col divide-y divide-united-border">
           {data?.suppliers.map((s) => (
             <li key={s.id} className="flex items-center justify-between py-3 gap-2">
@@ -87,7 +89,7 @@ export function SuppliersPanel({ canManage }: { canManage: boolean }) {
                   s.active ? "bg-united-green/10 text-united-green" : "bg-united-dark/10 text-united-muted"
                 }`}
               >
-                {togglingId === s.id ? "…" : s.active ? "شغّال" : "موقوف"}
+                {togglingId === s.id ? "…" : s.active ? t("suppliers.status-active") : t("suppliers.status-inactive")}
               </button>}
             </li>
           ))}

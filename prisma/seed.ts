@@ -50,7 +50,7 @@ export async function runSeed(prisma: PrismaClient) {
   await syncPermissionCatalogue();
   await seedReferenceData(prisma);
 
-  await upsertUser(prisma, "admin", "مدير النظام", "SUPER_ADMIN", "1234");
+  await upsertUser(prisma, "admin", "آدم", "SUPER_ADMIN", "1234");
   await upsertUser(prisma, "ahmed", "أحمد", "PREPARER", "1234");
   await upsertUser(prisma, "mostafa", "مصطفى", "LOADER", "1234");
   await upsertUser(prisma, "sara", "سارة", "SUPERVISOR", "1234");
@@ -153,6 +153,11 @@ export async function runSeed(prisma: PrismaClient) {
       vehicle: "عربية 3",
       items: {
         create: [
+          {
+            productName: "Mango Naomi",
+            unit: "KG",
+            requiredQuantity: 5,
+          },
           {
             productName: "هليون",
             unit: "KG",

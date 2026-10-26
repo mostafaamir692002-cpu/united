@@ -55,8 +55,8 @@ export function OperationsView() {
     if (t2 === "exceptions" || t2 === "fleet") setTab(t2 as Tab);
   }, []);
   return (
-    <div className="p-4 max-w-5xl mx-auto pb-10 flex flex-col gap-4">
-      <h1 className="text-2xl font-extrabold text-united-dark">{t("ops.title")}</h1>
+    <div className="page-container">
+      <h1 className="page-title">{t("ops.title")}</h1>
       <Tabs value={tab} onChange={(v: string) => setTab(v as Tab)} items={((): Array<{ key: string; label: string }> => [
         { key: "trips", label: t("ops.trips") },
         { key: "exceptions", label: t("ops.tab.exceptions") },

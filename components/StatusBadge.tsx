@@ -1,5 +1,6 @@
 import type { OrderStatus } from "@/lib/types";
-import { STATUS_DOT, STATUS_LABEL } from "@/lib/orderPresentation";
+import { STATUS_DOT, STATUS_LABEL, STATUS_LABEL_EN } from "@/lib/orderPresentation";
+import { useLocale } from "@/lib/locale";
 
 const STYLES: Record<OrderStatus, string> = {
   new: "bg-blue-100 text-blue-800",
@@ -12,12 +13,13 @@ const STYLES: Record<OrderStatus, string> = {
 };
 
 export function StatusBadge({ status }: { status: OrderStatus }) {
+  const { locale } = useLocale();
   return (
     <span
       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold whitespace-nowrap ${STYLES[status]}`}
     >
       <span>{STATUS_DOT[status]}</span>
-      {STATUS_LABEL[status]}
+      {locale === "en" ? STATUS_LABEL_EN[status] : STATUS_LABEL[status]}
     </span>
   );
 }

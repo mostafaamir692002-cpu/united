@@ -238,6 +238,14 @@ export const SOURCE_LABEL: Record<string, string> = {
   hermes: "Hermes",
 };
 
+export const SOURCE_LABEL_EN: Record<string, string> = {
+  user: "User",
+  manual: "Manual",
+  system: "System",
+  n8n: "n8n",
+  hermes: "Hermes",
+};
+
 export function timeLabel(iso: string) {
   return new Date(iso).toLocaleString("ar-EG", {
     hour: "2-digit",

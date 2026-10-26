@@ -72,8 +72,8 @@ export function AccountingView() {
     ...(can("accounting.manage") ? [{ key: "reconcile" as Tab, label: t("accounting.tab.reconcile") }, { key: "opening" as Tab, label: t("accounting.tab.opening") }] : []),
   ];
   return (
-    <div className="p-4 max-w-5xl mx-auto pb-10 flex flex-col gap-4">
-      <h1 className="text-2xl font-extrabold text-united-dark">{t("accounting.title")}</h1>
+    <div className="page-container">
+      <h1 className="page-title">{t("accounting.title")}</h1>
       <Tabs value={tab} onChange={setTab} items={items} />
       {tab === "health" ? <Health /> : tab === "opening" ? <Opening /> : tab === "cash" ? <Cash /> : tab === "receipts" ? <><MoneyIn kind="receipts" /><Refunds kind="customer" /></> : tab === "payments" ? <><MoneyIn kind="payments" /><Refunds kind="supplier" /></> : tab === "journals" ? <Journals /> : tab === "trial" ? <Trial /> : tab === "vat" ? <VatSummary /> : tab === "periods" ? <Periods /> : <Reconcile />}
     </div>
@@ -159,7 +159,7 @@ function MoneyIn({ kind }: { kind: "receipts" | "payments" }) {
               {open.data.map((d) => (
                 <li key={d.id} className="py-1 flex items-center justify-between gap-2">
                   <span><span dir="ltr">{d.number}</span> · {t("accounting.due-date")} {d.dueDate} · {t("accounting.open")} <span dir="ltr">{fmtMoney(d.open)}</span></span>
-                  <input className="field w-28" dir="ltr" inputMode="decimal" placeholder={t("accounting.form.allocate")} aria-label={`تخصيص ${d.number}`} value={alloc[d.id] ?? ""} onChange={(e) => setAlloc({ ...alloc, [d.id]: e.target.value })} />
+                  <input className="field w-28" dir="ltr" inputMode="decimal" placeholder={t("accounting.form.allocate")} aria-label={`${t("accounting.form.allocate")} ${d.number}`} value={alloc[d.id] ?? ""} onChange={(e) => setAlloc({ ...alloc, [d.id]: e.target.value })} />
                 </li>
               ))}
             </ul>

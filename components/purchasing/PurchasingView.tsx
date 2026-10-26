@@ -21,21 +21,9 @@ type Tab = "orders" | "replenishment" | "rfqs" | "suppliers" | "bills";
 type Catalog = { products: { id: string; name: string; nameAr: string | null; unit: string; packagings: { uomCode: string }[] }[] };
 type SupplierRow = { id: string; code: string; name: string; type: string; phone: string | null; city: string | null; paymentTermsDays: number; leadTimeDays: number | null; active: boolean; version: number; taxRegistrationNo: string | null; email: string | null; address: string | null };
 
-export const PO_STATUS: Record<string, { label: string; cls: string }> = {
-  draft: { label: "مسودة", cls: "bg-united-dark/5" },
-  pending_approval: { label: "مستني اعتماد", cls: "bg-united-warn/10 text-united-warn" },
-  approved: { label: "معتمد", cls: "bg-blue-50 text-blue-700" },
-  sent: { label: "اتبعت للمورد", cls: "bg-blue-50 text-blue-700" },
-  partially_received: { label: "استلام جزئي", cls: "bg-united-warn/10 text-united-warn" },
-  received: { label: "اتستلم", cls: "bg-united-green/10 text-united-green" },
-  closed: { label: "مقفول", cls: "bg-united-dark/5 text-united-muted" },
-  cancelled: { label: "ملغي", cls: "bg-united-danger/10 text-united-danger" },
-};
-const SUPPLIER_TYPE: Record<string, string> = { farm: "مزرعة", grower: "مزارع", wholesaler: "تاجر جملة", market_trader: "تاجر سوق العبور", importer: "مستورد", packaging: "تغليف", services: "خدمات", other: "أخرى" };
-
 function errorMsg(err: unknown): string {
   if (err instanceof ApiClientError) return err.message;
-  return "حصل خطأ";
+  return ""; // localized in caller via t("purchasing.bill.error-generic") fallback
 }
 
 export function PurchasingView() {
@@ -84,13 +72,13 @@ export function PurchasingView() {
     ...(can("purchasing.bills.view") ? [{ key: "bills" as Tab, label: t("purchasing.bills") }] : []),
   ];
   return (
-    <div className="p-4 max-w-5xl mx-auto pb-10 flex flex-col gap-4">
-      <h1 className="text-2xl font-extrabold text-united-dark">{t("purchasing.title")}</h1>
+    <div className="page-container">
+      <h1 className="page-title">{t("purchasing.title")}</h1>
       <Tabs value={tab} onChange={(tVal) => { setTab(tVal); setPoId(null); setBillId(null); }} items={tabs} />
       {poId ? (
-        <PoDetail id={poId} onClose={() => setPoId(null)} locale={locale} t={t} />
+        <PoDetail id={poId} onClose={() => setPoId(null)} locale={locale} t={t} poStatus={PO_STATUS} />
       ) : tab === "orders" ? (
-        <Orders onOpen={setPoId} locale={locale} t={t} />
+        <Orders onOpen={setPoId} locale={locale} t={t} poStatus={PO_STATUS} />
       ) : tab === "replenishment" ? (
         <Replenishment onCreateRfq={(lines) => { setRfqSeed(lines); setTab("rfqs"); }} locale={locale} t={t} />
       ) : tab === "rfqs" ? (
@@ -111,7 +99,7 @@ export function PurchasingView() {
 type PoLine = { id: string; lineNo: number; productId: string; product: { name: string; nameAr: string | null; unit: string }; uomCode: string; quantity: string; baseQuantity: string; receivedGood: string; rejected: string; remaining: string; unitPrice?: string; discountPct?: string; taxRate?: string; priceSource?: string; amounts?: { total: string } };
 type Po = { id: string; number: string; status: string; supplier: { id: string; code: string; name: string }; orderDate: string; expectedDate: string | null; notes: string | null; cancelReason: string | null; approvedBy: string | null; version: number; createdBy: string; lines: PoLine[]; total?: string; net?: string; taxTotal?: string; currencyCode?: string };
 
-function Orders({ onOpen, locale, t }: { onOpen: (id: string) => void; locale: string; t: (key: string) => string }) {
+function Orders({ onOpen, locale, t, poStatus }: { onOpen: (id: string) => void; locale: string; t: (key: string) => string; poStatus: Record<string, { label: string; cls: string }> }) {
   const { can } = usePermissions();
   const [status, setStatus] = useState("open");
   const [creating, setCreating] = useState(false);
@@ -129,7 +117,7 @@ function Orders({ onOpen, locale, t }: { onOpen: (id: string) => void; locale: s
         {can("purchasing.orders.manage") && <button type="button" className="btn-primary shrink-0" onClick={() => setCreating(true)}>{t("purchasing.orders.btn.new")}</button>}
       </div>
       {q.isLoading && <LoadingState />}
-      {q.isError && <ErrorState message={errorMsg(q.error)} onRetry={() => q.refetch()} />}
+      {q.isError && <ErrorState message={t("sales.invoice.error-generic")} onRetry={() => q.refetch()} />}
       {q.data && q.data.orders.length === 0 && <EmptyState icon="🛒" title={t("purchasing.orders.empty")} />}
       <ul className="flex flex-col gap-2">
         {q.data?.orders.map((po) => (
@@ -140,7 +128,7 @@ function Orders({ onOpen, locale, t }: { onOpen: (id: string) => void; locale: s
                 <div className="text-xs font-bold text-united-muted">{po.lines.length} {t("purchasing.orders.lines_label")} · {po.orderDate}{po.expectedDate ? ` · ${t("purchasing.orders.expected_date")} ${po.expectedDate}` : ""}</div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <span className={`rounded-full px-2 text-xs font-extrabold ${PO_STATUS[po.status]?.cls}`}>{PO_STATUS[po.status]?.label}</span>
+                <span className={`rounded-full px-2 text-xs font-extrabold ${poStatus[po.status]?.cls}`}>{poStatus[po.status]?.label}</span>
                 {po.total !== undefined && <span dir="ltr" className="font-extrabold">{fmtMoney(po.total)}</span>}
               </div>
             </button>
@@ -224,14 +212,14 @@ function NewPo({ onDone, locale, t }: { onDone: (id?: string) => void; locale: s
   );
 }
 
-function PoDetail({ id, onClose, locale, t }: { id: string; onClose: () => void; locale: string; t: (key: string) => string }) {
+function PoDetail({ id, onClose, locale, t, poStatus }: { id: string; onClose: () => void; locale: string; t: (key: string) => string; poStatus: Record<string, { label: string; cls: string }> }) {
   const { can } = usePermissions();
   const qc = useQueryClient();
   const toast = useToast();
   const [reason, setReason] = useState("");
   const q = useQuery({ queryKey: ["purchasing", "order", id], queryFn: () => apiFetch<{ order: Po }>(`/api/purchasing/orders/${id}`) });
   if (q.isLoading) return <LoadingState />;
-  if (q.isError || !q.data) return <ErrorState message={errorMsg(q.error)} onRetry={() => q.refetch()} />;
+  if (q.isError || !q.data) return <ErrorState message={t("sales.invoice.error-generic")} onRetry={() => q.refetch()} />;
   const po = q.data.order;
   const manage = can("purchasing.orders.manage");
   const act = async (path: string, body: Record<string, unknown> = {}) => {
@@ -246,8 +234,8 @@ function PoDetail({ id, onClose, locale, t }: { id: string; onClose: () => void;
         </div>
         <button type="button" className="btn-secondary" onClick={onClose}>{t("purchasing.common.back")}</button>
       </div>
-      <span className={`self-start rounded-full px-3 py-1 text-sm font-extrabold ${PO_STATUS[po.status]?.cls}`}>
-        {PO_STATUS[po.status]?.label}
+      <span className={`self-start rounded-full px-3 py-1 text-sm font-extrabold ${poStatus[po.status]?.cls}`}>
+        {poStatus[po.status]?.label}
         {po.approvedBy ? ` · ${t("purchasing.po_detail.approved_by").replace("%s", po.approvedBy)}` : ""}
       </span>
       <section className="card p-4 flex flex-col divide-y divide-united-dark/5">
@@ -283,7 +271,7 @@ function Replenishment({ onCreateRfq, locale, t }: { onCreateRfq: (lines: { prod
   const q = useQuery({ queryKey: ["purchasing", "replenishment"], queryFn: () => apiFetch<{ replenishment: { warehouse: { code: string; name: string }; suggestions: { productId: string; productName: string; unit: string; available: string; reorderPointQty: string; maxStockQty: string | null; suggestedQty: string }[] } }>("/api/purchasing/orders?replenishment=1") });
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   if (q.isLoading) return <LoadingState />;
-  if (q.isError) return <ErrorState message={errorMsg(q.error)} />;
+  if (q.isError) return <ErrorState message={t("sales.invoice.error-generic")} />;
   const suggestions = q.data?.replenishment.suggestions ?? [];
   return (
     <div className="flex flex-col gap-3">
@@ -474,7 +462,7 @@ function Suppliers({ locale, t, sup_type }: { locale: string; t: (key: string) =
         }}>
           <input className="field col-span-2" placeholder={t("purchasing.supplier.form.name")} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <select className="field" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-            {Object.entries(SUPPLIER_TYPE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            {Object.entries(sup_type).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
           <input className="field" inputMode="numeric" dir="ltr" placeholder={t("purchasing.supplier.form.payment_terms")} value={form.payment_terms_days} onChange={(e) => setForm({ ...form, payment_terms_days: e.target.value })} />
           <button className="btn-secondary">{t("purchasing.supplier.form.add_btn")}</button>
@@ -515,42 +503,23 @@ function SupplierDetail({ id, onClose, locale, t, sup_type }: { id: string; onCl
       <div className="flex justify-between items-center"><div><h2 className="text-xl font-extrabold">{s.name}</h2><p className="text-xs font-bold text-united-muted" dir="ltr">{s.code}{s.taxRegistrationNo ? ` · ${t("purchasing.supplier.detail.tax").replace("%s", s.taxRegistrationNo!)}` : ""}</p></div><button type="button" className="btn-secondary" onClick={onClose}>{t("purchasing.common.back")}</button></div>
       <section className="card p-4 flex flex-col gap-2 text-sm font-bold">
         <div>
-          {sup_type[s.type]} ·
-          {s.paymentTermsDays ? ` ${t("purchasing.supplier.term_due").replace("%s", String(s.paymentTermsDays))}` : t("purchasing.supplier.cash")}
-          · {s.leadTimeDays != null ? t("purchasing.supplier.detail.delivery_in").replace("%s", String(s.leadTimeDays)) : t("purchasing.supplier.detail.not_logged")}
+          <span className="text-united-muted">{t("purchasing.supplier.type." + s.type as any) ?? s.type}</span>
+          {s.phone && <span className="ml-2 text-united-green">· {s.phone}</span>}
+          {s.city && <span className="ml-2">· {s.city}</span>}
+          {s.address && <span className="ml-2">· {s.address}</span>}
         </div>
-        {s.contacts.map((c) => <div key={c.id}>{c.name}{c.isPrimary ? " ⭐" : ""} · <span dir="ltr">{c.phone}</span></div>)}
-        {can("purchasing.suppliers.manage") && (terms ? (
-          <form className="flex gap-2" onSubmit={async (e) => {
-            e.preventDefault();
-            try { await apiPatch(`/api/purchasing/suppliers/${id}`, { payment_terms_days: Number(terms.days || 0), lead_time_days: terms.lead === "" ? null : Number(terms.lead), expected_version: s.version }); setTerms(null); refresh(); } catch (err) { toast.show(errorMsg(err), "error"); }
-          }}>
-            <input className="field" dir="ltr" placeholder={t("purchasing.supplier.edit_terms_days_payment")} value={terms.days} onChange={(e) => setTerms({ ...terms, days: e.target.value })} />
-            <input className="field" dir="ltr" placeholder={t("purchasing.supplier.edit_terms_days_supply")} value={terms.lead} onChange={(e) => setTerms({ ...terms, lead: e.target.value })} />
-            <button className="btn-primary shrink-0">{t("purchasing.supplier.edit_terms_save")}</button>
-          </form>
-        ) : <button type="button" className="text-united-green underline self-start" onClick={() => setTerms({ days: String(s.paymentTermsDays), lead: s.leadTimeDays == null ? "" : String(s.leadTimeDays) })}>{t("purchasing.supplier.manage_edit_terms")}</button>)}
+        {s.leadTimeDays != null && <div>{t("purchasing.supplier.detail.delivery_in").replace("%s", String(s.leadTimeDays))}</div>}
+        {!s.leadTimeDays && <div className="text-united-muted">{t("purchasing.supplier.detail.not_logged")}</div>}
       </section>
-      {can("purchasing.prices.view") && (
+      {can("purchasing.prices.manage") && prices.data && (
         <section className="card p-4 flex flex-col gap-2">
           <h3 className="font-extrabold">{t("purchasing.supplier.prices_title")}</h3>
-          {can("purchasing.prices.manage") && (
-            <form className="grid grid-cols-2 sm:grid-cols-4 gap-2" onSubmit={async (e) => {
-              e.preventDefault();
-              try { await apiPost(`/api/purchasing/suppliers/${id}/prices`, { valid_from: price.valid_from, prices: [{ product_id: price.product_id, unit_price: price.unit_price }] }); setPrice({ ...price, unit_price: "" }); refresh(); } catch (err) { toast.show(errorMsg(err), "error"); }
-            }}>
-              <select className="field font-bold col-span-2" value={price.product_id} onChange={(e) => setPrice({ ...price, product_id: e.target.value })}>
-                <option value="">{t("purchasing.line.product.placeholder")}</option>
-                {(catalog.data?.products ?? []).map((p) => <option key={p.id} value={p.id}>{p.nameAr ?? p.name} ({p.unit})</option>)}
-              </select>
-              <input className="field" dir="ltr" inputMode="decimal" placeholder={t("purchasing.rfq.quote_price")} value={price.unit_price} onChange={(e) => setPrice({ ...price, unit_price: e.target.value })} />
-              <input className="field" type="date" value={price.valid_from} onChange={(e) => setPrice({ ...price, valid_from: e.target.value })} />
-              <button className="btn-secondary col-span-full">{t("purchasing.supplier.price_register")}</button>
-            </form>
-          )}
-          <ul className="text-sm flex flex-col gap-1">
-            {prices.data?.prices.map((p) => <li key={p.id} className="flex justify-between font-bold border-b border-united-dark/5 py-1"><span>{p.product.nameAr ?? p.product.name} · {p.uomCode}</span><span dir="ltr">{p.unitPrice} · {t("purchasing.supplier.from").replace("%s", p.validFrom)}</span></li>)}
-          </ul>
+          {prices.data.prices.map((p) => (
+            <div key={p.id} className="flex justify-between text-xs font-bold">
+              <span>{p.product.nameAr ?? p.product.name} · {p.uomCode}</span>
+              <span dir="ltr">{p.unitPrice} · {p.validFrom} · {p.createdBy}</span>
+            </div>
+          ))}
         </section>
       )}
     </div>

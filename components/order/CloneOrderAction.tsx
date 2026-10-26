@@ -8,10 +8,12 @@ import type { OrderDTO } from "@/lib/client-types";
 import { invalidateOrderData } from "@/lib/queryInvalidation";
 import { useToast } from "@/components/ui/Toast";
 import { todayLocalISO } from "@/lib/localDate";
+import { useLocale } from "@/lib/locale";
 
 /** Duplicates this order into a brand-new one (new id/number, clean state, no
  * inherited history) — e.g. "same customer wants the same list again tomorrow". */
 export function CloneOrderAction({ orderId }: { orderId: string }) {
+  const { t } = useLocale();
   const router = useRouter();
   const qc = useQueryClient();
   const toast = useToast();
@@ -24,7 +26,7 @@ export function CloneOrderAction({ orderId }: { orderId: string }) {
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} className="btn-secondary text-sm px-4 py-2">
-        📋 نسخ الأوردر
+        {t("orders.clone.btn")}
       </button>
     );
   }
@@ -32,7 +34,7 @@ export function CloneOrderAction({ orderId }: { orderId: string }) {
   return (
     <div className="flex flex-col gap-2 bg-united-dark/5 rounded-xl p-3">
       <p className="text-sm font-bold text-united-dark">
-        هيتعمل أوردر جديد بنفس العميل والأصناف، يبدأ من الأول (new) وبرقم جديد.
+        {t("orders.clone.info")}
       </p>
       <div className="flex flex-wrap gap-2">
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="field flex-1" />
@@ -52,10 +54,10 @@ export function CloneOrderAction({ orderId }: { orderId: string }) {
                 delivery_time: time || undefined,
               });
               await invalidateOrderData(qc);
-              toast.show(`اتعمل نسخة: ${order.orderNumber}`, "success");
+              toast.show(t("orders.clone.toast_success", { number: order.orderNumber }), "success");
               router.push(`/orders/${order.id}`);
             } catch (err) {
-              const msg = err instanceof ApiClientError ? err.message : "حصل خطأ، حاول تاني";
+              const msg = err instanceof ApiClientError ? err.message : t("orders.clone.error_generic");
               setError(msg);
               toast.show(msg, "error");
             } finally {
@@ -64,10 +66,10 @@ export function CloneOrderAction({ orderId }: { orderId: string }) {
           }}
           className="btn-primary flex-1"
         >
-          {busy ? "بينسخ..." : "تأكيد النسخ"}
+          {busy ? t("orders.clone.saving") : t("orders.clone.confirm_btn")}
         </button>
         <button type="button" onClick={() => setOpen(false)} className="btn-secondary">
-          إلغاء
+          {t("ui.cancel")}
         </button>
       </div>
     </div>

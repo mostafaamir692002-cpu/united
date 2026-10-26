@@ -9,6 +9,7 @@ import type { OrderDTO } from "@/lib/client-types";
 import { invalidateOrderData } from "@/lib/queryInvalidation";
 import { useToast } from "@/components/ui/Toast";
 import { todayLocalISO } from "@/lib/localDate";
+import { useLocale } from "@/lib/locale";
 
 type Row = { stock_product_id: string; quantity: string; unit: string };
 type CatalogProduct = {
@@ -23,6 +24,7 @@ export function CreateOrderForm({ onDone }: { onDone: () => void }) {
   const qc = useQueryClient();
   const router = useRouter();
   const toast = useToast();
+  const { t } = useLocale();
   // Manual orders use master-data IDs. Names are snapshots for this document, not
   // independent identities that can drift from the customer/product cards.
   const { can } = usePermissions();
@@ -58,7 +60,7 @@ export function CreateOrderForm({ onDone }: { onDone: () => void }) {
       .filter((r) => r.stock_product_id && Number(r.quantity) > 0)
       .map((r) => ({ stock_product_id: r.stock_product_id, quantity: Number(r.quantity), unit: r.unit }));
     if (!accountId || !date || items.length === 0 || items.some((i) => !i.unit)) {
-      setError("اختار حساب العميل والصنف والوحدة من البيانات المسجلة، واكتب الكميات والتاريخ");
+      setError(t("create.error-invalid"));
       return;
     }
     setBusy(true);
@@ -73,11 +75,11 @@ export function CreateOrderForm({ onDone }: { onDone: () => void }) {
         items,
       });
       await invalidateOrderData(qc);
-      toast.show(`اتعمل الأوردر ${order.orderNumber}`, "success");
+      toast.show(t("create.success-toast", { orderNumber: order.orderNumber }), "success");
       onDone();
       router.push(`/orders/${order.id}`);
     } catch (err) {
-      const msg = err instanceof ApiClientError ? err.message : "حصل خطأ";
+      const msg = err instanceof ApiClientError ? err.message : t("create.error-generic");
       setError(msg);
       toast.show(msg, "error");
     } finally {
@@ -88,9 +90,9 @@ export function CreateOrderForm({ onDone }: { onDone: () => void }) {
   return (
     <form onSubmit={submit} className="card p-5 flex flex-col gap-3">
       <div>
-        <h2 className="text-xl font-extrabold text-united-dark">أوردر يدوي</h2>
+        <h2 className="text-xl font-extrabold text-united-dark">{t("create.title")}</h2>
         <p className="text-sm text-united-muted">
-          الأوردرات الحقيقية بتيجي أوتوماتيك من n8n — الفورم ده للطوارئ/الاختبار بس
+          {t("create.desc")}
         </p>
       </div>
       {error && <p className="text-united-danger font-bold">{error}</p>}
@@ -103,23 +105,23 @@ export function CreateOrderForm({ onDone }: { onDone: () => void }) {
             setAccountId(e.target.value);
           }}
         >
-          <option value="">اختار حساب العميل من كارت العملاء</option>
+          <option value="">{t("create.customer-placeholder")}</option>
           {accounts.data?.customers.map((c) => (
-            <option key={c.id} value={c.id}>{c.code} · {c.nameAr ?? c.name}{c.creditHold ? " (موقوف آجل)" : ""}</option>
+            <option key={c.id} value={c.id}>{c.code} · {c.nameAr ?? c.name}{c.creditHold ? ` ${t("create.credit-hold")}` : ""}</option>
           ))}
         </select>
       )}
-      {accounts.isLoading && <p className="text-sm text-united-muted">دليل العملاء بيتحمّل…</p>}
-      {accounts.data && accounts.data.customers.length === 0 && <p className="text-sm text-united-warn">مفيش عملاء نشطين. أضف العميل من شاشة العملاء الأول.</p>}
-      {catalog.isLoading && <p className="text-sm text-united-muted">دليل الأصناف بيتحمّل…</p>}
-      {catalog.data && catalog.data.products.length === 0 && <p className="text-sm text-united-warn">مفيش أصناف نشطة. أضف الصنف من شاشة المخزون الأول.</p>}
-      {accountId && <p className="text-sm text-united-muted">اسم العميل ورقمه هيتسجلوا من كارت العميل المختار.</p>}
+      {accounts.isLoading && <p className="text-sm text-united-muted">{t("create.loading-customers")}</p>}
+      {accounts.data && accounts.data.customers.length === 0 && <p className="text-sm text-united-warn">{t("create.no-customers")}</p>}
+      {catalog.isLoading && <p className="text-sm text-united-muted">{t("create.loading-products")}</p>}
+      {catalog.data && catalog.data.products.length === 0 && <p className="text-sm text-united-warn">{t("create.no-products")}</p>}
+      {accountId && <p className="text-sm text-united-muted">{t("create.account-info")}</p>}
       <div className="flex gap-3">
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="field flex-1" />
         <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="field flex-1" />
       </div>
       <input
-        placeholder="ملاحظات (اختياري)"
+        placeholder={t("create.notes-placeholder")}
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         className="field"
@@ -136,13 +138,13 @@ export function CreateOrderForm({ onDone }: { onDone: () => void }) {
                 updateRow(i, { stock_product_id: e.target.value, unit: product?.unit ?? "" });
               }}
             >
-              <option value="">اختار الصنف من دليل الأصناف</option>
+              <option value="">{t("create.product-placeholder")}</option>
               {catalog.data?.products.map((p) => (
                 <option key={p.id} value={p.id}>{p.nameAr ?? p.name}</option>
               ))}
             </select>
             <input
-              placeholder="الكمية"
+              placeholder={t("create.qty-placeholder")}
               type="number"
               value={row.quantity}
               onChange={(e) => updateRow(i, { quantity: e.target.value })}
@@ -158,7 +160,7 @@ export function CreateOrderForm({ onDone }: { onDone: () => void }) {
                 const product = catalog.data?.products.find((p) => p.id === row.stock_product_id);
                 const units = product ? [product.unit, ...product.packagings.map((x) => x.uomCode)] : [];
                 return <>
-                  {!row.unit && <option value="">الوحدة</option>}
+                  {!row.unit && <option value="">{t("create.unit-placeholder")}</option>}
                   {[...new Set(units)].map((unit) => <option key={unit} value={unit}>{unit}</option>)}
                 </>;
               })()}
@@ -173,12 +175,12 @@ export function CreateOrderForm({ onDone }: { onDone: () => void }) {
           onClick={() => setRows((r) => [...r, { stock_product_id: "", quantity: "", unit: "" }])}
           className="btn-secondary self-start text-sm"
         >
-          + صنف
+          {t("create.add-item")}
         </button>
       </div>
 
       <button disabled={busy} className="btn-primary text-lg">
-        حفظ الأوردر
+        {t("create.save-btn")}
       </button>
     </form>
   );

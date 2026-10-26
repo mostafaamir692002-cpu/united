@@ -21,6 +21,16 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
   cancelled: "ملغي",
 };
 
+export const STATUS_LABEL_EN: Record<OrderStatus, string> = {
+  new: "New",
+  preparing: "Preparing",
+  ready_for_loading: "Ready for Loading",
+  loading: "Loading",
+  loaded: "Loaded",
+  dispatched: "Dispatched",
+  cancelled: "Cancelled",
+};
+
 const ACTIVE_STATUSES: OrderStatus[] = ["new", "preparing", "ready_for_loading", "loading"];
 
 /** Every status before the order is actually finished (dispatched/cancelled are terminal). */

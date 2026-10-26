@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ClassifiedOrderDTO, PriorityReason } from "@/lib/client-types";
+import { useLocale } from "@/lib/locale";
 
 const REASON_ICON: Record<PriorityReason, string> = {
   blocked_approval: "🔴",
@@ -35,11 +36,12 @@ function minutesLabel(min: number) {
  * read first. Only orders with a genuinely actionable reason appear here
  * (server-classified); nothing that's merely informational/historical. */
 export function NeedsAttentionQueue({ items }: { items: ClassifiedOrderDTO[] }) {
+  const { t } = useLocale();
   const [expanded, setExpanded] = useState(false);
   if (items.length === 0) {
     return (
       <div className="card p-4 border-united-green/30 bg-united-green/5 text-center">
-        <span className="font-extrabold text-united-dark">👍 مفيش حاجة محتاجة تدخلك دلوقتي</span>
+        <span className="font-extrabold text-united-dark">{t("attention.none")}</span>
       </div>
     );
   }
@@ -49,7 +51,7 @@ export function NeedsAttentionQueue({ items }: { items: ClassifiedOrderDTO[] }) 
   return (
     <div className="card p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-extrabold text-united-dark">🎯 محتاج تدخلك دلوقتي ({items.length})</h2>
+        <h2 className="font-extrabold text-united-dark">{t("attention.heading", { count: items.length })}</h2>
       </div>
       <div className="flex flex-col gap-2">
         {shown.map((o) => (
@@ -78,7 +80,7 @@ export function NeedsAttentionQueue({ items }: { items: ClassifiedOrderDTO[] }) 
           onClick={() => setExpanded((e) => !e)}
           className="text-sm font-bold text-united-muted underline mt-3"
         >
-          {expanded ? "اعرض أقل" : `اعرض كل الـ${items.length}`}
+          {expanded ? t("attention.show-less") : t("attention.show-all", { count: items.length })}
         </button>
       )}
     </div>

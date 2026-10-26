@@ -50,7 +50,7 @@ export function Nav() {
   const roleLabel = locale === "en" ? ROLE_LABEL_EN[user.role] : ROLE_LABEL[user.role];
 
   return (
-    <header className="sticky top-0 z-20 bg-white border-b-2 border-united-green/20 shadow-sm">
+    <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-united-border shadow-sm">
       <div className="flex items-center justify-between px-4 py-2 gap-3">
         <Link href={homePathFor(permissions, user.role)} className="flex items-center gap-2 shrink-0">
           <Image src="/logo-united.png" alt="UNITED" width={36} height={36} className="rounded" />
@@ -71,7 +71,7 @@ export function Nav() {
             title={t("ui.profile")}
           >
             <div className="font-bold">{user.name}</div>
-            <div className="text-united-green">{roleLabel}</div>
+            <div className="text-united-green text-xs font-bold">{t("ui.role")} {roleLabel}</div>
           </Link>
           <NotificationBell />
           <button
@@ -91,9 +91,7 @@ export function Nav() {
           >
             <div className="card p-5 w-full max-w-sm flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
               <h2 className="text-lg font-extrabold text-united-dark">{t("confirm.logout")}</h2>
-              <p className="text-sm font-bold text-united-muted">
-                {isRTL ? "هتخرج من التبويب ده بس — التبويبات التانية اللي مسجل دخول فيها هتفضل شغالة." : "You will only leave this tab — other tabs where you are signed in will keep working."}
-              </p>
+              <p className="text-sm font-bold text-united-muted">{t("confirm.logout-body-tab")}</p>
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"

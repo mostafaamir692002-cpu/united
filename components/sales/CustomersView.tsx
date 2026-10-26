@@ -53,8 +53,8 @@ export function CustomersView() {
     refetchInterval: 60_000,
   });
   return (
-    <div className="p-4 max-w-5xl mx-auto pb-10 flex flex-col gap-4">
-      <h1 className="text-2xl font-extrabold text-united-dark">{t("sales.title")}</h1>
+    <div className="page-container">
+      <h1 className="page-title">{t("sales.title")}</h1>
       <Tabs
         value={tab}
         onChange={(t) => { setTab(t as typeof tab); setOpenId(null); }}
@@ -165,7 +165,7 @@ function CustomerForm({ initial, onSubmit, submitLabel }: { initial: FormState; 
       ))}
       <Field label={t("sales.customer.type")}>
         <select className="field font-bold" value={f.type ?? "other"} onChange={(e) => setF({ ...f, type: e.target.value })}>
-          {Object.entries(CUSTOMER_TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          {Object.entries(customerTypeLabels(t)).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       </Field>
       <button className="btn-primary sm:col-span-2" disabled={busy}>{busy ? t("sales.form.saving") : submitLabel}</button>
@@ -173,9 +173,10 @@ function CustomerForm({ initial, onSubmit, submitLabel }: { initial: FormState; 
   );
 }
 
-const CUSTOMER_TYPE_LABEL: Record<string, string> = {
-  hotel: "فندق", restaurant: "مطعم", cafe: "كافيه", retail: "تجزئة", wholesale: "جملة", institution: "مؤسسة", other: "أخرى",
-};
+const CUSTOMER_TYPE_KEYS = ["hotel", "restaurant", "cafe", "retail", "wholesale", "institution", "other"] as const;
+function customerTypeLabels(t: (key: string) => string): Record<string, string> {
+  return Object.fromEntries(CUSTOMER_TYPE_KEYS.map((k) => [k, t(`sales.type.${k}`)]));
+}
 
 function NewCustomer({ onCreated }: { onCreated: (id: string) => void }) {
   const { t } = useLocale();
@@ -247,7 +248,7 @@ function CustomerPanel({ id, onClose }: { id: string; onClose: () => void }) {
           />
         ) : (
           <dl className="grid grid-cols-2 gap-2 text-sm">
-            {[[t("sales.customer.type"), CUSTOMER_TYPE_LABEL[c.type] || c.type], [t("sales.customer.legal-name"), c.legalName], [t("sales.customer.nameAr"), c.legalNameAr], [t("sales.customer.phone"), c.phone], [t("sales.customer.email"), c.email], [t("sales.customer.address"), [c.address, c.area, c.city].filter(Boolean).join("، ")], [t("sales.customer.delivery-notes"), c.deliveryNotes], [t("sales.customer.ext-ref"), c.externalRef]].map(([k, v]) => (
+            {[[t("sales.customer.type"), (customerTypeLabels(t))[c.type] || c.type], [t("sales.customer.legal-name"), c.legalName], [t("sales.customer.nameAr"), c.legalNameAr], [t("sales.customer.phone"), c.phone], [t("sales.customer.email"), c.email], [t("sales.customer.address"), [c.address, c.area, c.city].filter(Boolean).join("، ")], [t("sales.customer.delivery-notes"), c.deliveryNotes], [t("sales.customer.ext-ref"), c.externalRef]].map(([k, v]) => (
               <div key={String(k)}><dt className="text-xs font-extrabold text-united-muted">{k}</dt><dd className="font-bold">{v || "—"}</dd></div>
             ))}
           </dl>

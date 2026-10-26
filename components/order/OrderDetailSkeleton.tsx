@@ -1,10 +1,12 @@
+import { useLocale } from "@/lib/locale";
 import { SkeletonLine } from "@/components/Skeleton";
 
 /** Keeps the order page's shape while it loads, so the header, progress and item rows
  * appear in place rather than the whole screen being replaced by a spinner. */
 export function OrderDetailSkeleton() {
+  const { t } = useLocale();
   return (
-    <div className="p-4 max-w-2xl mx-auto pb-32" aria-busy="true" aria-label="بيفتح الأوردر">
+    <div className="p-4 max-w-2xl mx-auto pb-32" aria-busy="true" aria-label={t("orders.skeleton_loading")}>
       <SkeletonLine className="h-5 w-20 mb-3" />
       <div className="card p-5">
         <div className="flex items-start justify-between gap-2 mb-2">

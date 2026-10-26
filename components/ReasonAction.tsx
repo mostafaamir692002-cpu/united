@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "@/lib/locale";
 
 export function ReasonAction({
   label,
-  confirmLabel = "تأكيد",
+  confirmLabel,
   className,
   onConfirm,
 }: {
@@ -13,6 +14,7 @@ export function ReasonAction({
   className?: string;
   onConfirm: (reason: string) => Promise<void>;
 }) {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,7 +34,7 @@ export function ReasonAction({
     <div className="flex flex-col gap-2 bg-united-dark/5 rounded-xl p-3">
       <input
         autoFocus
-        placeholder="السبب..."
+        placeholder={t("ui.reason-placeholder")}
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         className="field"
@@ -53,10 +55,10 @@ export function ReasonAction({
           }}
           className="btn-primary flex-1"
         >
-          {confirmLabel}
+          {confirmLabel ?? t("ui.confirm")}
         </button>
         <button onClick={() => setOpen(false)} className="btn-secondary">
-          إلغاء
+          {t("ui.cancel")}
         </button>
       </div>
     </div>

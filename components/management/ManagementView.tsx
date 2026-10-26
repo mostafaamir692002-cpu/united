@@ -55,8 +55,8 @@ export function ManagementView({ kind }: { kind: "finance" | "operations" | "cas
 
   const q = useQuery({ queryKey: ["management", kind, from, to], queryFn: () => apiFetch<{ report: any }>(`/api/management/${apiKind}?from=${from}&to=${to}`) });
   return (
-    <div className="p-4 max-w-5xl mx-auto pb-10 flex flex-col gap-3">
-      <h1 className="text-2xl font-extrabold text-united-dark">
+    <div className="page-container">
+      <h1 className="page-title">
         {kind === "finance" ? t("management.title.finance") : kind === "cash-flow" ? t("management.title.cashflow") : t("management.title.operations")}
       </h1>
       <div className="flex gap-2"><input type="date" className="field" value={from} onChange={(e) => setFrom(e.target.value)} /><input type="date" className="field" value={to} onChange={(e) => setTo(e.target.value)} /></div>
